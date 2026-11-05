@@ -328,3 +328,59 @@ Real addresses come from real keys in Milestone 8.
 - Final state: 127 test sections, ALL CHECKS PASSED, ctest 100%,
   ASan/UBSan clean, cppcheck 0 findings. Toolchain: g++ 13.3,
   CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.
+
+## Milestone 14 (2026-11-06, overnight) — node wallet integration
+- Roadmap first: docs/ROADMAP_BITCOIN_LEVEL.md (M14–M19) was written
+  before implementation, then refined with a Bitcoin Core comparison
+  (web research + code inspection). Corrections applied: Core has NO
+  per-client RPC rate limiting (thread/work-queue bounds instead);
+  reorg-100 / crash-injection / soak are Oeeoo robustness targets,
+  not verified Core features; listtransactions/gettransaction need a
+  wallet-tx journal (M16, format decision pending); Stratum V2 is a
+  spec requirement deferred pending a user decision; no descriptor
+  wallets, no encryptwallet mapping (files are created encrypted).
+- Node wallet (src/wallet/nodewallet.*): --wallet flag + wallet
+  config key; relative paths resolve against the data directory.
+  Wallet loads LOCKED; walletpassphrase unlocks in memory for a
+  timeout (0 = until walletlock); walletlock re-locks. The passphrase
+  is NEVER a CLI flag or a config value and is never logged; it
+  travels only over localhost RPC and is wiped (OPENSSL_cleanse) on
+  lock. Wrong passphrase -> error -14 (Bitcoin's code, verified
+  unused before use).
+- Locked = watch-only: getbalance / listunspent / getwalletinfo work
+  while locked (balance visible after the first unlock; empty before
+  it, because the keys live inside the encrypted file);
+  getnewaddress / sendtoaddress refuse while locked (-13). The
+  wallet file format is unchanged (PBKDF2-HMAC-SHA512 200k +
+  AES-256-GCM); saves are atomic (tmp file + rename). Node wallet
+  uses BIP44 account 0 only and an empty BIP39 passphrase. Single
+  wallet per node.
+- createwallet RPC added (not in the original draft): without it the
+  feature would be unusable, since no wallet CLI exists. Returns the
+  24-word mnemonic ONCE over localhost RPC; the node never stores it.
+- LoadFile contract fixed: the header promised a missing file would
+  be remembered for later createwallet, but the implementation
+  returned an error. Now matches the header.
+- JSON parser bug found by the M14 E2E and FIXED (src/rpc/json.cpp):
+  whitespace after ':' in objects and after ',' in arrays was
+  rejected ("bad number"). Any real-world client (Python json.dumps,
+  curl examples) emits those spaces, so normally-formatted RPC
+  requests would have been rejected. M10's tests never caught it
+  (Json::Dump emits no spaces). Regression tests added in
+  tests/test_rpc.cpp.
+- Flaky tests found and fixed during M14 stability runs:
+  tests/test_wallet.cpp tamper test wrote a fixed 0xFF at offset 30
+  (a random nonce byte) — a no-op with p = 1/256; now XORs the byte.
+  tests/test_milestone14.cpp unlock-deadline check raced a second
+  boundary (PBKDF2 ~100 ms); now bounded by both clock readings.
+  (Also: stdbuf breaks the ASan binary at startup — its LD_PRELOAD
+  puts libstdbuf before libasan. Run ASan without stdbuf.)
+- Verdict: NOT READY (unchanged from M13 — genesis unapproved, no
+  independent audit). M14 closes the biggest functional gap; it does
+  not change launch readiness.
+- New docs: docs/ROADMAP_BITCOIN_LEVEL.md, docs/MILESTONE14.md;
+  docs/WALLET.md node-wallet section rewritten (the "no wallet
+  integration" note removed).
+- Final state: 133 test sections (127 + 6 new), ALL CHECKS PASSED,
+  ctest 100%, ASan/UBSan clean, cppcheck 0 findings. Toolchain:
+  g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.

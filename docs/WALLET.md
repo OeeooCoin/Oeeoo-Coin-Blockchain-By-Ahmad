@@ -1,14 +1,67 @@
 # Oeeoo Coin — Wallet
 
 Status: wallet **library complete and tested** (Milestone 8, re-verified in
-Milestone 13). The node binary (`oeeoo-node` v0.1.0) does **not** yet load
-a wallet file: there is no `--wallet` flag and no wallet command-line tool,
-so the RPC wallet methods (`getbalance`, `getnewaddress`, `sendtoaddress`,
-`listunspent`, `getwalletinfo`) return error `-13` ("no wallet attached")
-under `oeeoo-node` until a wallet-loading integration is built. This
-document describes the wallet as implemented, so that integration — and
-recovery — can be done correctly. Do not present the wallet as usable
-through the node until that integration exists.
+Milestone 13) and **integrated into the node** (Milestone 14):
+`oeeoo-node` loads a wallet file with `--wallet <path>`, and the RPC
+wallet methods work end to end (see "Node wallet" below). Without
+`--wallet`, the RPC wallet methods return error `-13` ("wallet not
+loaded"), as before.
+
+## Node wallet (Milestone 14)
+
+Start the node with a wallet file:
+
+```
+oeeoo-node --datadir <dir> --genesis-file <genesis.json> \
+    --wallet wallet.dat
+```
+
+A relative `--wallet` path resolves against the data directory. The
+banner prints a `wallet:` line: `<path> (locked)` when a file is
+loaded, `<path> (not created yet — use createwallet RPC)` when the
+path does not exist yet.
+
+**Locked by default (Bitcoin model).** The wallet loads LOCKED. The
+passphrase is NEVER a CLI flag and NEVER stored in a file the node
+reads silently (it would be visible in `ps` / on disk). It travels
+only over localhost RPC, lives in memory only while unlocked, and is
+wiped on lock. The node never logs it.
+
+| RPC method | What it does |
+|---|---|
+| `createwallet ["<passphrase>"]` | Creates a new wallet file at the `--wallet` path (fails if a wallet is already loaded, or if the file exists). Returns the 24-word mnemonic **once** plus a warning — write it down immediately; the node never stores it. The wallet is left LOCKED. Needs a `--wallet` path configured, otherwise error -13. |
+| `walletpassphrase ["<passphrase>", <timeout-seconds>]` | Unlocks the wallet in memory for `timeout` seconds (`0` = until `walletlock`). Wrong passphrase → error **-14** ("incorrect passphrase"). |
+| `walletlock []` | Locks immediately: persists the address indices, then wipes the mnemonic, keys, and passphrase from memory. |
+| `getbalance []` | Works while locked (watch-only view). Before the wallet has been unlocked at least once since the node started, the locked view is empty (the keys live inside the encrypted file) and the balance reads 0. |
+| `listunspent []` | Works while locked. Each entry has `spendable`: `false` while locked, `true` while unlocked. |
+| `getwalletinfo []` | Works while locked. `unlocked_until` is the unix time the unlock expires, `0` when locked. |
+| `getnewaddress []` | **Refused while locked** (error -13, "wallet is locked"): deriving an address advances the file's indices, which can only be persisted while the passphrase is in memory. |
+| `sendtoaddress ["<address>", "<amount>"]` | **Refused while locked** (error -13). While unlocked it builds, signs, and broadcasts; the change index is persisted *before* the transaction is broadcast, so a save failure cannot strand a broadcast transaction. |
+| `getblocktemplate` | Without a `coinbaseaddress` parameter it derives a miner address from the wallet — refused while locked. |
+
+Other node-wallet rules:
+
+- **One wallet per node.** Only a single `--wallet` file is supported
+  in M14; multi-wallet (`loadwallet` / `unloadwallet`) is future work.
+- **BIP44 account 0 only.** The file format stores no account index.
+- **The BIP39 passphrase of a node wallet is always empty.** The file
+  passphrase is the only secret the node handles — it is a *different*
+  secret from a BIP39 passphrase. A wallet created elsewhere with a
+  non-empty BIP39 passphrase cannot be used by the node (unlock would
+  derive the wrong keys).
+- **Saves are atomic.** The file is written to `<path>.tmp` and then
+  renamed over `<path>`, so a crash mid-save cannot leave a
+  half-written wallet file. The format itself is unchanged (see
+  below).
+- **Unlock timeout auto-relocks.** When the deadline passes, the next
+  use re-locks the wallet lazily; a locked wallet's balance stays
+  visible (the account xpub is cached after the first unlock).
+- **Shutdown** saves the indices and locks the wallet. A save failure
+  at shutdown prints a warning instead of being swallowed.
+- There is no `walletpassphrasechange` yet (passphrase rotation is a
+  follow-up, not in M14) and no `listtransactions` / `gettransaction`
+  yet (the wallet keeps no transaction history — that needs a tx
+  journal, planned for M16).
 
 ## What the wallet is
 
@@ -114,5 +167,8 @@ tag      16-byte GCM tag
 - SLIP-0044 coin-type registration (65535 is provisional).
 - Modern address formats (SegWit/Taproot): explicitly NOT approved
   for launch; P2PKH only. Any change needs an owner decision.
-- Node wallet integration (loading a wallet file in `oeeoo-node`,
-  wallet CLI): not built yet.
+- Wallet transaction history (`listtransactions` /
+  `gettransaction`): needs a wallet-tx journal and a format decision
+  (payload v2 vs sidecar) — planned for M16.
+- Passphrase rotation (`walletpassphrasechange`) and multi-wallet
+  support: follow-ups, not in M14.

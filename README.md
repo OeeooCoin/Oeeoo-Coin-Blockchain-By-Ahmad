@@ -4,14 +4,15 @@ Independent decentralized Proof-of-Work blockchain, Bitcoin-style.
 C++ implementation, MIT License. Planned repository:
 `OeeooCoin-blockchain-by-Ahmad` (not yet created — see Decision Log).
 
-**Status: Phase 1 + Milestones 1–13 DONE (all 13 milestones, 127 test
+**Status: Phase 1 + Milestones 1–14 DONE (all 14 milestones, 133 test
 sections, ASan/UBSan clean, cppcheck 0 findings, reproducible build
 verified from a clean Git checkout). IMPLEMENTED + COMPILED +
 UNIT-TESTED on this machine, with runnable binaries (oeeoo-node,
 oeeoo-genesis, oeeoo-cli). NOT production-ready. NO mainnet. NO
 genesis block yet. No independent security review or audit has been
-done. Verdict after the Milestone 13 audit: NOT READY. Launch
-checklist: docs/MAINNET_LAUNCH.md.**
+done. Verdict after the Milestone 13 audit: NOT READY (Milestone 14
+does not change it). Launch checklist: docs/MAINNET_LAUNCH.md.
+Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 
 ## Finalized policy (do not change without community process)
 
@@ -119,6 +120,21 @@ checklist: docs/MAINNET_LAUNCH.md.**
 - `src/network/dnsseed.*` — DNS seed resolution (IPv4, max 100 per seed); `Node::QueryDnsSeeds` fills the AddrMan; config `dnsseed` / CLI `--dns-seed` (repeatable, empty by default — no hostnames invented)
 - `scripts/reproducible-build.sh` — builds twice, verifies byte-identical binaries, creates the release tarball + checksums
 - `docs/RELEASE.md` — reproducible builds and DNS seeds; `tests/test_dnsseed.cpp`
+
+## What Milestone 13 adds (2026-11-06) — audit gap closures
+
+- Dynamic script-aware dust, opt-in RBF, mempool eviction + expiry enforcement, fee estimator + `estimatesmartfee`, low-S signatures, JSON depth cap, thread-per-connection RPC (max 32), deep-verify default ON, genesis checkpoint + identity check, peer cap 125, handshake hardening, compact PoW check + full-block fallback, AddrMan cap + IP validation, transport close fixes, vesting clamp, exact template coinbase reserve
+- `docs/MILESTONE13.md` (full audit report, verdict NOT READY), `docs/WALLET.md`, `docs/MINING.md`, `docs/THIRD_PARTY.md`, `docs/OPERATOR.md`
+- `tests/test_milestone13.cpp` (21 sections)
+
+## What Milestone 14 adds (2026-11-06, overnight) — node wallet integration
+
+- `src/wallet/nodewallet.*` (NEW) — the node wallet: loads LOCKED, `walletpassphrase` / `walletlock` (Bitcoin model), atomic saves (tmp + rename), auto-relock on timeout; the passphrase is never a CLI flag or a config value
+- `src/app/config.*` — `--wallet <path>` flag + `wallet` config key (relative paths resolve against the data directory)
+- `src/rpc/rpcserver.*` — `createwallet` / `walletpassphrase` / `walletlock` (32 methods total); `getbalance` / `listunspent` / `getwalletinfo` work while locked (watch-only), `getnewaddress` / `sendtoaddress` refuse while locked; wrong passphrase → error -14
+- `src/rpc/json.cpp` — whitespace fix: values after `:` / `,` now parse (real clients emit those spaces; the parser rejected them with "bad number")
+- `docs/ROADMAP_BITCOIN_LEVEL.md` (M14–M19), `docs/MILESTONE14.md`, `docs/WALLET.md` (node-wallet section rewritten)
+- `tests/test_milestone14.cpp` (6 sections)
 
 ## What Phase 1 contains
 
