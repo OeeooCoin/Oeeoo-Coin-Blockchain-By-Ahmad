@@ -82,18 +82,22 @@ Adversaries, in order of exposure:
   expiry, RBF (opt-in). No orphan transaction pool (a tx with
   missing parents is rejected, not stored).
 - `src/rpc/` — JSON parser (strict, fuzzed), HTTP handling
-  (4 MB body cap, 64 KB header cap), cookie auth (constant-time
-  compare), all 28 methods.
+  (4 MB body cap, 64 KB header cap, 64-level JSON nesting cap),
+  cookie auth (constant-time compare), thread-per-connection
+  (max 32), all 29 methods (incl. `estimatesmartfee`).
 - `src/rpc/stratum.*` — line-delimited JSON (64 KB line cap),
   job building, share validation, vardiff.
 - `src/db/` — SQLite store (schema v2, undo table), PRAGMA
   journal_mode=WAL + synchronous=FULL.
 - `src/wallet/` — BIP39/BIP32/BIP44, encrypted wallet file,
   coin selection (smallest UTXOs first), fee estimation.
+- `src/mempool/feeestimator.*` — median fee rate over the last
+  24 blocks (exact integer arithmetic, minimum 1 sat/vB).
 
 ## Known gaps (honest list)
 
 - **No independent audit yet.** This document is self-review.
+  (Milestone 13 was a self-audit, not an independent audit.)
 - **Reorg across pre-v2 blocks fails closed** (no undo
   records for blocks stored under schema v1). It refuses
   rather than corrupting state, but a node with an old store
@@ -103,15 +107,36 @@ Adversaries, in order of exposure:
   reorg has not been exercised.
 - **No orphan transaction pool**; a transaction whose parents
   are unknown is rejected outright.
-- **Peer cap (125) is not enforced** in the connection path.
-- **Dust check is not in consensus validation** (the wallet
-  enforces a provisional 546-sat policy only).
+- **Peer cap (125) is now enforced** (Milestone 13: `Node::SetMaxPeers`,
+  outbound + inbound). Previously unenforced — closed.
+- **Dust is now dynamic and script-aware in the mempool and wallet**
+  (Milestone 13: 182 sats P2PKH / 304 sats 2-of-3 multisig at
+  1 sat/vB; the hardcoded 546-sat wallet policy was removed). It is
+  still a mempool/wallet policy, not a consensus rule: a miner could
+  include a dusty output in a block directly, and the block would be
+  accepted. Dust in consensus validation remains an open decision.
 - **RPC/Stratum are local-only, no TLS.** Exposing them needs
   a reverse proxy with TLS and is out of scope for the node.
+  There is also no per-client RPC rate limit (only the
+  32-connection cap).
 - **No `getchaintips` / `getblockstats`**; pruned history
   cannot be re-validated (by design — bodies are required).
 - **Fuzzing covers parsers, not the live peer/RPC/Stratum
   state machines.**
+- **Deep verification is now the node default** (Milestone 13).
+  A light load trusts the stored UTXO table (it checks only for
+  duplicate coins and value ranges); a tampered UTXO is caught
+  only by the deep replay. `--no-deep-verify` opts out — an
+  operator who uses it accepts that trust model.
+- **No distinct testnet identity.** Test and mainnet nodes share
+  the magic, port, protocol version, and user agent. The only guard
+  is the testing-mode banner. (Milestone 13.)
+- **Inbound peer IPs are not recorded**, so bans on inbound peers
+  do not survive a reconnect. (Milestone 13.)
+- **RBF descendant handling is defense-in-depth** (unreachable in
+  practice: validation rejects unconfirmed inputs) and the
+  100-replacement cap is untested. (Milestone 13.)
+- **Disk-full behaviour is not verified.** (Milestone 13.)
 
 ## Auditor checklist
 
@@ -120,8 +145,10 @@ Adversaries, in order of exposure:
 2. Read `docs/MASTER_SPECIFICATION.md` (the spec, 26
    sections) and `docs/DECISION_LOG.md` (every engineering
    decision, marked as such when the spec left it open).
-3. Run the deep verification on a synced store
-   (`LoadFromStore(..., deepVerify=true)`).
+3. Run the deep verification on a synced store — the node does it
+   by default at startup now (`config.deepVerify = true`); to test
+   the light-load path explicitly, pass `--no-deep-verify` and
+   compare.
 4. Review the consensus-critical paths first: subsidy,
    coinbase validation, vesting, difficulty retarget,
    script interpreter, transaction validation, reorg/undo.

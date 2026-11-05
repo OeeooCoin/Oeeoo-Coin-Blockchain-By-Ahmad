@@ -237,3 +237,94 @@ Real addresses come from real keys in Milestone 8.
   instead. Caveat documented: a wildcard resolver can inject
   bogus addresses; the node only attempts connections, and peer
   scoring/bans drop bad ones.
+
+## Milestone 13 (2026-11-06) — audit gap closures
+- Audit method: three independent read-only inspections (consensus/
+  supply/vesting/difficulty/block size; mempool/wallet/DB/RPC-Stratum;
+  genesis/network/docs/license) + direct verification of the key
+  findings. Full report: docs/MILESTONE13.md. Verdict: NOT READY
+  (genesis unapproved, no independent audit).
+- Mempool expiry (14 days) is now enforced by a 60-second sweep in
+  Node::Poll; AssembleBlock never mines expired entries. (The
+  mechanism existed since M5 but had zero production callers.)
+- Opt-in RBF (BIP125-style): conflicting entries must signal
+  (nSequence < 0xfffffffe); replacement fee AND fee rate must beat
+  every replaced entry; no new unconfirmed inputs; at most 100
+  replaced. Descendants are unreachable in practice (validation
+  rejects unconfirmed inputs) — the code handles them as
+  defense-in-depth; the 100-cap is untested.
+- Dust is dynamic and script-aware (src/transactions/dust.*):
+  threshold = (output size + script-aware input size) x rate.
+  P2PKH 182 sats, bare 2-of-3 multisig 304 sats at 1 sat/vB. The
+  hardcoded 546-sat wallet limit was removed. Dust is a mempool/
+  wallet policy, NOT a consensus rule (a miner can still include a
+  dusty output directly).
+- Mempool eviction: lowest fee rate first; a worse-or-equal-rate tx
+  never evicts a better one; eviction runs before any removal so a
+  failed replacement leaves the pool untouched. Cap configurable
+  (--maxmempool / maxmempool, default exactly 300 MB).
+- Fee estimator: exact-integer median over the last 24 blocks,
+  minimum 1 sat/vB, exposed as estimatesmartfee (29 RPC methods).
+- Low-S signatures (BIP62): signing always produces low-S;
+  verification rejects high-S. Malleability vector removed.
+- JSON parser: 64-level nesting cap ("JSON nesting too deep").
+- RPC: thread-per-connection (max 32) replaces the sequential
+  accept loop (one slow client blocked all RPC). No per-client rate
+  limit yet.
+- Node deep-verifies by default (config.deepVerify = true);
+  --no-deep-verify opts out and accepts the light-load trust model
+  (stored UTXO table trusted; tampering caught only by deep replay).
+- Genesis identity: --genesis-checkpoint (64 hex) + CheckGenesisIdentity
+  refuse a file or checkpoint disagreeing with the stored chain.
+  ReadGenesisFile now verifies merkleroot, nonce, bits, and message
+  (M12's "fully verifies" was an overstatement — corrected).
+- Testing-mode banner: the node prints an explicit WARNING whenever
+  the PoW limit is not the mainnet 0x1d00ffff.
+- Peer cap 125 now enforced (Node::SetMaxPeers, outbound + inbound).
+- Handshake: peers below protocol version 70015 are refused;
+  a peer echoing the node's own nonce is treated as a
+  self-connection and dropped. The node nonce is now random
+  (it was time-derived: two nodes started in the same second shared
+  a nonce).
+- Compact relay: the header's proof of work is checked before any
+  transaction is fetched; pending entries expire after 120 s; a
+  failed blocktxn now falls back to a full-block getdata request.
+  (One real bug found by cppcheck in the new fallback code:
+  use-after-erase of the pending iterator — fixed by copying the
+  peer id first.)
+- AddrMan: capped at 1,000 entries, IPv4 validation on Add,
+  randomized GetAddr advertisement. SerializeAddr now writes the
+  true count (unparseable entries skipped); ParseAddr requires the
+  IPv4-mapped prefix.
+- Loopback transport use-after-free fixed: Close()/destructor now
+  purge every link pointing at the closing transport from all
+  registered transports and deregister it (a closed transport is
+  unreachable). TcpTransport::Connect no longer throws on a
+  non-numeric port.
+- Vesting: AnniversaryTime clamps at UINT32_MAX instead of wrapping
+  for extreme launch times. Miner template reserves the exact
+  coinbase size (the 250-byte estimate was ~15 bytes short for a
+  multisig miner address). Coinbase addition is an explicit __int128
+  checked addition with a MAX_MONEY rejection.
+- Reproducible build: runs from a clean Git checkout (repo
+  initialized in M13; commits 4757b2b, f866618); the archive is now
+  verified reproducible too; CMAKE_C_FLAGS and GZIP warnings fixed.
+  Verified byte-identical binaries + archive (see docs/RELEASE.md).
+  No release published or tagged.
+- Vesting schedule vs the brief's "UNDECIDED" flag: the spec section 6
+  schedule (10 x 100,000, launch + 9 anniversaries) is the owner's
+  finalized decision and was NOT changed; any change needs the
+  owner's explicit approval.
+- Modern address formats: REQUIRES DECISION (spec: P2PKH only at
+  launch; the brief's "Legacy + modern formats" row conflicts with
+  the spec's own warning not to assume SegWit was approved).
+- Node wallet integration is NOT built: oeeoo-node v0.1.0 has no
+  wallet; RPC wallet methods return -13. Documented in
+  docs/WALLET.md.
+- New docs: docs/WALLET.md, docs/MINING.md, docs/THIRD_PARTY.md,
+  docs/OPERATOR.md. README 75Pk claim and stale "NOT done yet"
+  section corrected; MAINNET_LAUNCH.md reproducible-builds line
+  corrected; SECURITY_REVIEW.md gaps updated for M13.
+- Final state: 127 test sections, ALL CHECKS PASSED, ctest 100%,
+  ASan/UBSan clean, cppcheck 0 findings. Toolchain: g++ 13.3,
+  CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.

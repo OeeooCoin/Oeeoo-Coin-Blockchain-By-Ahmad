@@ -87,6 +87,10 @@ by itself.
 ## What is NOT decided yet (spec's unresolved items)
 - DNS seed domains and operators (step 5).
 - Release-signing custody (step 6).
-- Reproducible builds (step 6).
 - SLIP-0044 coin type (code uses provisional 65535).
 - The exact launch time (step 4).
+
+Reproducible builds are DONE, not undecided: `scripts/reproducible-build.sh`
+builds twice from a clean Git checkout and verifies byte-identical
+binaries and archive (see `docs/RELEASE.md`; verified again in
+Milestone 13).

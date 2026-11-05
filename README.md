@@ -4,11 +4,14 @@ Independent decentralized Proof-of-Work blockchain, Bitcoin-style.
 C++ implementation, MIT License. Planned repository:
 `OeeooCoin-blockchain-by-Ahmad` (not yet created — see Decision Log).
 
-**Status: Phase 1 + Milestones 2–12 DONE (all 12 milestones). IMPLEMENTED +
-COMPILED + UNIT-TESTED on this machine, with runnable binaries
-(oeeoo-node, oeeoo-genesis, oeeoo-cli). NOT production-ready.
-NO mainnet. NO genesis block yet. No independent security review
-or audit has been done. Launch checklist: docs/MAINNET_LAUNCH.md.**
+**Status: Phase 1 + Milestones 1–13 DONE (all 13 milestones, 127 test
+sections, ASan/UBSan clean, cppcheck 0 findings, reproducible build
+verified from a clean Git checkout). IMPLEMENTED + COMPILED +
+UNIT-TESTED on this machine, with runnable binaries (oeeoo-node,
+oeeoo-genesis, oeeoo-cli). NOT production-ready. NO mainnet. NO
+genesis block yet. No independent security review or audit has been
+done. Verdict after the Milestone 13 audit: NOT READY. Launch
+checklist: docs/MAINNET_LAUNCH.md.**
 
 ## Finalized policy (do not change without community process)
 
@@ -146,13 +149,18 @@ for Termux / Android notes.
 
 - Network magic candidate: SHA-256("Oeeoo Coin Mainnet Network Magic")
   = `e2d804d6…`, first 4 bytes `e2 d8 04 d6` (see `src/consensus/consensus.h`)
-- P2PKH version byte `0x0f` verified by brute-force search: it is the
-  only version byte producing a `75` prefix, addresses are 34 chars,
-  and `75Pk…` is achievable (format example in the Decision Log —
-  that example is a random payload, not a real funded address).
+- P2PKH version byte `0x0f`: addresses are 34 chars and start with
+  `7` (the second character varies with the key hash — a universal
+  `75Pk…` prefix is mathematically impossible with one version
+  byte, so the `75Pk` idea was dropped by owner decision in
+  Milestone 8; the brute-forced `75Pk…` example in the Decision Log
+  is a random payload, not a real funded address).
 
 ## What is NOT done yet
 
-Genesis block (hash/nonce/timestamp not finalized), transactions/UTXO,
-script, mempool, P2P, database, wallet, mining, RPC, founder vesting,
-Stratum, governance signalling. Those are Milestones 2–12.
+Genesis block (hash/nonce/timestamp not finalized), independent
+security audit, GitHub repository, DNS seed domains, release signing,
+and the mainnet launch itself. Milestones 1–13 (transactions/UTXO,
+script, mempool, P2P, database, wallet, mining, RPC, founder
+vesting, Stratum, audit prep, mainnet prep, M13 gap closures) are
+DONE — see `docs/MILESTONE13.md`.
