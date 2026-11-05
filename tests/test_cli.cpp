@@ -68,6 +68,7 @@ void TestCli() {
     CHECK(CliCall(dataDir, port, "getblockcount", Json::Array(), response,
                   error));
     CHECK(response.Get("result") != nullptr);
+    if (response.Get("result") == nullptr) return;
     CHECK(response.Get("result")->AsInt() == 0);
     CHECK(CliCall(dataDir, port, "getbestblockhash", Json::Array(),
                   response, error));
@@ -80,6 +81,7 @@ void TestCli() {
                   error));
     const Json* err = response.Get("error");
     CHECK(err != nullptr && !err->IsNull());
+    if (err == nullptr) return;
     CHECK(err->Get("code")->AsInt() == -32601);
     // A missing cookie directory fails cleanly.
     Json ignored;

@@ -3,7 +3,9 @@
 // Usage:
 //   oeeoo-genesis --pubkey1 <hex> --pubkey2 <hex> --pubkey3 <hex>
 //                 [--time <unix>] [--bits <hex>] [--threads <n>]
-//                 [--message <text>] --out <path>
+//                 --out <path>
+// (There is no --message flag: the genesis message is fixed by the
+// spec, kGenesisMessage in src/blockchain/genesis.h.)
 // The three compressed secp256k1 public keys become the founder
 // 2-of-3 multisig vault. The genesis block pays exactly 1,000,000
 // OEEOO to that vault. Keep the keys offline; this tool never sees

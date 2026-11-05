@@ -3,12 +3,15 @@
 #include "network/node.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstring>
 #include <ctime>
+#include <random>
 
 #include "blockchain/verify.h"
 #include "consensus/consensus.h"
+#include "consensus/difficulty.h"
 #include "network/dnsseed.h"
 #include "mining/miner.h"
 #include "serialize/endian.h"
@@ -18,12 +21,27 @@ namespace oeeoo {
 
 namespace {
 constexpr uint32_t kPingIntervalSeconds = 60;
+// A compact block that never completes (peer never answers
+// blocktxn, or the answer still does not reconstruct) is dropped
+// after this long, so a peer cannot pin memory here.
+constexpr uint32_t kPendingCompactTimeoutSeconds = 120;
 constexpr std::size_t kMaxHeadersPerMessage = 2000;
 const char* kUserAgent = "/OeeooCoin:0.1.0/";
 }  // namespace
 
 Node::Node(uint32_t powLimitBits) : chain_(powLimitBits) {
-  nodeNonce_ = static_cast<uint64_t>(std::time(nullptr)) * 1000003ULL + 1;
+  // A random 64-bit nonce identifies this node in the handshake.
+  // It must NOT be time-derived: two nodes started in the same
+  // second would otherwise share a nonce and mistake each other
+  // for a self-connection.
+  static std::atomic<uint64_t> nonceSalt{0};
+  const uint64_t randomPart =
+      (static_cast<uint64_t>(std::random_device{}()) << 32) |
+      static_cast<uint64_t>(std::random_device{}());
+  nodeNonce_ = randomPart ^
+               (nonceSalt.fetch_add(1) * 0x9e3779b97f4a7c15ULL) ^
+               static_cast<uint64_t>(std::time(nullptr));
+  if (nodeNonce_ == 0) nodeNonce_ = 1;
 }
 
 uint32_t Node::Now() const {
@@ -109,6 +127,16 @@ void Node::Poll(int timeoutMs) {
   if (now - lastExpirySweep_ >= 60) {
     lastExpirySweep_ = now;
     mempool_.RemoveExpired(now);
+    // Pending compact blocks that never completed expire, so a
+    // peer that sends a header and never answers blocktxn cannot
+    // pin memory here.
+    for (auto it = pendingCompact_.begin(); it != pendingCompact_.end();) {
+      if (now - it->second.receivedAt >= kPendingCompactTimeoutSeconds) {
+        it = pendingCompact_.erase(it);
+      } else {
+        ++it;
+      }
+    }
   }
 }
 
@@ -218,6 +246,19 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
       return;
     }
     if (peer.versionReceived) return;  // duplicate: ignore
+    // Peers speaking an older protocol cannot be trusted to
+    // follow this node's rules: refuse them.
+    if (v.version < kProtocolVersion) {
+      Misbehave(peerId, 20);
+      DisconnectPeer(peerId);
+      return;
+    }
+    // A peer echoing our own handshake nonce is us: a
+    // self-connection. Drop it without punishment.
+    if (v.nonce == nodeNonce_) {
+      DisconnectPeer(peerId);
+      return;
+    }
     peer.versionReceived = true;
     peer.version = v.version;
     peer.startHeight = v.startHeight;
@@ -440,10 +481,17 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
       Misbehave(peerId, 20);
       return;
     }
+    // Do not fetch transactions for a header that fails proof of
+    // work: a peer could otherwise make this node do useless work
+    // for a fake header.
+    if (!CheckProofOfWork(cb.header.GetHash(), cb.header.nBits)) {
+      Misbehave(peerId, 20);
+      return;
+    }
     Block block;
     std::vector<uint32_t> missing;
     if (!ReconstructBlock(cb, mempool_, block, missing)) {
-      pendingCompact_[cb.header.GetHash()] = {cb, peerId};
+      pendingCompact_[cb.header.GetHash()] = {cb, peerId, Now()};
       SendMessage(peerId,
                   {"getblocktxn",
                    SerializeGetBlockTxn(cb.header.GetHash(), missing)});
@@ -481,6 +529,9 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
     auto pit = pendingCompact_.find(blockHash);
     if (pit == pendingCompact_.end()) return;
     CompactBlock cb = pit->second.cb;
+    // Save the peer id before erasing: the iterator is invalid
+    // after the erase, and the fallback below needs the peer.
+    const std::string compactPeer = pit->second.peerId;
     pendingCompact_.erase(pit);
     // Fill the prefilled list with the received transactions.
     for (const auto& entry : txs) {
@@ -493,7 +544,7 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
       // completed even after blocktxn (the peer did not supply the
       // missing transactions), so request the full block.
       requestedBlocks_.insert(blockHash);
-      SendMessage(pit->second.peerId,
+      SendMessage(compactPeer,
                   {"getdata",
                    SerializeInventory({{kInvBlock, blockHash}})});
       return;

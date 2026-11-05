@@ -32,14 +32,7 @@ LoopbackTransport::LoopbackTransport(const std::string& address)
   g_loopbackRegistry.push_back({address_, this});
 }
 
-LoopbackTransport::~LoopbackTransport() {
-  CloseLoopback();
-  std::lock_guard<std::mutex> lock(g_loopbackMutex);
-  g_loopbackRegistry.erase(
-      std::remove_if(g_loopbackRegistry.begin(), g_loopbackRegistry.end(),
-                     [&](const auto& e) { return e.second == this; }),
-      g_loopbackRegistry.end());
-}
+LoopbackTransport::~LoopbackTransport() { CloseLoopback(); }
 
 bool LoopbackTransport::Connect(const std::string& address,
                                 std::string& peerId) {
@@ -106,8 +99,29 @@ void LoopbackTransport::Disconnect(const std::string& peerId) {
 void LoopbackTransport::Close() { CloseLoopback(); }
 
 void LoopbackTransport::CloseLoopback() {
+  std::lock_guard<std::mutex> lock(g_loopbackMutex);
+  // A closed transport is unreachable: drop every link pointing at
+  // it from all registered transports first. Without this, a peer
+  // that still holds a link would Send() into a destroyed object
+  // (use-after-free). Then drop this transport's own links, its
+  // inbound queue, and its registry entry, so no new connection
+  // can be made to it either. Idempotent: a second call finds
+  // nothing left to remove.
+  for (const auto& e : g_loopbackRegistry) {
+    if (e.second == this) continue;
+    auto& other = e.second->links_;
+    other.erase(std::remove_if(other.begin(), other.end(),
+                               [&](const auto& l) {
+                                 return l.second.remote == this;
+                               }),
+                other.end());
+  }
   inbound_.clear();
   links_.clear();
+  g_loopbackRegistry.erase(
+      std::remove_if(g_loopbackRegistry.begin(), g_loopbackRegistry.end(),
+                     [&](const auto& e) { return e.second == this; }),
+      g_loopbackRegistry.end());
 }
 
 // ---- TCP transport ----
@@ -129,7 +143,14 @@ bool TcpTransport::Connect(const std::string& address, std::string& peerId) {
   const std::size_t colon = address.rfind(':');
   if (colon == std::string::npos) return false;
   const std::string ip = address.substr(0, colon);
-  const int port = std::stoi(address.substr(colon + 1));
+  // std::stoi throws on a non-numeric port; a malformed address
+  // must fail cleanly, never crash the node.
+  int port = 0;
+  try {
+    port = std::stoi(address.substr(colon + 1));
+  } catch (...) {
+    return false;
+  }
   if (port <= 0 || port > 65535) return false;
   const int fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0) return false;

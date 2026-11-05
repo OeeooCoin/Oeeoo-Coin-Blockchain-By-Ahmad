@@ -405,6 +405,7 @@ void TestRpc() {
     // The cookie file on disk matches.
     FILE* f = std::fopen((dataDir + "/.cookie").c_str(), "r");
     CHECK(f != nullptr);
+    if (f == nullptr) return;
     char fileCookie[256] = {0};
     CHECK(std::fgets(fileCookie, sizeof(fileCookie), f) != nullptr);
     std::fclose(f);

@@ -117,6 +117,9 @@ class Node {
   // Test / operator accessors.
   int TipHeight() const { return chain_.GetTipHeight(); }
   Hash256 TipHash() const { return chain_.GetTipHash(); }
+  // This node's handshake nonce. Exposed so tests can craft a
+  // self-connection attempt (a peer echoing our own nonce).
+  uint64_t NodeNonce() const { return nodeNonce_; }
   std::size_t PeerCount() const { return peers_.size(); }
   // Full block by hash (from local storage / received blocks).
   bool GetBlock(const Hash256& hash, Block& block) const;
@@ -189,6 +192,7 @@ class Node {
   struct PendingCompact {
     CompactBlock cb;
     std::string peerId;
+    uint32_t receivedAt = 0;  // Node::Now() seconds; expires in Poll()
   };
   std::unordered_map<Hash256, PendingCompact, Hash256Hash> pendingCompact_;
   std::shared_ptr<ITransport> transport_;

@@ -19,8 +19,12 @@ namespace oeeoo {
 
 class AddressManager {
  public:
+  // Hard cap on stored addresses: a peer can send unlimited `addr`
+  // messages, so without a cap the table would grow without bound.
+  static constexpr std::size_t kMaxAddresses = 1000;
   // Add an address (from an `addr` message or manual config).
-  // Returns false if the address is already known or invalid.
+  // Returns false if the address is already known, invalid, or the
+  // table is full.
   bool Add(const AddrEntry& entry);
   // Remove an address.
   bool Remove(const std::string& ip, uint16_t port);

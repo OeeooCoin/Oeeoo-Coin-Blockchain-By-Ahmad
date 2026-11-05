@@ -248,6 +248,7 @@ void TestStratum() {
     CHECK(client.WaitResponse(1, subResponse));
     const Json* subResult = subResponse.Get("result");
     CHECK(subResult != nullptr && subResult->IsArray());
+    if (subResult == nullptr) return;
     CHECK(subResult->AsArray().size() == 3);
     const std::string extranonce1 = subResult->AsArray()[1].AsString();
     CHECK(extranonce1.size() == 8);
@@ -257,6 +258,7 @@ void TestStratum() {
     CHECK(client.LastNotify(notify));
     const Json* notifyParams = notify.Get("params");
     CHECK(notifyParams != nullptr && notifyParams->IsArray());
+    if (notifyParams == nullptr) return;
     const auto& np = notifyParams->AsArray();
     CHECK(np.size() == 9);
     const std::string jobId = np[0].AsString();
@@ -377,6 +379,7 @@ void TestStratum() {
     // Unknown job.
     Json r = submitRaw(4, "deadbeef", "00000000", "00000000", "00000000");
     CHECK(r.Get("error") != nullptr && !r.Get("error")->IsNull());
+    if (r.Get("error") == nullptr) return;
     CHECK(r.Get("error")->Get("message")->AsString() == "unknown job");
     // Bad extranonce2 length.
     r = submitRaw(5, jobId2, "00", "00000000", "00000000");
@@ -384,6 +387,7 @@ void TestStratum() {
     // ntime before the job time.
     r = submitRaw(6, jobId2, "00000000", "00000001", "00000000");
     CHECK(r.Get("error") != nullptr && !r.Get("error")->IsNull());
+    if (r.Get("error") == nullptr) return;
     CHECK(r.Get("error")->Get("message")->AsString().find("ntime") !=
           std::string::npos);
     CHECK(server.RejectedShares() == 3);
@@ -442,6 +446,7 @@ void TestStratum() {
     CHECK(client.WaitResponse(2, submitResponse));
     CHECK(submitResponse.Get("error") != nullptr &&
           !submitResponse.Get("error")->IsNull());
+    if (submitResponse.Get("error") == nullptr) return;
     CHECK(submitResponse.Get("error")->Get("message")->AsString() ==
           "low difficulty share");
     CHECK(server.RejectedShares() == 1);

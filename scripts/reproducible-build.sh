@@ -62,13 +62,15 @@ else
 fi
 ( cd "release-$VERSION" && sha256sum oeeoo-node oeeoo-genesis oeeoo-cli > checksums.txt )
 # Reproducible archive: sorted entries, fixed mtime/owner/group,
-# and no timestamp in the gzip header (GZIP=-n). Build it twice
-# and compare, so the archive itself is verified reproducible.
-export GZIP=-n
+# and no timestamp in the gzip header (gzip -n via -I, since the
+# GZIP environment variable is deprecated). Build it twice and
+# compare, so the archive itself is verified reproducible.
 tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 \
-  --numeric-owner -czf "oeeoo-coin-$VERSION.tar.gz" "release-$VERSION"
+  --numeric-owner -I 'gzip -n' -cf "oeeoo-coin-$VERSION.tar.gz" \
+  "release-$VERSION"
 tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 \
-  --numeric-owner -czf "oeeoo-coin-$VERSION-2.tar.gz" "release-$VERSION"
+  --numeric-owner -I 'gzip -n' -cf "oeeoo-coin-$VERSION-2.tar.gz" \
+  "release-$VERSION"
 TAR_A="$(sha256sum "oeeoo-coin-$VERSION.tar.gz" | cut -d' ' -f1)"
 TAR_B="$(sha256sum "oeeoo-coin-$VERSION-2.tar.gz" | cut -d' ' -f1)"
 rm -f "oeeoo-coin-$VERSION-2.tar.gz"

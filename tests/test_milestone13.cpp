@@ -19,6 +19,7 @@
 #include "app/genesis.h"
 #include "blockchain/chain.h"
 #include "consensus/consensus.h"
+#include "consensus/difficulty.h"
 #include "consensus/subsidy.h"
 #include "consensus/vesting.h"
 #include "crypto/ecdsa.h"
@@ -26,7 +27,10 @@
 #include "mempool/feeestimator.h"
 #include "mempool/mempool.h"
 #include "mining/miner.h"
+#include "network/addrman.h"
+#include "network/compact.h"
 #include "network/node.h"
+#include "network/protocol.h"
 #include "network/transport.h"
 #include "rpc/json.h"
 #include "script/script.h"
@@ -711,6 +715,233 @@ void TestMilestone13() {
     CHECK(LegacySighash(tx3, 0, Spk(), kSigHashAll, h3));
     CHECK(h3 != h);
     CHECK(!VerifySignature(g_key.pubkey, sig, h3));
+  }
+
+  test::BeginSection("m13: handshake rejects old versions and self-connections");
+  {
+    // A bare transport plays the attacker against a real node, so
+    // the exact version bytes can be crafted.
+    auto victim = std::make_unique<Node>(kTestBits);
+    victim->SetTime(kNow);
+    victim->SetTransport(
+        std::make_shared<LoopbackTransport>("loopback:hs-victim"));
+    LoopbackTransport attacker("loopback:hs-attacker");
+    std::string attackerPeerId;
+    VersionPayload v;
+    v.userAgent = "/OeeooCoin:0.1.0/";
+    // 1. An old protocol version is refused (peer disconnected).
+    CHECK(attacker.Connect("loopback:hs-victim", attackerPeerId));
+    v.version = kProtocolVersion - 1;
+    v.nonce = 12345;
+    CHECK(attacker.Send(attackerPeerId, SerializeMessage(
+                                             {"version", SerializeVersion(v)})));
+    victim->Poll(0);
+    CHECK(victim->PeerCount() == 0);
+    // 2. Our own nonce means a self-connection: refused.
+    CHECK(attacker.Connect("loopback:hs-victim", attackerPeerId));
+    v.version = kProtocolVersion;
+    v.nonce = victim->NodeNonce();
+    CHECK(attacker.Send(attackerPeerId, SerializeMessage(
+                                             {"version", SerializeVersion(v)})));
+    victim->Poll(0);
+    CHECK(victim->PeerCount() == 0);
+    // 3. A current version with a foreign nonce handshakes fine.
+    CHECK(attacker.Connect("loopback:hs-victim", attackerPeerId));
+    v.nonce = 987654321ULL;
+    CHECK(attacker.Send(attackerPeerId, SerializeMessage(
+                                             {"version", SerializeVersion(v)})));
+    victim->Poll(0);
+    CHECK(victim->PeerCount() == 1);
+    CHECK(victim->HandshookPeerCount() == 0);  // verack not yet sent
+    TransportMessage m;
+    CHECK(attacker.Poll(m, 0));  // victim's version
+    CHECK(attacker.Poll(m, 0));  // victim's verack
+    CHECK(attacker.Send(attackerPeerId,
+                        SerializeMessage({"verack", {}})));
+    victim->Poll(0);
+    CHECK(victim->HandshookPeerCount() == 1);
+  }
+
+  test::BeginSection(
+      "m13: compact header without PoW is ignored, pending entries expire");
+  {
+    auto victim = std::make_unique<Node>(kTestBits);
+    victim->SetTime(kNow);
+    victim->SetTransport(
+        std::make_shared<LoopbackTransport>("loopback:cb-victim"));
+    LoopbackTransport attacker("loopback:cb-attacker");
+    std::string attackerPeerId;
+    CHECK(attacker.Connect("loopback:cb-victim", attackerPeerId));
+    // Handshake first.
+    VersionPayload v;
+    v.version = kProtocolVersion;
+    v.nonce = 424242ULL;
+    CHECK(attacker.Send(attackerPeerId, SerializeMessage(
+                                             {"version", SerializeVersion(v)})));
+    victim->Poll(0);
+    TransportMessage m;
+    CHECK(attacker.Poll(m, 0));  // victim's version
+    CHECK(attacker.Poll(m, 0));  // victim's verack
+    CHECK(attacker.Send(attackerPeerId,
+                        SerializeMessage({"verack", {}})));
+    victim->Poll(0);
+    CHECK(victim->HandshookPeerCount() == 1);
+    // Drain everything the victim sent and report whether any of
+    // it was a message with the given command. (The victim also
+    // sends periodic pings, so the queue is never assumed empty.)
+    auto gotCommand = [&](const std::string& command) {
+      TransportMessage m;
+      bool found = false;
+      while (attacker.Poll(m, 0)) {
+        Message msg;
+        std::size_t consumed = 0;
+        if (ParseMessage(m.bytes, 0, msg, consumed) &&
+            msg.command == command) {
+          found = true;
+        }
+      }
+      return found;
+    };
+    // 1. A compact block whose header fails proof of work gets no
+    // getblocktxn: the peer cannot make this node fetch
+    // transactions for a fake header.
+    Block fake;
+    fake.header.nVersion = 1;
+    fake.header.nTime = kNow;
+    fake.header.nBits = kTestBits;
+    fake.header.nNonce = 0;
+    fake.vtx = {CreateCoinbase(1, Spk(), 50 * COIN)};
+    fake.header.hashMerkleRoot = fake.ComputeMerkleRoot();
+    // At test difficulty about half of all hashes pass, so hunt
+    // for a nonce that really fails (a couple of tries at most).
+    while (CheckProofOfWork(fake.GetHash(), fake.header.nBits)) {
+      ++fake.header.nNonce;
+    }
+    CompactBlock cb = MakeCompactBlock(fake, 0);
+    CHECK(attacker.Send(attackerPeerId,
+                        SerializeMessage(
+                            {"cmpctblock", SerializeCompactBlock(cb)})));
+    victim->Poll(0);
+    CHECK(!gotCommand("getblocktxn"));
+    // 2. A real (mined) compact block whose non-coinbase
+    // transaction the victim does not have triggers getblocktxn,
+    // then the pending entry expires after 120s without an answer.
+    // (A block with only a coinbase would reconstruct from the
+    // prefilled transaction alone, so the block needs a second tx.)
+    Block real = MineGenesis();  // mined at test bits; valid PoW
+    Transaction spend = Spend(real.GetHash(), 49 * COIN);
+    Block block1;
+    block1.header.nVersion = 1;
+    block1.header.hashPrevBlock = real.GetHash();
+    block1.header.nTime = kTime + 600;
+    block1.header.nBits = kTestBits;
+    block1.vtx = {CreateCoinbase(1, Spk(), 50 * COIN), spend};
+    block1.header.hashMerkleRoot = block1.ComputeMerkleRoot();
+    CHECK(MineBlock(block1, 1, "THINK ABOUT GOD?"));
+    CompactBlock cb2 = MakeCompactBlock(block1, 0);
+    CHECK(attacker.Send(attackerPeerId,
+                        SerializeMessage(
+                            {"cmpctblock", SerializeCompactBlock(cb2)})));
+    victim->Poll(0);
+    CHECK(gotCommand("getblocktxn"));  // getblocktxn arrived
+    // No answer: advance the clock past the 120s timeout and poll.
+    victim->SetTime(kNow + 121);
+    victim->Poll(0);
+    // A late blocktxn for that hash is now ignored: no getdata
+    // fallback is sent (the pending entry is gone).
+    CHECK(attacker.Send(attackerPeerId,
+                        SerializeMessage({"blocktxn",
+                                          SerializeBlockTxn(block1.GetHash(),
+                                                            {})})));
+    victim->Poll(0);
+    CHECK(!gotCommand("getdata"));
+  }
+
+  test::BeginSection("m13: addrman cap, IP validation, addr serialization");
+  {
+    AddressManager am;
+    CHECK(!am.Add({1700000000, 1, "not-an-ip", 64775}));
+    CHECK(!am.Add({1700000000, 1, "example.com", 64775}));
+    CHECK(!am.Add({1700000000, 1, "1.2.3", 64775}));
+    CHECK(!am.Add({1700000000, 1, "1.2.3.256", 64775}));
+    CHECK(am.Add({1700000000, 1, "1.2.3.4", 64775}));
+    // Fill to the cap: further adds are refused.
+    for (int i = 0; i < 2000; ++i) {
+      std::string ip = "10.0." + std::to_string(i / 256) + "." +
+                       std::to_string(i % 256);
+      am.Add({1700000000, 1, ip, 64775});
+    }
+    CHECK(am.Size() == AddressManager::kMaxAddresses);
+    CHECK(!am.Add({1700000000, 1, "9.9.9.9", 64775}));
+    // SerializeAddr counts only the entries actually written: an
+    // unparseable entry must not inflate the count.
+    std::vector<AddrEntry> entries = {{1700000000, 1, "1.2.3.4", 64775},
+                                      {1700000000, 1, "bogus", 64775},
+                                      {1700000001, 1, "5.6.7.8", 64775}};
+    std::vector<AddrEntry> parsed;
+    CHECK(ParseAddr(SerializeAddr(entries), parsed));
+    CHECK(parsed.size() == 2);
+    CHECK(parsed[0].ip == "1.2.3.4" && parsed[1].ip == "5.6.7.8");
+    // ParseAddr rejects a non-IPv4-mapped address field: corrupt
+    // the first entry's address prefix (varint count is 1 byte,
+    // then time(4) + services(8) precede the 16 address bytes).
+    std::vector<unsigned char> bad = SerializeAddr(entries);
+    bad[1 + 4 + 8 + 10] = 0x00;
+    CHECK(!ParseAddr(bad, parsed));
+  }
+
+  test::BeginSection("m13: loopback close purges peer links");
+  {
+    auto t1 = std::make_shared<LoopbackTransport>("loopback:purge1");
+    auto t2 = std::make_shared<LoopbackTransport>("loopback:purge2");
+    std::string peerId;
+    CHECK(t1->Connect("loopback:purge2", peerId));
+    // t1 sends one message so t2 learns its own peer id for the link.
+    CHECK(t1->Send(peerId, {9}));
+    TransportMessage m;
+    CHECK(t2->Poll(m, 0));
+    const std::string t2PeerId = m.peerId;
+    CHECK(t2->Send(t2PeerId, {1, 2, 3}));  // works before close
+    // t1 closes: t2 must no longer be able to reach it, and the
+    // link must be gone (no dangling pointer if t1 is destroyed).
+    t1->Close();
+    CHECK(!t2->Send(t2PeerId, {1, 2, 3}));
+    // A closed transport is unreachable for new connections too.
+    std::string peerId2;
+    CHECK(!t2->Connect("loopback:purge1", peerId2));
+    // Destroying t1 after Close() is safe, and t2 still works.
+    t1.reset();
+    CHECK(!t2->Send(t2PeerId, {1, 2, 3}));
+    // t2 can still connect elsewhere after the purge.
+    auto t3 = std::make_shared<LoopbackTransport>("loopback:purge3");
+    CHECK(t2->Connect("loopback:purge3", peerId2));
+    // Destroying a transport WITHOUT Close() must also purge the
+    // peer's link: the old code left a dangling pointer here.
+    {
+      auto a = std::make_shared<LoopbackTransport>("loopback:uaf1");
+      auto b = std::make_shared<LoopbackTransport>("loopback:uaf2");
+      std::string pid;
+      CHECK(a->Connect("loopback:uaf2", pid));
+      CHECK(a->Send(pid, {9}));
+      TransportMessage mm;
+      CHECK(b->Poll(mm, 0));
+      const std::string bPid = mm.peerId;
+      CHECK(b->Send(bPid, {1}));
+      a.reset();  // destroyed without Close()
+      CHECK(!b->Send(bPid, {1}));  // would have been use-after-free
+    }
+  }
+
+  test::BeginSection("m13: tcp connect rejects malformed addresses");
+  {
+    TcpTransport tcp;
+    std::string peerId;
+    CHECK(!tcp.Connect("no-colon-here", peerId));
+    CHECK(!tcp.Connect("127.0.0.1:notaport", peerId));
+    CHECK(!tcp.Connect("127.0.0.1:99999", peerId));
+    CHECK(!tcp.Connect("127.0.0.1:0", peerId));
+    CHECK(!tcp.Connect("127.0.0.1:-1", peerId));
+    CHECK(!tcp.Connect("256.256.256.256:64775", peerId));
   }
 }
 

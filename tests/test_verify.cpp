@@ -154,6 +154,7 @@ void TestVerify() {
     std::vector<std::pair<OutPoint, Coin>> coins;
     CHECK(store.GetAllCoins(coins, error));
     CHECK(!coins.empty());
+    if (coins.empty()) return;
     Coin tampered = coins[0].second;
     tampered.out.value += 1;
     CHECK(store.PutCoin(coins[0].first, tampered, error));

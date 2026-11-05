@@ -100,6 +100,11 @@ struct AddrEntry {
   std::string ip;  // dotted IPv4, e.g. "1.2.3.4"
   uint16_t port = kMainnetPort;
 };
+
+// Parse a dotted-quad IPv4 address ("1.2.3.4"). Returns false for
+// anything else (empty string, bad octets, trailing junk). Shared
+// with the address manager so it only stores valid addresses.
+bool ParseIPv4(const std::string& ip, std::array<unsigned char, 4>& out);
 std::vector<unsigned char> SerializeAddr(const std::vector<AddrEntry>& addrs);
 bool ParseAddr(const std::vector<unsigned char>& payload,
                std::vector<AddrEntry>& out);

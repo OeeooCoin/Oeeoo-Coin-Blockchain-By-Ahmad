@@ -87,7 +87,7 @@ Transaction MakeSpend(Node& /*node*/, const Hash256& prev, Amount sendValue) {
 
 // Pump messages between nodes until `done()` or `rounds` run out.
 template <typename F>
-void Pump(std::vector<Node*> nodes, F done, int rounds = 30) {
+void Pump(const std::vector<Node*>& nodes, F done, int rounds = 30) {
   for (int i = 0; i < rounds; ++i) {
     for (Node* n : nodes) n->Poll();
     if (done()) return;

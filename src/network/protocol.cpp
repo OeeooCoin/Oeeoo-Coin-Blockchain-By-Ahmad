@@ -243,7 +243,6 @@ bool ParseHeaders(const std::vector<unsigned char>& payload,
   return true;
 }
 
-namespace {
 bool ParseIPv4(const std::string& ip, std::array<unsigned char, 4>& out) {
   std::size_t start = 0;
   for (int i = 0; i < 4; ++i) {
@@ -268,6 +267,7 @@ bool ParseIPv4(const std::string& ip, std::array<unsigned char, 4>& out) {
   return true;
 }
 
+namespace {
 std::string FormatIPv4(const unsigned char* bytes) {
   return std::to_string(bytes[0]) + "." + std::to_string(bytes[1]) + "." +
          std::to_string(bytes[2]) + "." + std::to_string(bytes[3]);
@@ -275,21 +275,28 @@ std::string FormatIPv4(const unsigned char* bytes) {
 }  // namespace
 
 std::vector<unsigned char> SerializeAddr(const std::vector<AddrEntry>& addrs) {
-  std::vector<unsigned char> out;
-  AppendVarInt(out, addrs.size());
+  // Serialize first, then write the count: the count must equal the
+  // number of entries actually written (unparseable IPs are
+  // skipped), or a peer would read past the end of the payload.
+  std::vector<unsigned char> body;
+  std::size_t count = 0;
   for (const AddrEntry& a : addrs) {
     std::array<unsigned char, 4> ipv4{};
     if (!ParseIPv4(a.ip, ipv4)) continue;  // skip unparseable entries
-    AppendLE32(out, a.time);
-    AppendLE64(out, a.services);
+    ++count;
+    AppendLE32(body, a.time);
+    AppendLE64(body, a.services);
     // IPv4-mapped IPv6: 10 zero bytes, 0xffff, 4 IPv4 bytes.
-    out.insert(out.end(), 10, 0);
-    out.push_back(0xff);
-    out.push_back(0xff);
-    out.insert(out.end(), ipv4.begin(), ipv4.end());
-    out.push_back(static_cast<unsigned char>((a.port >> 8) & 0xff));
-    out.push_back(static_cast<unsigned char>(a.port & 0xff));
+    body.insert(body.end(), 10, 0);
+    body.push_back(0xff);
+    body.push_back(0xff);
+    body.insert(body.end(), ipv4.begin(), ipv4.end());
+    body.push_back(static_cast<unsigned char>((a.port >> 8) & 0xff));
+    body.push_back(static_cast<unsigned char>(a.port & 0xff));
   }
+  std::vector<unsigned char> out;
+  AppendVarInt(out, count);
+  out.insert(out.end(), body.begin(), body.end());
   return out;
 }
 
@@ -306,7 +313,12 @@ bool ParseAddr(const std::vector<unsigned char>& payload,
     if (!r.U64LE(a.services)) return false;
     unsigned char ipBytes[16];
     if (!r.Bytes(ipBytes, 16)) return false;
-    // Accept IPv4-mapped addresses; keep the IPv4 part.
+    // Accept only IPv4-mapped addresses (10 zero bytes, 0xffff);
+    // anything else is malformed and rejects the whole message.
+    for (int i = 0; i < 10; ++i) {
+      if (ipBytes[i] != 0) return false;
+    }
+    if (ipBytes[10] != 0xff || ipBytes[11] != 0xff) return false;
     a.ip = FormatIPv4(ipBytes + 12);
     uint8_t hi = 0, lo = 0;
     if (!r.U8(hi)) return false;
