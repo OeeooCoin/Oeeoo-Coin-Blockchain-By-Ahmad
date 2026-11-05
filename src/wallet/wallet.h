@@ -1,0 +1,130 @@
+// SPDX-License-Identifier: MIT
+// Oeeoo Coin — wallet (Milestone 8).
+// BIP44 layout for Oeeoo: m/44'/65535'/account'/change/index
+// (coin type 65535 is provisional and unregistered). Legacy P2PKH
+// only (no SegWit/Taproot at launch). Gap limit 20: the wallet
+// keeps 20 unused addresses of lookahead on each chain; an address
+// counts as used once a UTXO pays to it. Address reuse is allowed
+// by the spec, so the wallet never forbids it — it only prefers
+// fresh addresses.
+// The wallet holds private keys in memory. It NEVER logs them.
+// Persistence (encrypted at rest) is WalletFile (walletfile.h).
+#pragma once
+
+#include <cstdint>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "consensus/consensus.h"
+#include "crypto/sha256.h"
+#include "transactions/transaction.h"
+#include "utxo/coins.h"
+#include "wallet/bip32.h"
+
+namespace oeeoo {
+
+constexpr int kWalletGapLimit = 20;
+// The wallet no longer has its own dust constant: the dust limit is
+// the dynamic, script-aware threshold from transactions/dust.h
+// (P2PKH at 1 sat/vB = 182 sats). The old provisional 546-sat rule
+// was removed in Milestone 13.
+constexpr uint64_t kWalletMaxFeeRateSatVb = 100;  // policy, not consensus
+
+struct WalletAddress {
+  std::string address;  // P2PKH, "75..." prefix
+  std::vector<unsigned char> pubkey;  // 33 bytes compressed
+  std::vector<unsigned char> scriptPubKey;  // P2PKH script
+  std::string path;     // e.g. m/44'/65535'/0'/0/7
+  bool isChange = false;
+  bool used = false;
+};
+
+struct WalletUtxo {
+  OutPoint outpoint;
+  Amount value = 0;
+  std::string address;
+  std::string path;  // derivation path of the spending key
+  uint32_t index = 0;  // address index on its chain
+  bool isChange = false;
+};
+
+class Wallet {
+ public:
+  Wallet() = default;
+
+  // Create a new wallet from a fresh 24-word mnemonic.
+  bool CreateNew(std::string& error);
+  // Restore from a mnemonic (+ optional passphrase).
+  bool RestoreFromMnemonic(const std::string& mnemonic,
+                           const std::string& passphrase, std::string& error);
+  // Restore from a 64-byte seed.
+  bool RestoreFromSeed(const std::vector<unsigned char>& seed,
+                       std::string& error);
+  // Watch-only restore from an account public key (no spending).
+  bool RestoreFromXpub(const std::string& xpub, std::string& error);
+  bool IsWatchOnly() const { return watchOnly_; }
+  bool HasKeys() const { return account_.isPrivate; }
+  std::string GetMnemonic() const { return mnemonic_; }
+  std::string GetAccountXprv() const;
+  std::string GetAccountXpub() const;
+  uint32_t GetAccountIndex() const { return accountIndex_; }
+  // Switch to another BIP44 account (derives a new account key).
+  bool SetAccount(uint32_t accountIndex, std::string& error);
+
+  // Fresh external / change addresses (advances the index).
+  WalletAddress NewAddress(std::string& error);
+  WalletAddress NewChangeAddress(std::string& error);
+  // Address at a fixed index (does not advance anything).
+  bool GetAddressAt(uint32_t index, bool isChange, WalletAddress& out,
+                    std::string& error);
+  // All addresses derived so far (external + change).
+  std::vector<WalletAddress> ListAddresses() const;
+  bool IsMine(const std::string& address) const;
+  bool IsMineScript(const std::vector<unsigned char>& scriptPubKey) const;
+
+  // Scan a UTXO set: mark used addresses, refresh balances.
+  void ScanUtxo(const CoinsView& utxo);
+  Amount GetBalance() const { return balance_; }
+  std::vector<WalletUtxo> ListUnspent() const;
+
+  // Build + sign a payment. `feeRateSatVb` defaults to 1; values
+  // above the wallet max (100 sat/vB) are refused. Change below the
+  // dust limit is added to the fee instead of creating an output.
+  // On success returns true and sets `tx` + `fee`.
+  bool CreateTransaction(const std::string& toAddress, Amount amount,
+                         const CoinsView& utxo, int height,
+                         uint32_t medianTimePast, Transaction& tx,
+                         Amount& fee, std::string& error,
+                         uint64_t feeRateSatVb = 1);
+
+  // Fee estimate for a transaction shape (sat/vB * bytes).
+  static std::size_t EstimateTxSize(std::size_t inputCount,
+                                    std::size_t outputCount);
+
+  void SetMaxFeeRate(uint64_t satVb) { maxFeeRateSatVb_ = satVb; }
+  uint64_t GetMaxFeeRate() const { return maxFeeRateSatVb_; }
+
+ private:
+  bool DeriveAddress(uint32_t index, bool isChange, WalletAddress& out,
+                     std::string& error);
+  void EnsureLookahead();
+
+  ExtendedKey master_;
+  ExtendedKey account_;  // m/44'/65535'/account'
+  uint32_t accountIndex_ = 0;
+  std::string mnemonic_;
+  bool watchOnly_ = false;
+  uint64_t maxFeeRateSatVb_ = kWalletMaxFeeRateSatVb;
+  // Derivation state.
+  uint32_t nextExternal_ = 0;
+  uint32_t nextChange_ = 0;
+  // path -> address record (both chains).
+  std::map<std::string, WalletAddress> addresses_;
+  // scriptPubKey hex -> path (for IsMine / scanning).
+  std::map<std::string, std::string> scriptToPath_;
+  std::vector<WalletUtxo> unspent_;
+  Amount balance_ = 0;
+};
+
+}  // namespace oeeoo

@@ -1,0 +1,99 @@
+===== OEEOO COIN — MILESTONE 3 TEST LOG =====
+Date: 2026-11-05 (PKT). Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13.
+
+--- SUPPLY RE-VERIFICATION (user question: 2,000,000?) ---
+$ grep -rn "2,000,000" src docs README.md (excluding 20,000,000)
+src/consensus/subsidy.cpp:28:  return static_cast<Amount>(total_units);  // 2,000,000,000,000,000
+docs/DECISION_LOG.md:98:  "2,000,000" anywhere in the project. The figure shown in Phase 1/2
+$ grep constants
+13:static constexpr int64_t MAX_SUPPLY_OEEOO = 21000000LL;
+14:static constexpr int64_t FOUNDER_ALLOCATION_OEEOO = 1000000LL;
+15:static constexpr int64_t MINING_ALLOCATION_OEEOO = 20000000LL;
+17:static constexpr int64_t MAX_MONEY = MAX_SUPPLY_OEEOO * COIN;
+18:static constexpr int64_t MINING_ALLOCATION = MINING_ALLOCATION_OEEOO * COIN;
+19:static constexpr int64_t FOUNDER_ALLOCATION = FOUNDER_ALLOCATION_OEEOO * COIN;
+15:  CHECK(MINING_ALLOCATION + FOUNDER_ALLOCATION == MAX_MONEY);
+
+--- CLEAN BUILD ---
+$ rm -rf build && cmake -S . -B build
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")  
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/hatch/workspace/oeeoo-coin/build
+$ cmake --build build
+[  4%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/subsidy.cpp.o
+[  8%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/uint256.cpp.o
+[ 12%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/difficulty.cpp.o
+[ 16%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/sha256.cpp.o
+[ 20%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/base58.cpp.o
+[ 24%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/hash160.cpp.o
+[ 28%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/address.cpp.o
+[ 32%] Building CXX object CMakeFiles/oeeoo_core.dir/src/serialize/varint.cpp.o
+[ 36%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/transaction.cpp.o
+[ 40%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/block.cpp.o
+[ 44%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/chain.cpp.o
+[ 48%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/merkle.cpp.o
+[ 52%] Linking CXX static library liboeeoo_core.a
+[ 52%] Built target oeeoo_core
+[ 56%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_main.cpp.o
+[ 60%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_amount.cpp.o
+[ 64%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_subsidy.cpp.o
+[ 68%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_crypto.cpp.o
+[ 72%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_block.cpp.o
+[ 76%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_varint.cpp.o
+[ 80%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_transaction.cpp.o
+[ 84%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_merkle.cpp.o
+[ 88%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_address.cpp.o
+[ 92%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_difficulty.cpp.o
+[ 96%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_chain.cpp.o
+[100%] Linking CXX executable oeeoo_tests
+[100%] Built target oeeoo_tests
+
+--- CTEST ---
+$ ctest --test-dir build --output-on-failure
+Internal ctest changing into directory: /home/hatch/workspace/oeeoo-coin/build
+Test project /home/hatch/workspace/oeeoo-coin/build
+    Start 1: oeeoo_tests
+1/1 Test #1: oeeoo_tests ......................   Passed    0.08 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.08 sec
+
+--- FULL TEST BINARY ---
+$ ./build/oeeoo_tests
+[test] amount / money constants
+[test] subsidy boundaries
+[test] subsidy total issuance = 20,000,000 OEEOO
+[test] sha256 / sha256d test vectors
+[test] block header serialization + hash
+[test] varint encodings
+[test] varint round-trips + rejections
+[test] transaction serialization + txid
+[test] transaction deserialize round-trip + rejections
+[test] transaction CheckBasic rules
+[test] merkle root vectors
+[test] base58check + p2pkh address vectors
+[test] address decode + rejections
+[test] difficulty bits <-> target vectors
+[test] difficulty invalid bits rejected
+[test] difficulty proof-of-work check
+[test] difficulty retarget (mainnet limit 0x1d00ffff)
+[test] difficulty retarget (test limit 0x207fffff)
+[test] difficulty block proof + chain work
+[test] uint256 divide
+[test] block structure: serialize round-trip + CheckBasic
+[test] chain: genesis + 5 blocks, tip + work
+[test] chain: reorg — heavier fork becomes tip
+[test] chain: invalid blocks rejected
+[test] chain: median-time-past rule
+[test] chain: retarget at height 2016
+[test] genesis params: not finalized yet
+[test] ALL CHECKS PASSED
+exit code: 0

@@ -1,0 +1,37 @@
+=== Oeeoo Coin (OEEOO) Milestone 2 — full build + test log ===
+Date (PKT): 2026-11-05 22:33:17
+Scope: Phase 1 + Milestone 2 (VarInt, transactions, Merkle, Base58Check, HASH160, P2PKH).
+
+--- $ cmake -S . -B build ---
+-- Generating done (0.0s)
+-- Build files have been written to: /home/hatch/workspace/oeeoo-coin/build
+
+--- $ cmake --build build ---
+[ 50%] Built target oeeoo_core
+[100%] Built target oeeoo_tests
+
+--- $ ctest --test-dir build --output-on-failure ---
+Internal ctest changing into directory: /home/hatch/workspace/oeeoo-coin/build
+Test project /home/hatch/workspace/oeeoo-coin/build
+    Start 1: oeeoo_tests
+1/1 Test #1: oeeoo_tests ......................   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.01 sec
+
+--- $ ./build/oeeoo_tests ---
+[test] amount / money constants
+[test] subsidy boundaries
+[test] subsidy total issuance = 20,000,000 OEEOO
+[test] sha256 / sha256d test vectors
+[test] block header serialization + hash
+[test] varint encodings
+[test] varint round-trips + rejections
+[test] transaction serialization + txid
+[test] transaction deserialize round-trip + rejections
+[test] transaction CheckBasic rules
+[test] merkle root vectors
+[test] base58check + p2pkh address vectors
+[test] address decode + rejections
+[test] ALL CHECKS PASSED
