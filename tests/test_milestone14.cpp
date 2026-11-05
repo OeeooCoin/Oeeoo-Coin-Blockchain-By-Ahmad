@@ -281,7 +281,7 @@ void TestMilestone14() {
     CHECK(nw.IsLocked());
     CHECK(nw.UnlockedUntil() == 0);
     CHECK(nw.GetWallet() != nullptr);
-    nw.GetWallet()->ScanUtxo(CoinsView());
+    nw.GetWallet()->ScanUtxo(CoinsView(), 1);
     CHECK(nw.GetWallet()->GetBalance() == 0);
 
     // Wrong and empty passphrases are rejected; the wallet stays
@@ -322,13 +322,13 @@ void TestMilestone14() {
       Hash256 txid;
       txid.fill(0xAB);
       CHECK(view.AddCoin({txid, 0}, coin));
-      nw.GetWallet()->ScanUtxo(view);
+      nw.GetWallet()->ScanUtxo(view, 2);
       CHECK(nw.GetWallet()->GetBalance() == 50 * COIN);
     }
     nw.Lock();
     CHECK(nw.IsLocked());
     CHECK(nw.UnlockedUntil() == 0);
-    nw.GetWallet()->ScanUtxo(view);
+    nw.GetWallet()->ScanUtxo(view, 2);
     CHECK(nw.GetWallet()->GetBalance() == 50 * COIN);
 
     // Timeout 0 means "until walletlock".
@@ -417,7 +417,7 @@ void TestMilestone14() {
     nw.Lock();
 
     // Locked: balance is visible (watch-only), spending is refused.
-    nw.GetWallet()->ScanUtxo(node.Utxo());
+    nw.GetWallet()->ScanUtxo(node.Utxo(), node.TipHeight() + 1);
     CHECK(nw.GetWallet()->GetBalance() == 50 * COIN);
     Wallet dest;
     CHECK(dest.RestoreFromMnemonic(ZooMnemonic(), "", error));
@@ -432,7 +432,7 @@ void TestMilestone14() {
 
     // Unlocked: the same spend builds and broadcasts.
     CHECK(nw.Unlock(kPassphrase, 60, error));
-    nw.GetWallet()->ScanUtxo(node.Utxo());
+    nw.GetWallet()->ScanUtxo(node.Utxo(), node.TipHeight() + 1);
     CHECK(nw.GetWallet()->CreateTransaction(
         destAddr.address, 10 * COIN, node.Utxo(), 1, kTime, tx, fee,
         error, 1));
@@ -697,5 +697,84 @@ void TestMilestone14() {
     CHECK(!half.Unlock(kPassphrase, 60, error));
     RemoveQuietly(path);
     RemoveQuietly(trunc);
+  }
+
+  test::BeginSection("m14: coinbase maturity in the wallet");
+  {
+    // A coinbase at height 5 (50 OEEOO) + a regular coin at height 5
+    // (10 OEEOO), both paying the wallet's first address. Before
+    // this fix the wallet counted immature coinbases as spendable
+    // and coin selection could pick one — the spend would then be
+    // rejected by consensus validation ("coinbase output not yet
+    // mature") instead of failing cleanly in the wallet.
+    Wallet wallet;
+    std::string error;
+    CHECK(wallet.RestoreFromMnemonic(ZeroMnemonic(), "", error));
+    std::string werror;
+    WalletAddress first = wallet.NewAddress(werror);
+    CHECK(first.address == kZeroFirstAddress);
+    CoinsView view;
+    auto addCoin = [&](unsigned char fill, Amount value, uint32_t height,
+                       bool isCoinbase) {
+      Coin coin;
+      coin.out.value = value;
+      coin.out.scriptPubKey = first.scriptPubKey;
+      coin.height = height;
+      coin.blockTime = kTime + height * 600;
+      coin.isCoinbase = isCoinbase;
+      Hash256 txid;
+      txid.fill(fill);
+      CHECK(view.AddCoin({txid, 0}, coin));
+    };
+    addCoin(0xC1, 50 * COIN, 5, true);   // coinbase, height 5
+    addCoin(0xC2, 10 * COIN, 5, false);  // regular, height 5
+
+    // Next height 50: the coinbase is immature (50-5=45 < 100).
+    wallet.ScanUtxo(view, 50);
+    CHECK(wallet.GetBalance() == 10 * COIN);
+    CHECK(wallet.GetImmatureBalance() == 50 * COIN);
+    CHECK(wallet.ListUnspent().size() == 1);
+    // Boundary: next height 104 is still immature (104-5=99 < 100).
+    wallet.ScanUtxo(view, 104);
+    CHECK(wallet.GetBalance() == 10 * COIN);
+    CHECK(wallet.GetImmatureBalance() == 50 * COIN);
+    // Next height 105 matures it (105-5=100).
+    wallet.ScanUtxo(view, 105);
+    CHECK(wallet.GetBalance() == 60 * COIN);
+    CHECK(wallet.GetImmatureBalance() == 0);
+    CHECK(wallet.ListUnspent().size() == 2);
+
+    // The genesis coinbase (height 0) is exempt: mature at any
+    // height, exactly as in consensus validation.
+    CoinsView genesisView;
+    {
+      Coin coin;
+      coin.out.value = 7 * COIN;
+      coin.out.scriptPubKey = first.scriptPubKey;
+      coin.height = 0;
+      coin.blockTime = kTime;
+      coin.isCoinbase = true;
+      Hash256 txid;
+      txid.fill(0xC3);
+      CHECK(genesisView.AddCoin({txid, 0}, coin));
+    }
+    wallet.ScanUtxo(genesisView, 1);
+    CHECK(wallet.GetBalance() == 7 * COIN);
+    CHECK(wallet.GetImmatureBalance() == 0);
+
+    // Spending: at next height 50 only the 10-OEEOO regular coin is
+    // available, so a 55-OEEOO payment fails cleanly; at height 105
+    // the matured coinbase is selected and the payment builds.
+    Wallet dest;
+    CHECK(dest.RestoreFromMnemonic(ZooMnemonic(), "", error));
+    WalletAddress destAddr = dest.NewAddress(werror);
+    Transaction tx;
+    Amount fee = 0;
+    CHECK(!wallet.CreateTransaction(destAddr.address, 55 * COIN, view, 50,
+                                    kTime, tx, fee, error, 1));
+    CHECK(error.find("insufficient funds") != std::string::npos);
+    CHECK(wallet.CreateTransaction(destAddr.address, 55 * COIN, view, 105,
+                                   kTime, tx, fee, error, 1));
+    CHECK(tx.vin.size() == 2);  // 50 matured coinbase + 10 regular
   }
 }

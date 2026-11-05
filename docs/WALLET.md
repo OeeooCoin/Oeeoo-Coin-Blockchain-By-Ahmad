@@ -34,7 +34,7 @@ wiped on lock. The node never logs it.
 | `walletlock []` | Locks immediately: persists the address indices, then wipes the mnemonic, keys, and passphrase from memory. |
 | `getbalance []` | Works while locked (watch-only view). Before the wallet has been unlocked at least once since the node started, the locked view is empty (the keys live inside the encrypted file) and the balance reads 0. |
 | `listunspent []` | Works while locked. Each entry has `spendable`: `false` while locked, `true` while unlocked. |
-| `getwalletinfo []` | Works while locked. `unlocked_until` is the unix time the unlock expires, `0` when locked. |
+| `getwalletinfo []` | Works while locked. `unlocked_until` is the unix time the unlock expires, `0` when locked. `immature_balance` is the coinbase funds that are not spendable yet (see below). |
 | `getnewaddress []` | **Refused while locked** (error -13, "wallet is locked"): deriving an address advances the file's indices, which can only be persisted while the passphrase is in memory. |
 | `sendtoaddress ["<address>", "<amount>"]` | **Refused while locked** (error -13). While unlocked it builds, signs, and broadcasts; the change index is persisted *before* the transaction is broadcast, so a save failure cannot strand a broadcast transaction. |
 | `getblocktemplate` | Without a `coinbaseaddress` parameter it derives a miner address from the wallet — refused while locked. |
@@ -56,6 +56,15 @@ Other node-wallet rules:
 - **Unlock timeout auto-relocks.** When the deadline passes, the next
   use re-locks the wallet lazily; a locked wallet's balance stays
   visible (the account xpub is cached after the first unlock).
+- **Coinbase maturity.** A mined coinbase output is spendable only
+  after 100 blocks (the consensus rule; the genesis coinbase at
+  height 0 is exempt). `getbalance` counts only mature funds;
+  immature coinbase funds are reported separately as
+  `immature_balance` in `getwalletinfo`, and coin selection never
+  picks them — a payment that only immature funds could cover fails
+  cleanly with "insufficient funds" instead of being rejected by
+  consensus. (M8-era gap, found by the M14 funded E2E and fixed in
+  M14; see `docs/MILESTONE14.md` §C.7.)
 - **Shutdown** saves the indices and locks the wallet. A save failure
   at shutdown prints a warning instead of being swallowed.
 - There is no `walletpassphrasechange` yet (passphrase rotation is a

@@ -251,11 +251,12 @@ bool Wallet::IsMineScript(
   return scriptToPath_.find(HexStr(scriptPubKey)) != scriptToPath_.end();
 }
 
-void Wallet::ScanUtxo(const CoinsView& utxo) {
+void Wallet::ScanUtxo(const CoinsView& utxo, int nextHeight) {
   // Reset usage, then mark every address that owns a UTXO.
   for (auto& kv : addresses_) kv.second.used = false;
   unspent_.clear();
   balance_ = 0;
+  immatureBalance_ = 0;
   std::vector<std::pair<OutPoint, Coin>> coins;
   utxo.GetAllCoins(coins);
   uint32_t maxUsedExternal = 0;
@@ -274,6 +275,19 @@ void Wallet::ScanUtxo(const CoinsView& utxo) {
     const std::size_t slash = path.rfind('/');
     const uint32_t index =
         static_cast<uint32_t>(std::stoul(path.substr(slash + 1)));
+    // Coinbase maturity (same rule as consensus validation: a
+    // coinbase at height H is spendable in a block at height H'
+    // iff H' - H >= COINBASE_MATURITY, except the genesis coinbase
+    // at height 0, which is exempt). An immature coinbase still
+    // marks its address used (so the gap window moves) and still
+    // counts in immatureBalance_, but it is NOT spendable: it stays
+    // out of unspent_/balance_, so coin selection can never pick it
+    // and getbalance can never report it as available.
+    const Coin& coin = entry.second;
+    const bool mature =
+        !coin.isCoinbase || coin.height == 0 ||
+        (nextHeight - static_cast<int>(coin.height) >= COINBASE_MATURITY);
+    if (!mature) immatureBalance_ += coin.out.value;
     WalletUtxo wu;
     wu.outpoint = entry.first;
     wu.value = entry.second.out.value;
@@ -281,8 +295,12 @@ void Wallet::ScanUtxo(const CoinsView& utxo) {
     wu.path = path;
     wu.index = index;
     wu.isChange = ait->second.isChange;
-    unspent_.push_back(wu);
-    balance_ += entry.second.out.value;
+    wu.height = coin.height;
+    wu.isCoinbase = coin.isCoinbase;
+    if (mature) {
+      unspent_.push_back(wu);
+      balance_ += entry.second.out.value;
+    }
     if (ait->second.isChange) {
       anyChangeUsed = true;
       maxUsedChange = std::max(maxUsedChange, index);
@@ -339,7 +357,9 @@ bool Wallet::CreateTransaction(const std::string& toAddress, Amount amount,
     error = "amount below the dust limit";
     return false;
   }
-  ScanUtxo(utxo);
+  // `height` is the height this transaction would be mined at, so
+  // the scan's maturity cut is exactly the consensus rule.
+  ScanUtxo(utxo, height);
   if (balance_ < amount) {
     error = "insufficient funds";
     return false;

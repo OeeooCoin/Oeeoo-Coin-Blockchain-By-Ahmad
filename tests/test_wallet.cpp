@@ -285,7 +285,7 @@ void TestWallet() {
     };
     fund(a0, 10 * COIN, 1);
     fund(a1, 5 * COIN, 2);
-    wallet.ScanUtxo(utxo);
+    wallet.ScanUtxo(utxo, 3);
     CHECK(wallet.GetBalance() == 15 * COIN);
     CHECK(wallet.ListUnspent().size() == 2);
     // Used addresses are marked; the next fresh address moves past
@@ -336,7 +336,7 @@ void TestWallet() {
     Hash256 fundTxid;
     fundTxid.fill(0x61);
     CHECK(utxo.AddCoin({fundTxid, 0}, coin));
-    wallet.ScanUtxo(utxo);
+    wallet.ScanUtxo(utxo, 2);
     CHECK(wallet.GetBalance() == 10 * COIN);
     Transaction tx;
     Amount fee = 0;

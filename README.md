@@ -4,7 +4,7 @@ Independent decentralized Proof-of-Work blockchain, Bitcoin-style.
 C++ implementation, MIT License. Planned repository:
 `OeeooCoin-blockchain-by-Ahmad` (not yet created — see Decision Log).
 
-**Status: Phase 1 + Milestones 1–14 DONE (all 14 milestones, 133 test
+**Status: Phase 1 + Milestones 1–14 DONE (all 14 milestones, 134 test
 sections, ASan/UBSan clean, cppcheck 0 findings, reproducible build
 verified from a clean Git checkout). IMPLEMENTED + COMPILED +
 UNIT-TESTED on this machine, with runnable binaries (oeeoo-node,
@@ -133,8 +133,9 @@ Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 - `src/app/config.*` — `--wallet <path>` flag + `wallet` config key (relative paths resolve against the data directory)
 - `src/rpc/rpcserver.*` — `createwallet` / `walletpassphrase` / `walletlock` (32 methods total); `getbalance` / `listunspent` / `getwalletinfo` work while locked (watch-only), `getnewaddress` / `sendtoaddress` refuse while locked; wrong passphrase → error -14
 - `src/rpc/json.cpp` — whitespace fix: values after `:` / `,` now parse (real clients emit those spaces; the parser rejected them with "bad number")
+- `src/wallet/wallet.*` — coinbase maturity in the wallet (M8-era gap found by the funded E2E): immature coinbases are excluded from balance/unspent and reported as `immature_balance` in `getwalletinfo`; the funded manual E2E (101 mined blocks, 10-OEEOO send between two wallet addresses) proves it
 - `docs/ROADMAP_BITCOIN_LEVEL.md` (M14–M19), `docs/MILESTONE14.md`, `docs/WALLET.md` (node-wallet section rewritten)
-- `tests/test_milestone14.cpp` (6 sections)
+- `tests/test_milestone14.cpp` (7 sections)
 
 ## What Phase 1 contains
 

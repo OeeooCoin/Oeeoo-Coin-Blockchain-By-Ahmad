@@ -999,7 +999,7 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
   if (method == "getbalance") {
     Wallet* w = activeWallet();
     if (w == nullptr) return Json();
-    w->ScanUtxo(node_.Utxo());
+    w->ScanUtxo(node_.Utxo(), chain.GetTipHeight() + 1);
     std::string saveError;
     saveWallet(saveError);  // best-effort; a read must not fail on I/O
     return Json(AmountToOeeoo(w->GetBalance()));
@@ -1025,7 +1025,7 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
   if (method == "listunspent") {
     Wallet* w = activeWallet();
     if (w == nullptr) return Json();
-    w->ScanUtxo(node_.Utxo());
+    w->ScanUtxo(node_.Utxo(), chain.GetTipHeight() + 1);
     std::string saveError;
     saveWallet(saveError);  // best-effort
     const bool spendable = !walletLocked();
@@ -1082,13 +1082,14 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
   if (method == "getwalletinfo") {
     Wallet* w = activeWallet();
     if (w == nullptr) return Json();
-    w->ScanUtxo(node_.Utxo());
+    w->ScanUtxo(node_.Utxo(), chain.GetTipHeight() + 1);
     std::string saveError;
     saveWallet(saveError);  // best-effort
     Json j = Json::Object();
     j.Set("walletname", "default");
     j.Set("walletversion", 1);
     j.Set("balance", AmountToOeeoo(w->GetBalance()));
+    j.Set("immature_balance", AmountToOeeoo(w->GetImmatureBalance()));
     j.Set("txcount", static_cast<int64_t>(w->ListUnspent().size()));
     j.Set("keypoolsize", kWalletGapLimit);
     uint64_t unlockedUntil = 0;

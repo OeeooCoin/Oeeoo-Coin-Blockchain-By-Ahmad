@@ -47,6 +47,8 @@ struct WalletUtxo {
   std::string path;  // derivation path of the spending key
   uint32_t index = 0;  // address index on its chain
   bool isChange = false;
+  uint32_t height = 0;  // block height of the funding transaction
+  bool isCoinbase = false;
 };
 
 class Wallet {
@@ -98,8 +100,17 @@ class Wallet {
   bool IsMineScript(const std::vector<unsigned char>& scriptPubKey) const;
 
   // Scan a UTXO set: mark used addresses, refresh balances.
-  void ScanUtxo(const CoinsView& utxo);
+  // `nextHeight` is the height a transaction built now would be
+  // mined at (tip height + 1). Coinbase outputs are spendable only
+  // once mature (COINBASE_MATURITY = 100 blocks; the genesis
+  // coinbase at height 0 is exempt, exactly as in consensus
+  // validation): immature coinbases are NOT in unspent_/balance_ —
+  // they are tracked separately in immatureBalance_ — so neither
+  // getbalance nor coin selection can ever see them as spendable.
+  void ScanUtxo(const CoinsView& utxo, int nextHeight);
   Amount GetBalance() const { return balance_; }
+  // Immature coinbase funds (not spendable yet).
+  Amount GetImmatureBalance() const { return immatureBalance_; }
   std::vector<WalletUtxo> ListUnspent() const;
 
   // Build + sign a payment. `feeRateSatVb` defaults to 1; values
@@ -139,6 +150,7 @@ class Wallet {
   std::map<std::string, std::string> scriptToPath_;
   std::vector<WalletUtxo> unspent_;
   Amount balance_ = 0;
+  Amount immatureBalance_ = 0;
 };
 
 }  // namespace oeeoo

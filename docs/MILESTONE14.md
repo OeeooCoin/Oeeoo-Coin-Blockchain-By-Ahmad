@@ -1,8 +1,11 @@
 # Oeeoo Coin — Milestone 14: Node Wallet Integration
 
 Status: DONE 2026-11-06 (overnight). All 127 prior sections still pass;
-6 new sections added (133 total), ALL CHECKS PASSED, ctest 100%.
+7 new sections added (134 total), ALL CHECKS PASSED, ctest 100%.
 Build warning-free; cppcheck 0 findings; ASan/UBSan clean (see §F).
+Includes a late M14 fix found by the funded E2E: coinbase maturity
+in the wallet (see §C.7) — without it a mined wallet could not spend
+at all in practice.
 
 The M13 verdict stands: **NOT READY** (genesis unapproved, no
 independent audit). M14 closes the biggest *functional* gap (the node
@@ -43,7 +46,16 @@ Bitcoin model:
   `GetNextExternal()` / `GetNextChange()` / `SetNextIndices(ext,
   change)` and `WipeSecrets()` (cleanses the mnemonic + private keys,
   then neuters the keys so the wallet stays usable as watch-only).
-  No behaviour change to existing methods.
+  Plus a behaviour fix found by the funded E2E (see §C.7):
+  **coinbase maturity in the wallet.** `ScanUtxo` now takes the
+  next-block height and applies the consensus maturity rule
+  (COINBASE_MATURITY = 100; the genesis coinbase at height 0 is
+  exempt, exactly as in `src/transactions/validation.cpp`):
+  immature coinbases are NOT in `unspent_`/`balance_` — they are
+  tracked separately as `immatureBalance_` — so neither `getbalance`
+  nor coin selection can ever see them as spendable. `WalletUtxo`
+  gained `height` + `isCoinbase`; `getwalletinfo` reports
+  `immature_balance`.
 - `src/rpc/rpcserver.*`: `AttachNodeWallet(NodeWallet*)` (the plain
   `AttachWallet(Wallet*)` stays for tests). Three new methods:
   `createwallet`, `walletpassphrase`, `walletlock`. The five existing
@@ -90,6 +102,7 @@ Verified unused anywhere in `src/` or `tests/` before use.
 | BIP44 account 0 only; BIP39 passphrase empty for node wallets | MATCH | `nodewallet.h` header contract; `Unlock` restores with `""`. |
 | Locked = watch-only view (balance visible; no spend, no new address) | MATCH | Tests §load/lock/unlock + §RPC end to end (balance 50.0 while locked; `getnewaddress`/`sendtoaddress` → -13). |
 | `getbalance`/`getnewaddress`/`sendtoaddress`/`listunspent`/`getwalletinfo` live through a real node | MATCH | Tests §RPC end to end over real HTTP + manual E2E (see §F). |
+| Coinbase maturity in the wallet (M8-era gap, found by the funded E2E) | FIXED | `ScanUtxo` ignored maturity entirely: `getbalance` counted immature coinbases as available and coin selection could pick one, so the spend was then rejected by consensus ("coinbase output not yet mature"). Now immature coinbases are excluded from balance/unspent and reported as `immature_balance` (see §C.7). |
 | `createwallet` (not in the original draft, needed: no wallet CLI exists) | FIXED (added) | Without it the feature would be unusable — no other way to create a wallet file. Mnemonic returned ONCE over localhost RPC. |
 | `LoadFile` on a missing file | FIXED | The header contract said "remember the path"; the implementation returned an error. Fixed to match the contract (needed for `createwallet` to be reachable). |
 | `listtransactions` / `gettransaction` | REQUIRES DECISION (M16) | The wallet library keeps no transaction history (UTXO scan only). Needs a wallet-tx journal + a format decision (payload v2 vs sidecar) — see `docs/ROADMAP_BITCOIN_LEVEL.md` M16. |
@@ -152,7 +165,30 @@ Verified unused anywhere in `src/` or `tests/` before use.
      M10 tests never caught it because `Json::Dump` emits no spaces
      and the hand-written test vectors had none either. Fixed by
      adding `SkipWs()` after `:` and after `,`; regression tests in
-     `tests/test_rpc.cpp` (spaced object/array/request shapes).
+     `tests/test_rpc.cpp` (spaced object/array/full-request shapes).
+  7. **Real bug, M8-era, found by the funded E2E and FIXED
+     (`src/wallet/wallet.*`, `src/rpc/rpcserver.cpp`):** the wallet
+     had NO coinbase-maturity handling anywhere. `ScanUtxo` added
+     every wallet-owned UTXO to `unspent_`/`balance_`, and
+     `CreateTransaction` selected smallest-first with no maturity
+     filter — so on a mined chain `getbalance` reported immature
+     coinbase funds as spendable, and a spend would almost always
+     pick an immature coin (101 equal 50-OEEOO coinbases, only 1
+     mature) and be rejected by consensus validation ("coinbase
+     output not yet mature") instead of failing cleanly in the
+     wallet. Fixed: `ScanUtxo(utxo, nextHeight)` applies the exact
+     consensus rule (next block height − coin height ≥ 100; height-0
+     genesis coinbase exempt); immature coinbases are excluded from
+     balance/unspent and tracked as `immatureBalance_` (reported by
+     `getwalletinfo` as `immature_balance`); `CreateTransaction`
+     scans with its own `height` parameter, so the cut is exactly
+     the consensus rule. The funded E2E proves it: at tip 101 the
+     wallet reported balance 100.0 (coinbases 1 and 2 mature for
+     block 102) and `immature_balance` 4950.0 (99 coinbases), and
+     the 10-OEEOO send succeeded. Regression tests in the new §7
+     (`tests/test_milestone14.cpp`): boundary checks at next heights
+     50 / 104 / 105, the genesis exemption, and a 55-OEEOO payment
+     that fails at height 50 and succeeds at height 105.
 
 ## D. Security report
 
@@ -190,15 +226,15 @@ Verified unused anywhere in `src/` or `tests/` before use.
 | Path | Change |
 |---|---|
 | `src/wallet/nodewallet.h` / `.cpp` | NEW (M14 core). LoadFile missing-file contract fixed (see §C.4). |
-| `src/wallet/wallet.h` / `.cpp` | `GetNextExternal()` / `GetNextChange()` / `SetNextIndices()` / `WipeSecrets()` accessors (already present from the M14 start; no behaviour change). |
+| `src/wallet/wallet.h` / `.cpp` | `GetNextExternal()` / `GetNextChange()` / `SetNextIndices()` / `WipeSecrets()` accessors (already present from the M14 start; no behaviour change). **Plus the §C.7 maturity fix:** `WalletUtxo` gained `height` + `isCoinbase`; `ScanUtxo(utxo, nextHeight)` excludes immature coinbases from balance/unspent and tracks `immatureBalance_`; `CreateTransaction` scans with its `height` parameter. |
 | `src/app/config.h` / `.cpp` | `--wallet <path>` flag + `wallet` config key; usage text. |
-| `src/rpc/rpcserver.h` / `.cpp` | `AttachNodeWallet`, three new methods, five existing methods routed through the node wallet, `listunspent[].spendable` reflects lock state, `sendtoaddress` persists before broadcast, error -14 for a wrong passphrase. |
+| `src/rpc/rpcserver.h` / `.cpp` | `AttachNodeWallet`, three new methods, five existing methods routed through the node wallet, `listunspent[].spendable` reflects lock state, `sendtoaddress` persists before broadcast, error -14 for a wrong passphrase. **Plus §C.7:** the three `ScanUtxo` calls pass `chain.GetTipHeight() + 1`; `getwalletinfo` reports `immature_balance`. |
 | `src/rpc/json.cpp` | Whitespace fix: `SkipWs()` after `:` in objects and after `,` in arrays (see §C.6). |
 | `tests/test_rpc.cpp` | Regression tests for the whitespace fix (spaced object/array/full-request shapes). |
 | `src/app/node_main.cpp` | Wallet load/register, attach, banner line, save + lock on shutdown. |
-| `tests/test_milestone14.cpp` | NEW. 6 sections. |
+| `tests/test_milestone14.cpp` | NEW. 7 sections (the 7th is the §C.7 maturity section). Call sites updated for the new `ScanUtxo` signature. |
 | `tests/test_main.cpp`, `CMakeLists.txt` | Register the new test file + `nodewallet.cpp`. |
-| `tests/test_wallet.cpp` | Tamper-test flake fixed (XOR instead of fixed `0xFF`). |
+| `tests/test_wallet.cpp` | Tamper-test flake fixed (XOR instead of fixed `0xFF`); `ScanUtxo` call sites updated for the new signature. |
 | `docs/ROADMAP_BITCOIN_LEVEL.md` | Written first (M14–M19), then refined with the Bitcoin Core comparison research (see the commit messages). |
 | `docs/WALLET.md` | Node-wallet section rewritten; "no wallet integration" note removed. |
 | `docs/MILESTONE14.md` | This file. |
@@ -212,9 +248,12 @@ Commands (from `~/workspace/oeeoo-coin/`):
 
 - `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release` — configure OK.
 - `cmake --build build -j4` — exit 0, warning-free.
-- `./build/oeeoo_tests` — **133 sections, ALL CHECKS PASSED**
-  (127 prior + 6 new M14 sections). Stability: the suite was run 8
-  times consecutively after the final fixes — all 8 runs passed.
+- `./build/oeeoo_tests` — **134 sections, ALL CHECKS PASSED**
+  (127 prior + 7 new M14 sections). Stability: the suite was run 8
+  times consecutively after the first fixes — all 8 runs passed; the
+  final code (with the §C.7 maturity fix) was re-verified with a
+  clean build + full suite + ctest + cppcheck + ASan/UBSan run
+  (see `logs/milestone14-test-log.txt`).
 - `ctest --test-dir build --output-on-failure` — **100% tests
   passed, 0 tests failed out of 1**.
 - `cppcheck --enable=warning,performance,portability
@@ -222,7 +261,7 @@ Commands (from `~/workspace/oeeoo-coin/`):
   **0 findings**.
 - ASan/UBSan: build-asan (Debug, `-fsanitize=address,undefined
   -fno-sanitize-recover=all`) + full suite with `detect_leaks=0` —
-  exit 0, 133 sections, ALL CHECKS PASSED, no AddressSanitizer or
+  exit 0, 134 sections, ALL CHECKS PASSED, no AddressSanitizer or
   UBSan errors. (One false start while verifying: `stdbuf` breaks
   the ASan binary at startup — its LD_PRELOAD puts libstdbuf before
   libasan ("ASan runtime does not come first in initial library
@@ -262,6 +301,13 @@ New M14 sections (all in `tests/test_milestone14.cpp`):
    mnemonic/indices), wrong passphrase fails, a plain-API file loads
    through the node wallet, a header-truncated file is refused at
    load, a ciphertext-truncated file fails closed at unlock.
+7. `m14: coinbase maturity in the wallet` — a coinbase at height 5
+   (50 OEEOO) + a regular coin at height 5 (10 OEEOO): at next
+   heights 50 and 104 the balance is 10 OEEOO and the immature
+   balance is 50 OEEOO; at height 105 the coinbase matures (balance
+   60, immature 0); a height-0 genesis coinbase is mature at height
+   1; a 55-OEEOO payment fails ("insufficient funds") at height 50
+   and builds (2 inputs) at height 105.
 
 Manual E2E (test values only, recorded in `logs/milestone14-test-log.txt`):
 `oeeoo-node` with a freshly mined test genesis (same 3 M12 test
@@ -291,8 +337,26 @@ proven by the RPC test (§4 above: funded UTXO, real server, txid
 returned, mempool size 1). `walletlock` → "wallet locked";
 `getwalletinfo` → `unlocked_until` 0. Restart without
 `--genesis-file`: chain loads with deep-verify ON, banner shows
-`wallet: … (locked)`. A fully-funded manual send (mine 101 blocks
-via Stratum so a coinbase matures) is a stretch goal, not done.
+`wallet: … (locked)`.
+
+**Funded manual E2E (DONE — the stretch goal was completed):** a
+small Python miner (`/tmp/oeeoo-m14-miner.py`, test difficulty only
+— it refuses any other bits value) mined 101 blocks via
+`getblocktemplate`/`submitblock` against the same test genesis: it
+reconstructs the coinbase exactly as `AssembleBlock` does (BIP34
+height push, no extra data) and solves the header PoW in Python
+(`CheckProofOfWork` compares hash and target as big-endian bytes).
+At tip 101 `getwalletinfo` reported balance 100.0 (coinbases 1 and 2
+mature for block 102) and `immature_balance` 4950.0 (99 coinbases);
+`sendtoaddress` to a second wallet address returned txid
+`0280e14d7328305490fcf9aa6099d65e5c8e39d1ad1e4840cba0c1883795a93a`
+and the mempool grew to size 1 (225 bytes). This run is what found
+the §C.7 maturity bug (its first attempt failed the balance
+assertion the author had written from a wrong expectation — the
+wallet's 100.0 was correct: two coinbases are mature at tip 101,
+not one — and the send itself then proved the fix). The miner
+script is a one-off E2E harness, not a shipped tool; the test log
+carries the full transcript.
 
 ## G. Outstanding decisions (carried + new)
 

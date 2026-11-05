@@ -368,6 +368,19 @@ Real addresses come from real keys in Milestone 8.
   requests would have been rejected. M10's tests never caught it
   (Json::Dump emits no spaces). Regression tests added in
   tests/test_rpc.cpp.
+- Coinbase-maturity bug found by the funded M14 E2E and FIXED
+  (src/wallet/wallet.*, src/rpc/rpcserver.cpp): the wallet had NO
+  maturity handling — ScanUtxo counted immature coinbases as
+  spendable and coin selection could pick one, so the spend was
+  rejected by consensus instead of failing cleanly in the wallet.
+  ScanUtxo now takes the next-block height and applies the exact
+  consensus rule (100 blocks; genesis coinbase exempt); immature
+  coinbases are excluded from balance/unspent and reported as
+  immature_balance in getwalletinfo. Proven by the funded E2E: at
+  tip 101 the wallet showed balance 100.0 / immature_balance 4950.0
+  and the 10-OEEOO send succeeded (txid
+  0280e14d7328305490fcf9aa6099d65e5c8e39d1ad1e4840cba0c1883795a93a).
+  Regression tests added (new M14 section 7).
 - Flaky tests found and fixed during M14 stability runs:
   tests/test_wallet.cpp tamper test wrote a fixed 0xFF at offset 30
   (a random nonce byte) — a no-op with p = 1/256; now XORs the byte.
@@ -381,6 +394,6 @@ Real addresses come from real keys in Milestone 8.
 - New docs: docs/ROADMAP_BITCOIN_LEVEL.md, docs/MILESTONE14.md;
   docs/WALLET.md node-wallet section rewritten (the "no wallet
   integration" note removed).
-- Final state: 133 test sections (127 + 6 new), ALL CHECKS PASSED,
+- Final state: 134 test sections (127 + 7 new), ALL CHECKS PASSED,
   ctest 100%, ASan/UBSan clean, cppcheck 0 findings. Toolchain:
   g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.
