@@ -69,6 +69,20 @@ class Wallet {
   std::string GetAccountXprv() const;
   std::string GetAccountXpub() const;
   uint32_t GetAccountIndex() const { return accountIndex_; }
+  // Derivation indices (for the node wallet: persisted in the wallet
+  // file so a restart never re-issues an address).
+  uint32_t GetNextExternal() const { return nextExternal_; }
+  uint32_t GetNextChange() const { return nextChange_; }
+  // Set the derivation indices, e.g. from the wallet file at load
+  // time. Call ONLY with the persisted values right after a restore:
+  // moving the indices backwards would re-issue addresses that may
+  // already have been handed out. Refreshes the lookahead window.
+  void SetNextIndices(uint32_t nextExternal, uint32_t nextChange);
+  // Best-effort wipe of the secrets held in memory (mnemonic and
+  // private keys), used by the node wallet's Lock(): after this the
+  // object holds no spendable material. The public derivation state
+  // (addresses, scripts) is left intact.
+  void WipeSecrets();
   // Switch to another BIP44 account (derives a new account key).
   bool SetAccount(uint32_t accountIndex, std::string& error);
 

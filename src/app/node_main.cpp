@@ -20,6 +20,7 @@
 #include "rpc/rpcserver.h"
 #include "rpc/rpcutil.h"
 #include "rpc/stratum.h"
+#include "wallet/nodewallet.h"
 
 namespace {
 std::atomic<bool> g_stop{false};
@@ -149,6 +150,25 @@ int main(int argc, char** argv) {
     }
     std::cout << "Genesis accepted: " << HashHex(genesis.GetHash()) << "\n";
   }
+  // Node wallet (Milestone 14). A relative path resolves against the
+  // data directory. An existing file loads LOCKED; a missing file is
+  // remembered so the operator can create it with the createwallet
+  // RPC. A corrupt file refuses startup loudly.
+  NodeWallet nodeWallet;
+  bool walletConfigured = false;
+  std::string walletPathStr;
+  if (!config.walletFile.empty()) {
+    std::filesystem::path walletPath(config.walletFile);
+    if (walletPath.is_relative()) {
+      walletPath = std::filesystem::path(config.dataDir) / walletPath;
+    }
+    walletPathStr = walletPath.string();
+    if (!nodeWallet.LoadFile(walletPathStr, error)) {
+      std::cerr << "oeeoo-node: " << error << "\n";
+      return 1;
+    }
+    walletConfigured = true;
+  }
   for (const std::string& seed : config.dnsSeeds) {
     node.AddDnsSeed(seed);
   }
@@ -168,6 +188,7 @@ int main(int argc, char** argv) {
   }
   std::mutex nodeMutex;
   RpcServer rpc(node, config.rpcPort, config.dataDir, &nodeMutex);
+  if (walletConfigured) rpc.AttachNodeWallet(&nodeWallet);
   if (!rpc.Start(error)) {
     std::cerr << "oeeoo-node: RPC failed to start: " << error << "\n";
     return 1;
@@ -191,6 +212,14 @@ int main(int argc, char** argv) {
             << (stratumOn ? std::to_string(config.stratumPort) : "off")
             << "\n"
             << "  vesting: " << (vesting.enabled ? "enabled" : "disabled")
+            << "\n"
+            << "  wallet: "
+            << (!walletConfigured
+                    ? "none"
+                    : (nodeWallet.HasWallet()
+                           ? walletPathStr + " (locked)"
+                           : walletPathStr +
+                                 " (not created yet — use createwallet RPC)"))
             << "\n";
   if (config.powLimitBits != 0x1d00ffff) {
     // A non-mainnet proof-of-work limit means this node is on a
@@ -213,6 +242,17 @@ int main(int argc, char** argv) {
   std::cout << "Shutting down...\n";
   if (stratumOn) stratum.Stop();
   rpc.Stop();
+  if (walletConfigured) {
+    // Persist the indices, then wipe the keys from memory. Lock()
+    // saves again best-effort; the explicit save here surfaces an
+    // I/O failure as a warning instead of swallowing it.
+    std::string walletError;
+    if (!nodeWallet.SaveIfDirty(walletError)) {
+      std::cerr << "oeeoo-node: warning: cannot save wallet: " << walletError
+                << "\n";
+    }
+    nodeWallet.Lock();
+  }
   store.Close();
   return 0;
 }

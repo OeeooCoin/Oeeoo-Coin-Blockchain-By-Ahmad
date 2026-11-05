@@ -32,6 +32,7 @@ void TestGenesis();
 void TestCli();
 void TestDnsSeed();
 void TestMilestone13();
+void TestMilestone14();
 
 int main() {
   TestAmount();
@@ -62,6 +63,7 @@ int main() {
   TestCli();
   TestDnsSeed();
   TestMilestone13();
+  TestMilestone14();
   test::Report();
   return test::Failures() == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -162,6 +162,24 @@ void TestRpc() {
     CHECK(j.Dump() ==
           "{\"a\":1,\"b\":[true,false,null],\"c\":\"x\\ny\xc3\xa9"
           "\xf0\x9f\x98\x80\"}");
+    // Whitespace is legal before/after any value (RFC 8259). A
+    // value after a space was misread as a number ("bad number")
+    // when it followed ':' in an object or ',' in an array — found
+    // by the M14 E2E (oeeoo-cli walletpassphrase '["pass", 60]'
+    // failed; without the space it worked). Real clients
+    // (Python json.dumps, curl examples) always emit those spaces.
+    CHECK(Json::Parse("{\"a\": 1, \"b\": [1, 2, 3]}", j, error));
+    CHECK(j.Get("a")->AsInt() == 1);
+    CHECK(j.Get("b")->AsArray().size() == 3);
+    CHECK(j.Get("b")->AsArray()[2].AsInt() == 3);
+    CHECK(Json::Parse("[\"x\", 60]", j, error));
+    CHECK(j.AsArray()[1].AsInt() == 60);
+    CHECK(Json::Parse("[ 1 , 2 ]", j, error));
+    CHECK(j.AsArray()[0].AsInt() == 1 && j.AsArray()[1].AsInt() == 2);
+    CHECK(Json::Parse("{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n"
+                    "  \"method\": \"getblockcount\",\n  \"params\": []\n}",
+                    j, error));
+    CHECK(j.Get("method")->AsString() == "getblockcount");
     // Numbers: integers stay integers, fractions become doubles.
     CHECK(Json::Parse("42", j, error));
     CHECK(j.IsInt() && j.AsInt() == 42);

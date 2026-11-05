@@ -449,6 +449,31 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
   NodeLock lock(nodeMutex_);
   ChainState& chain = node_.Chain();
 
+  // The wallet the RPC methods use: the node wallet when one is
+  // attached (it owns the lock state), else the plain test wallet.
+  // Returns nullptr + sets code/message when no wallet is loaded.
+  auto activeWallet = [&]() -> Wallet* {
+    if (nodeWallet_ != nullptr && nodeWallet_->HasWallet()) {
+      return nodeWallet_->GetWallet();
+    }
+    if (wallet_ != nullptr) return wallet_;
+    code = -13;
+    message = "wallet not loaded";
+    return nullptr;
+  };
+  // True when the active wallet is a locked node wallet.
+  auto walletLocked = [&]() -> bool {
+    return nodeWallet_ != nullptr && nodeWallet_->HasWallet() &&
+           nodeWallet_->IsLocked();
+  };
+  // Persist the node wallet's indices after an operation that may
+  // have advanced them. No-op for the plain test wallet. Returns
+  // false + sets `error` on I/O failure.
+  auto saveWallet = [&](std::string& error) -> bool {
+    if (nodeWallet_ == nullptr || !nodeWallet_->HasWallet()) return true;
+    return nodeWallet_->SaveIfDirty(error);
+  };
+
   if (method == "help") {
     Json methods = Json::Array();
     for (const char* m : {"help",
@@ -478,7 +503,10 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
                           "getnewaddress",
                           "listunspent",
                           "sendtoaddress",
-                          "getwalletinfo"}) {
+                          "getwalletinfo",
+                          "createwallet",
+                          "walletpassphrase",
+                          "walletlock"}) {
       methods.Push(std::string(m));
     }
     return methods;
@@ -787,16 +815,28 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
         return fail(-5, "invalid coinbase address");
       }
       minerScript = CreateP2PKHScriptPubKey(hash);
-    } else if (wallet_ != nullptr) {
+    } else {
+      // No coinbaseaddress param: derive one from the wallet. A
+      // locked node wallet cannot derive one: deriving would
+      // advance the file's indices without a passphrase in memory
+      // to persist them.
+      if (walletLocked()) {
+        return fail(-13, "wallet is locked");
+      }
+      Wallet* w = activeWallet();
+      if (w == nullptr) {
+        return fail(-13, "getblocktemplate needs a coinbaseaddress or a "
+                         "loaded wallet");
+      }
       std::string error;
-      WalletAddress addr = wallet_->NewAddress(error);
+      WalletAddress addr = w->NewAddress(error);
       if (addr.address.empty()) {
         return fail(-13, "cannot derive miner address: " + error);
       }
+      if (!saveWallet(error)) {
+        return fail(-13, "cannot persist wallet: " + error);
+      }
       minerScript = addr.scriptPubKey;
-    } else {
-      return fail(-13, "getblocktemplate needs a coinbaseaddress or a "
-                       "loaded wallet");
     }
     const int height = chain.GetTipHeight() + 1;
     const uint32_t mtp = chain.GetMedianTimePast();
@@ -948,37 +988,47 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
   }
 
   // ---- wallet methods ----
-  auto needWallet = [&]() -> Wallet* {
-    if (wallet_ == nullptr) {
-      code = -13;
-      message = "wallet not loaded";
-      return nullptr;
-    }
-    return wallet_;
-  };
+  // getbalance / listunspent / getwalletinfo work while the node
+  // wallet is locked (watch-only view). getnewaddress /
+  // sendtoaddress refuse while locked: deriving an address or
+  // spending advances the file's indices, and they can only be
+  // persisted while the passphrase is in memory. After a scan the
+  // lookahead indices may have advanced, so read methods persist
+  // best-effort (a no-op when locked, or when nothing moved).
 
   if (method == "getbalance") {
-    Wallet* w = needWallet();
+    Wallet* w = activeWallet();
     if (w == nullptr) return Json();
     w->ScanUtxo(node_.Utxo());
+    std::string saveError;
+    saveWallet(saveError);  // best-effort; a read must not fail on I/O
     return Json(AmountToOeeoo(w->GetBalance()));
   }
 
   if (method == "getnewaddress") {
-    Wallet* w = needWallet();
+    if (walletLocked()) {
+      return fail(-13, "wallet is locked");
+    }
+    Wallet* w = activeWallet();
     if (w == nullptr) return Json();
     std::string error;
     WalletAddress addr = w->NewAddress(error);
     if (addr.address.empty()) {
       return fail(-13, "cannot derive address: " + error);
     }
+    if (!saveWallet(error)) {
+      return fail(-13, "cannot persist wallet: " + error);
+    }
     return Json(addr.address);
   }
 
   if (method == "listunspent") {
-    Wallet* w = needWallet();
+    Wallet* w = activeWallet();
     if (w == nullptr) return Json();
     w->ScanUtxo(node_.Utxo());
+    std::string saveError;
+    saveWallet(saveError);  // best-effort
+    const bool spendable = !walletLocked();
     Json arr = Json::Array();
     for (const WalletUtxo& u : w->ListUnspent()) {
       Json item = Json::Object();
@@ -987,14 +1037,17 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
       item.Set("address", u.address);
       item.Set("amount", AmountToOeeoo(u.value));
       item.Set("confirmations", static_cast<int64_t>(1));
-      item.Set("spendable", true);
+      item.Set("spendable", spendable);
       arr.Push(item);
     }
     return arr;
   }
 
   if (method == "sendtoaddress") {
-    Wallet* w = needWallet();
+    if (walletLocked()) {
+      return fail(-13, "wallet is locked");
+    }
+    Wallet* w = activeWallet();
     if (w == nullptr) return Json();
     const Json* addrP = Param(params, 0, "address");
     const Json* amountP = Param(params, 1, "amount");
@@ -1014,6 +1067,12 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
                               chain.GetMedianTimePast(), tx, fee, error, 1)) {
       return fail(-13, "cannot build transaction: " + error);
     }
+    // Persist the (possibly advanced) change index BEFORE the
+    // transaction leaves: if the save fails, nothing was broadcast
+    // and the operator can retry without risking address reuse.
+    if (!saveWallet(error)) {
+      return fail(-13, "cannot persist wallet: " + error);
+    }
     if (!node_.BroadcastTx(tx, error)) {
       return fail(-26, "transaction rejected: " + error);
     }
@@ -1021,18 +1080,91 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
   }
 
   if (method == "getwalletinfo") {
-    Wallet* w = needWallet();
+    Wallet* w = activeWallet();
     if (w == nullptr) return Json();
     w->ScanUtxo(node_.Utxo());
+    std::string saveError;
+    saveWallet(saveError);  // best-effort
     Json j = Json::Object();
     j.Set("walletname", "default");
     j.Set("walletversion", 1);
     j.Set("balance", AmountToOeeoo(w->GetBalance()));
     j.Set("txcount", static_cast<int64_t>(w->ListUnspent().size()));
     j.Set("keypoolsize", kWalletGapLimit);
-    j.Set("unlocked_until", 0);
+    uint64_t unlockedUntil = 0;
+    if (nodeWallet_ != nullptr && nodeWallet_->HasWallet()) {
+      unlockedUntil = nodeWallet_->UnlockedUntil();
+    }
+    j.Set("unlocked_until", static_cast<int64_t>(unlockedUntil));
     j.Set("paytxfee", AmountToOeeoo(0));
     return j;
+  }
+
+  // ---- node-wallet management (Milestone 14) ----
+  // createwallet needs a --wallet path registered with the node:
+  // without one there is nowhere to write the new file.
+
+  if (method == "createwallet") {
+    const Json* passP = Param(params, 0, "passphrase");
+    if (passP == nullptr || !passP->IsString() ||
+        passP->AsString().empty()) {
+      return fail(-8, "createwallet needs a non-empty passphrase");
+    }
+    if (nodeWallet_ == nullptr) {
+      return fail(-13,
+                  "no wallet file configured (start the node with "
+                  "--wallet <path>)");
+    }
+    if (nodeWallet_->HasWallet()) {
+      return fail(-13, "wallet already loaded");
+    }
+    std::string mnemonic;
+    std::string error;
+    if (!nodeWallet_->CreateFile(nodeWallet_->Path(),
+                                 passP->AsString(), mnemonic, error)) {
+      return fail(-13, "cannot create wallet: " + error);
+    }
+    Json j = Json::Object();
+    j.Set("mnemonic", mnemonic);
+    j.Set("warning",
+          "Write down this recovery phrase now. It is shown only "
+          "once — the node never stores it.");
+    return j;
+  }
+
+  if (method == "walletpassphrase") {
+    const Json* passP = Param(params, 0, "passphrase");
+    const Json* timeoutP = Param(params, 1, "timeout");
+    if (passP == nullptr || !passP->IsString() ||
+        passP->AsString().empty() || timeoutP == nullptr ||
+        !timeoutP->IsInt()) {
+      return fail(-32602,
+                  "walletpassphrase needs a passphrase and a timeout "
+                  "in seconds");
+    }
+    const int64_t timeout = timeoutP->AsInt();
+    if (timeout < 0 || timeout > 4294967295LL) {
+      return fail(-32602, "walletpassphrase timeout out of range");
+    }
+    if (nodeWallet_ == nullptr || !nodeWallet_->HasWallet()) {
+      return fail(-13, "wallet not loaded");
+    }
+    std::string error;
+    if (!nodeWallet_->Unlock(passP->AsString(),
+                             static_cast<uint32_t>(timeout), error)) {
+      // -14 is Bitcoin's "wallet passphrase incorrect" code; it was
+      // unused in this codebase.
+      return fail(-14, error);
+    }
+    return Json("wallet unlocked");
+  }
+
+  if (method == "walletlock") {
+    if (nodeWallet_ == nullptr || !nodeWallet_->HasWallet()) {
+      return fail(-13, "wallet not loaded");
+    }
+    nodeWallet_->Lock();
+    return Json("wallet locked");
   }
 
   return fail(-32601, "Method not found");

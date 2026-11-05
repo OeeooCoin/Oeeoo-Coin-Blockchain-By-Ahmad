@@ -174,6 +174,9 @@ class Parser {
         error = "expected ':' in object";
         return false;
       }
+      // Whitespace is legal after ':' (RFC 8259): a value starting
+      // with a space was misread as a number ("bad number").
+      SkipWs();
       Json value;
       if (!ParseValue(value, error, depth + 1)) return false;
       out.Set(key, std::move(value));
@@ -192,6 +195,10 @@ class Parser {
     SkipWs();
     if (Consume(']')) return true;
     while (true) {
+      // Whitespace is legal after ',' (RFC 8259): without this, an
+      // element starting with a space was misread as a number
+      // ("bad number").
+      SkipWs();
       Json value;
       if (!ParseValue(value, error, depth + 1)) return false;
       out.Push(std::move(value));

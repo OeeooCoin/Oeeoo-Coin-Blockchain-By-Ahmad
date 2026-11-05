@@ -74,6 +74,8 @@ bool SetKey(AppConfig& config, const std::string& key,
     config.minerAddress = value;
   } else if (key == "genesisfile") {
     config.genesisFile = value;
+  } else if (key == "wallet") {
+    config.walletFile = value;
   } else if (key == "genesischeckpoint") {
     if (value.size() != 64 ||
         value.find_first_not_of("0123456789abcdefABCDEF") !=
@@ -194,6 +196,8 @@ bool ParseArgs(int argc, char** argv, AppConfig& config,
       if (!needValue("--miner-address", config.minerAddress)) return false;
     } else if (arg == "--genesis-file") {
       if (!needValue("--genesis-file", config.genesisFile)) return false;
+    } else if (arg == "--wallet") {
+      if (!needValue("--wallet", config.walletFile)) return false;
     } else if (arg == "--genesis-checkpoint") {
       std::string value;
       if (!needValue("--genesis-checkpoint", value)) return false;
@@ -261,6 +265,8 @@ std::string UsageText(const char* program) {
       << "  --stratumport <n>     Stratum port, 127.0.0.1 only (default: 64777)\n"
       << "  --miner-address <a>   P2PKH address for Stratum coinbase (enables Stratum)\n"
       << "  --genesis-file <path> genesis file from oeeoo-genesis (fresh chain only)\n"
+      << "  --wallet <path>       wallet file for the node wallet (loads LOCKED;\n"
+      << "                         unlock with the walletpassphrase RPC)\n"
       << "  --genesis-checkpoint <hex> expected mainnet genesis hash (64 hex)\n"
       << "  --maxmempool <MB>     mempool size cap in MB (default: 300)\n"
       << "  --founder-script <hex> founder 2-of-3 multisig script (vesting)\n"

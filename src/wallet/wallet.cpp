@@ -4,6 +4,8 @@
 
 #include <algorithm>
 
+#include <openssl/crypto.h>
+
 #include "consensus/consensus.h"
 #include "crypto/address.h"
 #include "crypto/ecdsa.h"
@@ -89,6 +91,32 @@ bool Wallet::RestoreFromXpub(const std::string& xpub, std::string& error) {
   nextChange_ = 0;
   EnsureLookahead();
   return true;
+}
+
+void Wallet::SetNextIndices(uint32_t nextExternal, uint32_t nextChange) {
+  nextExternal_ = nextExternal;
+  nextChange_ = nextChange;
+  EnsureLookahead();
+}
+
+void Wallet::WipeSecrets() {
+  // Overwrite the secret buffers before releasing them: a plain
+  // std::string / array assignment would leave the old bytes in
+  // freed heap memory. This is best-effort — copies may exist
+  // elsewhere (e.g. in a derived signing key that has already been
+  // freed) — but the wallet's own long-lived secrets are gone.
+  if (!mnemonic_.empty()) {
+    OPENSSL_cleanse(mnemonic_.data(), mnemonic_.size());
+    mnemonic_.clear();
+  }
+  OPENSSL_cleanse(master_.privkey.data(), master_.privkey.size());
+  OPENSSL_cleanse(account_.privkey.data(), account_.privkey.size());
+  // Keep the public half: the wallet stays usable as a watch-only
+  // wallet (same addresses, same indices, balance still visible),
+  // it just cannot sign any more.
+  master_ = Neuter(master_);
+  account_ = Neuter(account_);
+  watchOnly_ = true;
 }
 
 std::string Wallet::GetAccountXprv() const {

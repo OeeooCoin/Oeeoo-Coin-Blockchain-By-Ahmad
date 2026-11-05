@@ -19,6 +19,7 @@
 
 #include "network/node.h"
 #include "rpc/json.h"
+#include "wallet/nodewallet.h"
 #include "wallet/wallet.h"
 
 namespace oeeoo {
@@ -37,6 +38,11 @@ class RpcServer {
   ~RpcServer();
 
   void AttachWallet(Wallet* wallet) { wallet_ = wallet; }
+  // Attach the node wallet (Milestone 14). When one is attached it
+  // takes precedence over a plain wallet: the wallet methods go
+  // through its lock state. The plain-wallet attach stays for tests
+  // that drive the RPC server without a node wallet.
+  void AttachNodeWallet(NodeWallet* wallet) { nodeWallet_ = wallet; }
   void SetAuthEnabled(bool enabled) { authEnabled_ = enabled; }
   bool Start(std::string& error);
   void Stop();
@@ -67,6 +73,7 @@ class RpcServer {
 
   Node& node_;
   Wallet* wallet_ = nullptr;
+  NodeWallet* nodeWallet_ = nullptr;
   uint16_t port_;
   std::string dataDir_;
   std::mutex* nodeMutex_;

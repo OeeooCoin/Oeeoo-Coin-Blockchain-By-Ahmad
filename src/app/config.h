@@ -18,6 +18,12 @@ struct AppConfig {
   uint16_t stratumPort = 64777;  // Stratum v1 (127.0.0.1 only)
   std::string minerAddress;      // empty = Stratum disabled
   std::string genesisFile;       // empty = an existing chain is required
+  // Wallet file for the node wallet (Milestone 14). Empty = no
+  // wallet (RPC wallet methods return -13, as before). A relative
+  // path is resolved against the data directory by node_main.
+  // The wallet loads LOCKED; unlock it with the walletpassphrase
+  // RPC. The passphrase is NEVER a CLI flag or a config value.
+  std::string walletFile;
   // Expected mainnet genesis hash (64 hex chars). Empty = no
   // checkpoint. When set, the node refuses to start unless the
   // genesis it loads (from file or from the store) hashes to this

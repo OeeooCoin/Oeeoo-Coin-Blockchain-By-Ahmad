@@ -399,8 +399,14 @@ void TestWallet() {
       FILE* f = std::fopen(path.c_str(), "r+b");
       CHECK(f != nullptr);
       std::fseek(f, 30, SEEK_SET);
-      const unsigned char flip = 0xFF;
-      CHECK(std::fwrite(&flip, 1, 1, f) == 1);
+      unsigned char byte = 0;
+      CHECK(std::fread(&byte, 1, 1, f) == 1);
+      // XOR, don't write a fixed value: offset 30 is a random nonce
+      // byte, so writing a fixed 0xFF was a no-op (and the test
+      // flaky, p = 1/256) whenever the byte was already 0xFF.
+      byte ^= 0xFF;
+      std::fseek(f, 30, SEEK_SET);
+      CHECK(std::fwrite(&byte, 1, 1, f) == 1);
       std::fclose(f);
     }
     CHECK(!LoadWalletFile(path, "correct horse battery staple", bad, error));
