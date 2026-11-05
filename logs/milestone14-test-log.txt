@@ -1,6 +1,6 @@
 ===== OEEOO COIN — MILESTONE 14 TEST LOG =====
 Date: 2026-11-06 (PKT). Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.
-Source commit: 09c29f7 (Milestone 14 docs; code commit a7033d3)
+Source commit: 7e32311 (Milestone 14 + coinbase-maturity fix; code commit a7033d3)
 
 --- CLEAN BUILD ---
 $ rm -rf build && cmake -S . -B build
@@ -16,13 +16,13 @@ $ rm -rf build && cmake -S . -B build
 -- Generating done (0.0s)
 -- Build files have been written to: /home/hatch/workspace/oeeoo-coin/build
 $ cmake --build build -j4
+[  1%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/uint256.cpp.o
+[  2%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/vesting.cpp.o
 [  3%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/subsidy.cpp.o
-[  3%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/vesting.cpp.o
-[  3%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/difficulty.cpp.o
-[  4%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/uint256.cpp.o
+[  4%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/difficulty.cpp.o
 [  6%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/sha256.cpp.o
-[  7%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/base58.cpp.o
-[  8%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/hash160.cpp.o
+[  7%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/hash160.cpp.o
+[  8%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/base58.cpp.o
 [  9%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/address.cpp.o
 [ 10%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/ecdsa.cpp.o
 [ 12%] Building CXX object CMakeFiles/oeeoo_core.dir/src/serialize/varint.cpp.o
@@ -50,8 +50,8 @@ $ cmake --build build -j4
 [ 39%] Building CXX object CMakeFiles/oeeoo_core.dir/src/db/database.cpp.o
 [ 40%] Building CXX object CMakeFiles/oeeoo_core.dir/src/db/chainstore.cpp.o
 [ 41%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/bip39.cpp.o
-[ 42%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/wallet.cpp.o
-[ 43%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/bip32.cpp.o
+[ 42%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/bip32.cpp.o
+[ 43%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/wallet.cpp.o
 [ 45%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/walletfile.cpp.o
 [ 46%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/nodewallet.cpp.o
 [ 47%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/json.cpp.o
@@ -62,21 +62,21 @@ $ cmake --build build -j4
 [ 53%] Building CXX object CMakeFiles/oeeoo_core.dir/src/app/cli.cpp.o
 [ 54%] Linking CXX static library liboeeoo_core.a
 [ 54%] Built target oeeoo_core
-[ 56%] Building CXX object CMakeFiles/oeeoo-cli.dir/src/app/cli_main.cpp.o
-[ 57%] Building CXX object CMakeFiles/oeeoo-genesis.dir/src/app/genesis_main.cpp.o
-[ 58%] Building CXX object CMakeFiles/oeeoo-node.dir/src/app/node_main.cpp.o
+[ 56%] Building CXX object CMakeFiles/oeeoo-genesis.dir/src/app/genesis_main.cpp.o
+[ 57%] Building CXX object CMakeFiles/oeeoo-node.dir/src/app/node_main.cpp.o
+[ 58%] Building CXX object CMakeFiles/oeeoo-cli.dir/src/app/cli_main.cpp.o
 [ 59%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_main.cpp.o
 [ 60%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_amount.cpp.o
 [ 62%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_subsidy.cpp.o
 [ 63%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_crypto.cpp.o
-[ 64%] Linking CXX executable oeeoo-cli
-[ 65%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_block.cpp.o
+[ 64%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_block.cpp.o
+[ 65%] Linking CXX executable oeeoo-cli
 [ 65%] Built target oeeoo-cli
 [ 67%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_varint.cpp.o
-[ 68%] Linking CXX executable oeeoo-genesis
-[ 69%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_transaction.cpp.o
-[ 69%] Built target oeeoo-genesis
+[ 68%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_transaction.cpp.o
+[ 69%] Linking CXX executable oeeoo-genesis
 [ 70%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_merkle.cpp.o
+[ 70%] Built target oeeoo-genesis
 [ 71%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_address.cpp.o
 [ 73%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_difficulty.cpp.o
 [ 74%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_chain.cpp.o
@@ -94,8 +94,8 @@ $ cmake --build build -j4
 [ 87%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_stratum.cpp.o
 [ 89%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_reorg.cpp.o
 [ 90%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_verify.cpp.o
+[ 91%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_fuzz.cpp.o
 [ 92%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_config.cpp.o
-[ 92%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_fuzz.cpp.o
 [ 93%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_genesis.cpp.o
 [ 95%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_cli.cpp.o
 [ 96%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_dnsseed.cpp.o
@@ -239,6 +239,7 @@ $ ./build/oeeoo_tests
 [test] m14: RPC wallet methods end to end
 [test] m14: createwallet RPC creates a fresh wallet
 [test] m14: wallet file format unchanged
+[test] m14: coinbase maturity in the wallet
 [test] ALL CHECKS PASSED
 
 --- CTEST ---
@@ -246,11 +247,11 @@ $ ctest --test-dir build --output-on-failure
 Internal ctest changing into directory: /home/hatch/workspace/oeeoo-coin/build
 Test project /home/hatch/workspace/oeeoo-coin/build
     Start 1: oeeoo_tests
-1/1 Test #1: oeeoo_tests ......................   Passed   17.57 sec
+1/1 Test #1: oeeoo_tests ......................   Passed   18.24 sec
 
 100% tests passed, 0 tests failed out of 1
 
-Total Test time (real) =  17.57 sec
+Total Test time (real) =  18.24 sec
 
 --- CPPCHECK ---
 $ cppcheck --enable=warning,performance,portability --suppress=missingIncludeSystem -Isrc src tests
@@ -289,7 +290,7 @@ Checking src/crypto/base58.cpp ...
 Checking src/crypto/ecdsa.cpp ...
 17/77 files checked 13% done
 Checking src/crypto/hash160.cpp ...
-18/77 files checked 14% done
+18/77 files checked 13% done
 Checking src/crypto/sha256.cpp ...
 19/77 files checked 14% done
 Checking src/db/chainstore.cpp ...
@@ -307,7 +308,7 @@ Checking src/network/addrman.cpp ...
 Checking src/network/compact.cpp ...
 26/77 files checked 23% done
 Checking src/network/dnsseed.cpp ...
-27/77 files checked 24% done
+27/77 files checked 23% done
 Checking src/network/node.cpp ...
 28/77 files checked 29% done
 Checking src/network/peer.cpp ...
@@ -317,7 +318,7 @@ Checking src/network/protocol.cpp ...
 Checking src/network/siphash.cpp ...
 31/77 files checked 31% done
 Checking src/network/transport.cpp ...
-32/77 files checked 33% done
+32/77 files checked 32% done
 Checking src/rpc/json.cpp ...
 33/77 files checked 34% done
 Checking src/rpc/rpcserver.cpp ...
@@ -329,11 +330,11 @@ Checking src/script/script.cpp ...
 Checking src/serialize/varint.cpp ...
 37/77 files checked 47% done
 Checking src/transactions/dust.cpp ...
-38/77 files checked 48% done
+38/77 files checked 47% done
 Checking src/transactions/sighash.cpp ...
-39/77 files checked 48% done
+39/77 files checked 47% done
 Checking src/transactions/transaction.cpp ...
-40/77 files checked 49% done
+40/77 files checked 48% done
 Checking src/transactions/validation.cpp ...
 41/77 files checked 50% done
 Checking src/utxo/coins.cpp ...
@@ -341,15 +342,15 @@ Checking src/utxo/coins.cpp ...
 Checking src/wallet/bip32.cpp ...
 43/77 files checked 52% done
 Checking src/wallet/bip39.cpp ...
-44/77 files checked 53% done
+44/77 files checked 52% done
 Checking src/wallet/nodewallet.cpp ...
-45/77 files checked 54% done
+45/77 files checked 53% done
 Checking src/wallet/wallet.cpp ...
 46/77 files checked 56% done
 Checking src/wallet/walletfile.cpp ...
 47/77 files checked 57% done
 Checking tests/test_address.cpp ...
-48/77 files checked 58% done
+48/77 files checked 57% done
 Checking tests/test_amount.cpp ...
 49/77 files checked 58% done
 Checking tests/test_block.cpp ...
@@ -361,19 +362,19 @@ Checking tests/test_cli.cpp ...
 Checking tests/test_config.cpp ...
 53/77 files checked 61% done
 Checking tests/test_crypto.cpp ...
-54/77 files checked 62% done
+54/77 files checked 61% done
 Checking tests/test_db.cpp ...
 55/77 files checked 64% done
 Checking tests/test_difficulty.cpp ...
 56/77 files checked 65% done
 Checking tests/test_dnsseed.cpp ...
-57/77 files checked 66% done
+57/77 files checked 65% done
 Checking tests/test_fuzz.cpp ...
-58/77 files checked 67% done
+58/77 files checked 66% done
 Checking tests/test_genesis.cpp ...
 59/77 files checked 67% done
 Checking tests/test_main.cpp ...
-60/77 files checked 68% done
+60/77 files checked 67% done
 Checking tests/test_merkle.cpp ...
 61/77 files checked 68% done
 Checking tests/test_milestone13.cpp ...
@@ -385,7 +386,7 @@ Checking tests/test_mining.cpp ...
 Checking tests/test_network.cpp ...
 65/77 files checked 81% done
 Checking tests/test_node.cpp ...
-66/77 files checked 82% done
+66/77 files checked 83% done
 Checking tests/test_reorg.cpp ...
 67/77 files checked 84% done
 Checking tests/test_rpc.cpp ...
@@ -411,17 +412,24 @@ Checking tests/test_wallet.cpp ...
 
 --- ASAN/UBSAN BUILD + RUN (no stdbuf: stdbuf breaks the ASan binary at startup, see docs/MILESTONE14.md) ---
 $ cmake --build build-asan -j4
-[  1%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/json.cpp.o
-[  2%] Linking CXX static library liboeeoo_core.a
+[  3%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/nodewallet.cpp.o
+[  3%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/rpcserver.cpp.o
+[  3%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/wallet.cpp.o
+[  4%] Linking CXX static library liboeeoo_core.a
 [ 54%] Built target oeeoo_core
-[ 56%] Linking CXX executable oeeoo-cli
+[ 56%] Building CXX object CMakeFiles/oeeoo-node.dir/src/app/node_main.cpp.o
+[ 57%] Linking CXX executable oeeoo-cli
 [ 58%] Linking CXX executable oeeoo-genesis
-[ 58%] Linking CXX executable oeeoo-node
-[ 59%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_rpc.cpp.o
+[ 59%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_wallet.cpp.o
 [ 60%] Built target oeeoo-cli
-[ 62%] Built target oeeoo-genesis
-[ 63%] Built target oeeoo-node
-[ 64%] Linking CXX executable oeeoo_tests
+[ 62%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_rpc.cpp.o
+[ 63%] Built target oeeoo-genesis
+[ 64%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_stratum.cpp.o
+[ 65%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_cli.cpp.o
+[ 67%] Linking CXX executable oeeoo-node
+[ 67%] Built target oeeoo-node
+[ 68%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone14.cpp.o
+[ 69%] Linking CXX executable oeeoo_tests
 [100%] Built target oeeoo_tests
 $ ASAN_OPTIONS=detect_leaks=0 ./build-asan/oeeoo_tests
 [test] amount / money constants
@@ -557,6 +565,7 @@ $ ASAN_OPTIONS=detect_leaks=0 ./build-asan/oeeoo_tests
 [test] m14: RPC wallet methods end to end
 [test] m14: createwallet RPC creates a fresh wallet
 [test] m14: wallet file format unchanged
+[test] m14: coinbase maturity in the wallet
 [test] ALL CHECKS PASSED
 
 --- MANUAL E2E (oeeoo-node + oeeoo-cli, test values only) ---
@@ -591,19 +600,19 @@ $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data walletpassphrase '["wrong 
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data walletpassphrase '["m14 e2e test passphrase", 3600]'   (spaced JSON)
 {"id":1,"jsonrpc":"2.0","result":"wallet unlocked"}
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data getwalletinfo
-{"id":1,"jsonrpc":"2.0","result":{"balance":0,"keypoolsize":20,"paytxfee":0,"txcount":0,"unlocked_until":1793922583,"walletname":"default","walletversion":1}}
+{"id":1,"jsonrpc":"2.0","result":{"balance":0,"immature_balance":0,"keypoolsize":20,"paytxfee":0,"txcount":0,"unlocked_until":1793923515,"walletname":"default","walletversion":1}}
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data getnewaddress
-{"id":1,"jsonrpc":"2.0","result":"7GyNmc9qdesEPzTTQDw8rptCyQmsjCgWmv"}
+{"id":1,"jsonrpc":"2.0","result":"75YTSc49Jm3FsYZhAS9oziJ5BhBi8B5Tga"}
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data getnewaddress
-second address: 7NJU18mWmX8G9tUFK1t4x7RYQ7BBbPiVyn
+second address: 7K6NyddGrMyiyK4TZdi1tKghK8iYc5dJEM
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data getblocktemplate
 {"id":1,"jsonrpc":"2.0","result":{"bits":"207fffff","coinbaseaux":{"flags":""},"coinbasevalue":5000000000,"curtime":1793923201,"height":1,"mintime":1793923201,"mutable":["time","transactions","prevblock"],"noncerange":"00000000ffffffff","previousblockhash":"47bcc8f4a711c2d4905ac04baed7434b6a39f33dacc2ae376670cebaecf9aa8b","sigoplimit":20000,"sizelimit":1000000,"target":"7fffff0000000000000000000000000000000000000000000000000000000000","transactions":[],"version":1}}
-$ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data sendtoaddress '["7NJU18mWmX8G9tUFK1t4x7RYQ7BBbPiVyn", "1"]'   (no funds on this test chain: genesis pays the founder vault)
+$ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data sendtoaddress '["7K6NyddGrMyiyK4TZdi1tKghK8iYc5dJEM", "1"]'   (no funds on this test chain: genesis pays the founder vault)
 {"error":{"code":-13,"message":"cannot build transaction: insufficient funds"},"id":1,"jsonrpc":"2.0"}
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data walletlock
 {"id":1,"jsonrpc":"2.0","result":"wallet locked"}
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data getwalletinfo
-{"id":1,"jsonrpc":"2.0","result":{"balance":0,"keypoolsize":20,"paytxfee":0,"txcount":0,"unlocked_until":0,"walletname":"default","walletversion":1}}
+{"id":1,"jsonrpc":"2.0","result":{"balance":0,"immature_balance":0,"keypoolsize":20,"paytxfee":0,"txcount":0,"unlocked_until":0,"walletname":"default","walletversion":1}}
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data stop
 {"id":1,"jsonrpc":"2.0","result":"Oeeoo Coin server stopping"}
 --- RESTART (no --genesis-file: chain loads from the store, deep-verify ON) ---
@@ -618,7 +627,49 @@ Oeeoo Coin node 0.1.0
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data getblockcount
 {"id":1,"jsonrpc":"2.0","result":0}
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data getwalletinfo   (locked after restart)
-{"id":1,"jsonrpc":"2.0","result":{"balance":0,"keypoolsize":20,"paytxfee":0,"txcount":0,"unlocked_until":0,"walletname":"default","walletversion":1}}
+{"id":1,"jsonrpc":"2.0","result":{"balance":0,"immature_balance":0,"keypoolsize":20,"paytxfee":0,"txcount":0,"unlocked_until":0,"walletname":"default","walletversion":1}}
 $ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-e2e-data stop
 {"id":1,"jsonrpc":"2.0","result":"Oeeoo Coin server stopping"}
 $ rm -rf /tmp/oeeoo-m14-e2e-data /tmp/oeeoo-m14-e2e-genesis.json   (test wallet deleted; the createwallet mnemonic above is redacted)
+
+--- FUNDED MANUAL E2E (Python miner: 101 blocks via getblocktemplate/submitblock, test difficulty only) ---
+Miner: /tmp/oeeoo-m14-miner.py — reconstructs the coinbase exactly as AssembleBlock does (BIP34 height push, no extra data) and solves the header PoW in Python; refuses any bits other than 207fffff.
+$ ./build/oeeoo-genesis --pubkey1 0383faea5927335d8d12202a04f493b8febd5de2e1b916f6ae45c987c08f88c725 --pubkey2 021242bbe6bde48360cf8d1a7349956e4d3f2b944e809daacc9f469d2f3a0a89b1 --pubkey3 037feddc9670f6f51782766da7eee9744e7712966de3eb3453991cb5604658ee24 --time 1793923200 --bits 207fffff --threads 1 --out /tmp/oeeoo-m14-miner-genesis.json
+Mining the genesis block (1 threads, bits 207fffff)...
+Genesis block mined and written to /tmp/oeeoo-m14-miner-genesis.json
+  hash: 47bcc8f4a711c2d4905ac04baed7434b6a39f33dacc2ae376670cebaecf9aa8b
+  merkle root: 432d8d204e3d4b33e86cf4235f80fb28fc70be86f993b529da6c2b31cfa043c9
+  nonce: 0
+  time: 1793923200
+  founder script: 52210383faea5927335d8d12202a04f493b8febd5de2e1b916f6ae45c987c08f88c72521021242bbe6bde48360cf8d1a7349956e4d3f2b944e809daacc9f469d2f3a0a89b121037feddc9670f6f51782766da7eee9744e7712966de3eb3453991cb5604658ee2453ae
+  founder vault: 1,000,000 OEEOO (2-of-3 multisig)
+$ rm -rf /tmp/oeeoo-m14-miner-data
+$ ./build/oeeoo-node --datadir /tmp/oeeoo-m14-miner-data --genesis-file /tmp/oeeoo-m14-miner-genesis.json --pow-limit-bits 207fffff --wallet wallet.dat > /tmp/oeeoo-m14-miner-node.log 2>&1 &
+Genesis accepted: 47bcc8f4a711c2d4905ac04baed7434b6a39f33dacc2ae376670cebaecf9aa8b
+Oeeoo Coin node 0.1.0
+  data dir: /tmp/oeeoo-m14-miner-data
+  height: 0  tip: 47bcc8f4a711c2d4905ac04baed7434b6a39f33dacc2ae376670cebaecf9aa8b
+  P2P: 64775  RPC: 127.0.0.1:64776  Stratum: off
+  vesting: enabled
+  wallet: /tmp/oeeoo-m14-miner-data/wallet.dat (not created yet — use createwallet RPC)
+  *** WARNING: TESTING MODE — proof-of-work limit is 0x207fffff, not the mainnet limit 0x1d00ffff. This node is NOT on Mainnet. ***
+$ python3 /tmp/oeeoo-m14-miner.py
+createwallet: ok (mnemonic not printed)
+walletpassphrase: wallet unlocked
+miner address: 7EQWZCMdzs7MYrLMquMgnpPWdtGnRDTqJ2
+mined height 1 (nonce 5), tip now 1
+mined height 25 (nonce 0), tip now 25
+mined height 50 (nonce 0), tip now 50
+mined height 75 (nonce 1), tip now 75
+mined height 100 (nonce 0), tip now 100
+tip: 101
+walletinfo: {'balance': 100, 'immature_balance': 4950, 'keypoolsize': 20, 'paytxfee': 0, 'txcount': 2, 'unlocked_until': 1793923533, 'walletname': 'default', 'walletversion': 1}
+second address: 73WxWnXkV6BkdhrJ4z5P18cpXHDA3Vq9Jp
+sendtoaddress txid: e6e814b3616c9f6a8c9f9f7f3ba3c518be3395a0ea6890a0ef8c4b7ab80430cc
+mempool: {'bytes': 226, 'maxmempool': 314572800, 'mempoolminfee': 1e-08, 'size': 1, 'usage': 226}
+walletlock: wallet locked
+E2E FUNDED SEND OK
+miner exit: 0
+$ ./build/oeeoo-cli --datadir /tmp/oeeoo-m14-miner-data stop
+{"id":1,"jsonrpc":"2.0","result":"Oeeoo Coin server stopping"}
+$ rm -rf /tmp/oeeoo-m14-miner-data /tmp/oeeoo-m14-miner-genesis.json   (test wallet deleted; the miner never prints its mnemonic)
