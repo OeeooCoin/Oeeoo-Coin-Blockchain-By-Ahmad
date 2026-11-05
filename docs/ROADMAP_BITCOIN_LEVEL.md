@@ -32,10 +32,10 @@ Comparison (Bitcoin Core behaviour vs Oeeoo today):
 | Orphan transactions | Orphan pool (limited, with expiry + eviction) | None — unknown-parent txs rejected outright | M15 |
 | Compact blocks | In-flight limits, timeouts, full-block fallback | PoW check + 120 s pending expiry + fallback (M13); no per-peer in-flight limit, no `getblocktxn` retry | M15 |
 | Peer eviction | Evicts worst peers when full (incl. block-relay-only eviction) | Cap enforced (M13); no eviction policy | M15 |
-| RPC completeness | `getchaintips`, `getblockstats`, sigops in templates, per-client rate limits | Absent; `getblocktemplate` reports sigops 0; 32-connection cap only | M16 |
+| RPC completeness | `getchaintips`, `getblockstats`, sigops in templates, thread/work-queue bounds (`-rpcthreads` / `-rpcworkqueue`) — Core has NO per-client rate limiting | Absent; `getblocktemplate` reports sigops 0 and fees 0; 32-connection cap only | M16 |
 | Mempool persistence | `mempool.dat` saved on shutdown, loaded on start | None — mempool starts empty every restart | M17 |
-| Reorg depth | Tested to deep reorgs in CI | Undo tested to depth 2 only | M17 |
-| Crash recovery | Tested crash-injection; WAL + atomic writes | WAL + `synchronous=FULL`; unclean-shutdown test only (store never closed) | M17 |
+| Reorg depth | No single verified Core depth figure — the "100" is Oeeoo's own target (coinbase maturity rationale) | Undo tested to depth 2 only | M17 |
+| Crash recovery | WAL + atomic writes; no named Core crash-injection test verified — Oeeoo robustness work, not Core parity | WAL + `synchronous=FULL`; unclean-shutdown test only (store never closed) | M17 |
 | Fuzzing | Continuous fuzzing of P2P/RPC/deserialize (incl. OSS-Fuzz) | Parser fuzzing only (~6,000 inputs); live P2P/RPC/Stratum state machines unfuzzed | M18 |
 | Audit | Multiple independent audits over the years | None — M13 was a self-audit | Owner decision (M19) |
 
@@ -115,6 +115,23 @@ while unlocked, and is wiped on lock. The node never logs it.
 - All 127 existing sections still pass; full suite + ctest + ASan/UBSan
   on the final code; cppcheck 0 findings; build warning-free.
 
+**Notes (from the Bitcoin Core comparison, researched overnight):**
+- No descriptor wallets: Oeeoo's wallet is deliberately BIP39/44
+  P2PKH (spec §7) — closest to Core's old legacy HD wallet, which
+  Core itself removed in v30. M14 wires Oeeoo's own wallet into the
+  node; it does not adopt descriptors.
+- `encryptwallet` does not map: Oeeoo wallet files are created
+  already-encrypted; there is no unencrypted→encrypted transition.
+  Passphrase rotation (`walletpassphrasechange`) is a follow-up
+  candidate, not in M14 scope.
+- Single wallet only in M14 (`--wallet <path>`). Core's multi-wallet
+  support (`loadwallet` / `unloadwallet` / `listwallets`) is future
+  work, not M14.
+- `listtransactions` / `gettransaction` are NOT in M14: the wallet
+  library keeps no transaction history (only a UTXO scan), so those
+  methods need a wallet-tx journal first. They belong to M16 with
+  the format decision (see below).
+
 **Stays REQUIRES DECISION:** none new. (BIP39-passphrase wallets are
 out of scope for the node wallet — the file passphrase is the only
 secret the node handles.)
@@ -130,36 +147,48 @@ secret the node handles.)
   (plumb the address through `ITransport::Poll` / `TransportMessage`
   or an equivalent); `Node::OnBytes` stores it as `peer.address` so
   bans are keyed by IP and survive reconnects. Inbound ban test.
-- `src/network/addrman.*`: per-source limits (cap addresses per
-  source peer), entry expiry (stale entries dropped), and a documented
-  decision on AS-map awareness (Bitcoin uses asmap files; Oeeoo has
-  none — likely "not implemented, documented", unless the research
-  says otherwise).
-- `src/network/dnsseed.*`: resolver timeout (getaddrinfo has none
-  today — a hanging resolver blocks startup). Implement with a
-  worker thread + timeout, or document why the platform cannot do it.
+- `src/network/addrman.*`: source-netgroup bucketing (Core's
+  anti-fill defence is bucketing by source netgroup, not a flat
+  per-source count cap — implement bucketing, or at minimum a
+  per-source-group cap) + entry expiry (Core horizon: 30 days) +
+  failure counting. Documented decision on AS-map awareness (Core
+  uses asmap files; Oeeoo has none — likely "not implemented,
+  documented").
+- `src/network/dnsseed.*`: resolver timeout. Core runs DNS lookups
+  off the main thread so a hanging resolver does not block startup
+  (no verified Core lookup-timeout constant exists — the Oeeoo fix
+  is a worker thread + deadline, Core-style, not a copied constant).
 - `src/transactions/` + `src/mempool/` + `src/network/node.*`: orphan
-  transaction pool — bounded size, per-tx expiry, eviction; a tx
-  whose parents are unknown goes to the orphan pool instead of being
-  rejected, and is re-tried when a parent arrives. Must not become a
+  transaction pool (Core's `TxOrphanage` model: max 100 orphans,
+  20-minute expiry, NOT relayed, indexed by prevout so a tx is
+  validated when its parent arrives, per-peer purge on disconnect,
+  byte-based eviction cap). A tx whose parents are unknown goes to
+  the orphan pool instead of being rejected. Must not become a
   memory DoS vector (that is the test).
 - `src/network/node.*`: compact relay — per-peer in-flight limit for
-  pending compact blocks and a `getblocktxn` retry (one retry, then
-  full-block `getdata`, then drop the peer's pending entry).
+  pending compact blocks, depth limits (Core: cmpctblock depth 5,
+  getblocktxn depth 10 — starting values, not gospel), a `getblocktxn`
+  retry (one retry, then full-block `getdata`), and a block-stalling
+  disconnect (Core: 2 s default, max 64 s).
 - `src/network/node.*`: peer eviction when full — when the 125-peer
-  cap is hit, evict the worst peer (lowest score: e.g. no useful
-  blocks relayed, oldest, most misbehaviour) instead of refusing all
-  new connections. Document the eviction ranking.
+  cap is hit, evict an existing inbound peer rather than refusing
+  all new connections (Core's `AttemptToEvictConnection`: protect by
+  netgroup diversity, lowest ping, recent tx/block senders, and
+  longest-connected). Document the eviction ranking.
 
 **Acceptance criteria:** tests for IP-keyed bans across reconnect;
-AddrMan per-source cap + expiry; DNS timeout (simulated slow resolver
-or a unit test on the timeout path); orphan pool bounds/expiry/
-parent-arrival; compact in-flight limit + retry; eviction picks the
-worst peer. Full suite + ASan/UBSan + cppcheck clean.
+AddrMan netgroup bucketing/cap + expiry; DNS timeout (simulated slow
+resolver or a unit test on the timeout path); orphan pool bounds/
+expiry/parent-arrival/purge-on-disconnect; compact in-flight limit +
+depth limits + retry + stalling disconnect; eviction picks the worst
+peer (and protects the best). Full suite + ASan/UBSan + cppcheck clean.
 
 **Stays REQUIRES DECISION:** AS-map file (needs an external data
-file + operator decision); distinct testnet identity (test/mainnet
-share magic/port — a design decision for the owner, not a code fix).
+file + operator decision); distinct testnet identity — framed as an
+*internal* regtest-style mode (distinct magic/port/genesis, local-only
+and deterministic, like Core's `-regtest`), NOT a public testnet
+(spec F24: direct mainnet, no public testnet). It must not become a
+public testnet by accident.
 
 ---
 
@@ -169,13 +198,31 @@ share magic/port — a design decision for the owner, not a code fix).
 
 **Scope (exact):**
 - `src/rpc/rpcserver.*`: `getchaintips` (all chain tips with height,
-  hash, branch length, status), `getblockstats` (per-block: tx count,
-  size, fees, average fee rate — from the stored block + UTXO view),
-  `getblocktemplate` sigops counting (replace the documented "sigops
-  always 0" simplification with a real count from the template's
-  scripts), RPC per-client rate limiting (token bucket per connection
-  on top of the 32-connection cap; limits documented, not silently
-  tuned), `listtransactions` + `gettransaction`.
+  hash, branch length, status — verify first that the chain index
+  retains stale-branch tips; M11 only adopts side branches on
+  strictly more work, so check whether losing branches are retained
+  or discarded), `getblockstats` (per-block: tx count, size, fees,
+  average fee rate — from the stored block + UTXO view; drop all
+  SegWit `sw*` fields), `getchaintxstats` (cheap companion once
+  block stats exist), `getblocktemplate` real per-tx sigops counting
+  AND real per-tx fees (both are hardcoded 0 today) — replace the
+  documented "sigops always 0" simplification with a real count from
+  the template's scripts, RPC load control (see below),
+  `listtransactions` + `gettransaction`.
+- **RPC load control — correction to the original draft:** Bitcoin
+  Core has NO per-client rate limiting. Its controls are a thread
+  count (`-rpcthreads`, Core default 16) and a bounded work queue
+  (`-rpcworkqueue`, Core default 64; queue-full → HTTP 500), plus
+  localhost binding, cookie auth, and `rpcwhitelist`. Per-client
+  rate limiting is an Oeeoo-only hardening choice: decide explicitly
+  in M16 whether Oeeoo wants it, and do NOT present it as Core
+  parity if it is implemented.
+- **Sigop limit — REQUIRES DECISION:** Oeeoo has no block-level
+  sigop consensus limit anywhere in `src/consensus/`; the 20000
+  `sigoplimit` is an RPC-only constant. Do NOT blindly copy Core's
+  80,000 (a weight-era SegWit number). M16 must decide the Oeeoo
+  limit (or state that sigops are counted but not consensus-limited)
+  and record the decision.
 - Wallet transaction history (needed by `listtransactions` /
   `gettransaction`): the wallet must record its own transactions.
   Design decision for M16: extend `Wallet` with a minimal in-memory
@@ -188,17 +235,27 @@ share magic/port — a design decision for the owner, not a code fix).
   format change is judged too risky for M16, `listtransactions` /
   `gettransaction` move to M17 with the format work, and M16 ships
   the rest — say so plainly in the M16 report.
+- **Stratum V2 — noted, deferred pending a user decision:** the spec
+  (§13.1) requires Stratum V1 *and* V2; only V1 is implemented. Core
+  itself only added experimental Stratum V2 support around v30, so V2
+  is not old Core parity — scope it as its own item and consider
+  deferring it post-launch. Do not silently fold it into M16.
+- **Stratum `mining.authorize` accepting any credentials has no Core
+  equivalent** (Core has no Stratum server at all). The fix is
+  Oeeoo-local (credential config or documented localhost-only) —
+  do not frame it as Core parity.
 - `docs/OPERATOR.md`: RPC method reference update.
 
 **Acceptance criteria:** tests for `getchaintips` (incl. a forked
 tip), `getblockstats` values against a hand-built chain,
-`getblocktemplate` sigops > 0 on a P2PKH template, rate limiting
-(burst then reject), `listtransactions`/`gettransaction` round-trip
-after a wallet send. Full suite + ASan/UBSan + cppcheck clean.
+`getblocktemplate` sigops > 0 and real fees on a P2PKH template,
+work-queue bounds (queue-full behaviour), `listtransactions` /
+`gettransaction` round-trip after a wallet send. Full suite +
+ASan/UBSan + cppcheck clean.
 
 **Stays REQUIRES DECISION:** wallet-file format v2 (migration rule);
-any new RPC method that exposes secrets (none planned — refuse by
-design).
+the Oeeoo sigop limit; Stratum V2 (defer or scope); any new RPC
+method that exposes secrets (none planned — refuse by design).
 
 ---
 
@@ -210,25 +267,38 @@ and its limits are measured, not guessed.
 **Scope (exact):**
 - `src/mempool/` + `src/network/node.*` + `src/app/node_main.cpp`:
   mempool persistence (Bitcoin's `mempool.dat` model) — save the
-  mempool (tx + fee + time, NOT the UTXO set) on clean shutdown,
-  reload on start, re-validate every loaded tx against the current
-  UTXO set, drop anything invalid/expired. Size-bounded file.
+  mempool (tx + fee + time, NOT the UTXO set) on clean shutdown via
+  a `.new` file + rename, and on demand (`savemempool` RPC); reload
+  on start, re-validate every loaded tx against the current UTXO
+  set, drop anything invalid/expired; a `loaded` flag in
+  `getmempoolinfo`; default persist ON with a `-persistmempool=0`
+  opt-out (Core-compatible semantics). Size-bounded file.
+  (`importmempool` is a cheap companion — add it if it fits.)
 - Reorg depth testing: extend `tests/test_reorg.cpp` to depth 100
   (main chain vs fork, incl. undo correctness and mempool re-adding).
   This is a test-only milestone for the reorg path unless it finds a
   bug — if it does, the fix lands in M17 with disclosure.
+  **Attribution note:** the "100" figure is Oeeoo's own target, not
+  a Bitcoin Core number — the rationale is that 100 equals coinbase
+  maturity, so a 100-deep reorg is the deepest that can strand
+  matured coinbase spends. State that reasoning; do not attribute
+  the number to Core.
 - Crash-injection tests: kill the node process mid-block-apply
   (test harness spawns `oeeoo-node`, kills it at a chosen point) and
   verify the store loads cleanly afterwards; disk-full behaviour
   documented (best effort: fill a small tmpfs data dir and record
   what the node does — must fail loudly, never silently corrupt).
+  **No named Core crash-injection test could be verified — label
+  this Oeeoo robustness work, not Core parity.**
 - Long-running soak test: a scripted 1–2 hour node run (two nodes
   exchanging blocks/txs, wallet traffic) under ASan/UBSan, with
   memory + CPU sampled; report leaks/growth. (Overnight-run friendly.)
+  Likewise an Oeeoo robustness target, not a verified Core feature.
 - Performance profiling: measure block validation, mempool insertion,
   and RPC latency on a 1,000-block synthetic chain; record the
   numbers in the M17 report (no premature optimization — measure
-  first).
+  first). A minimal benchmark harness (Core has `src/bench/`)
+  belongs here.
 
 **Acceptance criteria:** mempool survives a restart (tx count +
 fees identical after reload, minus expired/invalid); 100-deep reorg
@@ -246,17 +316,31 @@ interaction is already documented in M13.)
 **Goal:** evidence against hostile input, not just a clean test run.
 
 **Scope (exact):**
+- Coverage-guided fuzzing first: move beyond the deterministic
+  mutation fuzzer (M11/M13) to a coverage-guided fuzzer (libFuzzer
+  or AFL++) with target harnesses per parser (transaction, block
+  header, script, JSON, P2P message framing, compact blocks, wallet
+  file) and a seed corpus checked into the repo.
+  **Toolchain check first:** libFuzzer needs Clang; the VM builds
+  with g++ 13.3. Verify Clang availability before committing M18 to
+  libFuzzer — AFL++ is the fallback.
 - Live fuzzing harnesses (new, `tests/fuzz_*` or `src/fuzz/`):
   P2P message fuzzing (feed mutated `version`/`block`/`tx`/
   `addr`/`cmpctblock` payloads into a real `Node` via loopback),
   RPC fuzzing (mutated JSON-RPC requests incl. deep nesting,
   huge numbers, wrong types), Stratum fuzzing (mutated
   `mining.submit` lines). Fixed seeds, deterministic, runnable
-  under ASan/UBSan; corpus checked in or generated.
-- Differential tests: cross-check `GetBlockSubsidy` / difficulty /
-  Merkle / Base58Check against an independent implementation
-  (the pure-Python helpers used in M8/M12 are the model — extend
-  them, don't trust the C++ alone).
+  under ASan/UBSan; corpus checked in or generated. Core's own
+  caveat applies: a fuzzer cannot produce valid PoW/signature
+  txs/blocks, so for deeper net-processing coverage validation is
+  mocked out in the P2P target (as Core does).
+- Differential tests — defined, since there is no second Oeeoo
+  implementation to diff against: (a) node-vs-Python-reference
+  cross-checks (subsidy/difficulty/vesting/Merkle/Base58Check, as in
+  M1/M13 — the pure-Python helpers used in M8/M12 are the model),
+  (b) two-node agreement tests on identical inputs, (c) block
+  acceptance equivalence between the node and the standalone test
+  harness. Pick the applicable ones; do not leave the term vague.
 - ASan/UBSan soak: the M17 soak test re-run under sanitizers.
 - Re-run the full M13 audit (same 18-section brief, updated for
   M14–M17 changes): fresh decision cross-check, warning report,
@@ -319,3 +403,11 @@ with owners.
   `docs/DECISION_LOG.md`.
 - Per-milestone delivery (standing): browser check page (fresh link),
   full test log, code zip.
+- Explicitly excluded / deferred from M14–M19 unless a user decision
+  says otherwise: SegWit/Taproot/modern address formats (finalised
+  P2PKH-only launch, spec §7), a public testnet (spec F24 — any
+  test mode is internal regtest-style only), descriptor wallets,
+  PSBT, BIP 324 v2 encrypted P2P transport (Core v30-era; Oeeoo
+  stays plaintext for now — post-launch, needs a decision), Stratum
+  V2 (spec §13.1 requires it, so deferral needs an explicit user
+  decision, not silence — see M16).
