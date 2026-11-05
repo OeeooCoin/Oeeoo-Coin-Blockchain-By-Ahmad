@@ -1,0 +1,437 @@
+===== OEEOO COIN — MILESTONE 13 TEST LOG =====
+Date: 2026-11-06 (PKT). Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.
+Source commit: 54c342d7b0f53f774f705977c940287ac6c83be0
+
+--- CLEAN BUILD ---
+$ rm -rf build && cmake -S . -B build
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")  
+-- Found SQLite3: /usr/include (found version "3.45.1") 
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/hatch/workspace/oeeoo-coin/build
+$ cmake --build build -j4
+[  1%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/uint256.cpp.o
+[  2%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/subsidy.cpp.o
+[  3%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/vesting.cpp.o
+[  5%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/difficulty.cpp.o
+[  6%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/sha256.cpp.o
+[  7%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/base58.cpp.o
+[  8%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/hash160.cpp.o
+[ 10%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/address.cpp.o
+[ 11%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/ecdsa.cpp.o
+[ 12%] Building CXX object CMakeFiles/oeeoo_core.dir/src/serialize/varint.cpp.o
+[ 13%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/transaction.cpp.o
+[ 15%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/sighash.cpp.o
+[ 16%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/validation.cpp.o
+[ 17%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/dust.cpp.o
+[ 20%] Building CXX object CMakeFiles/oeeoo_core.dir/src/script/script.cpp.o
+[ 20%] Building CXX object CMakeFiles/oeeoo_core.dir/src/utxo/coins.cpp.o
+[ 21%] Building CXX object CMakeFiles/oeeoo_core.dir/src/mempool/mempool.cpp.o
+[ 22%] Building CXX object CMakeFiles/oeeoo_core.dir/src/mempool/feeestimator.cpp.o
+[ 23%] Building CXX object CMakeFiles/oeeoo_core.dir/src/mining/miner.cpp.o
+[ 25%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/protocol.cpp.o
+[ 26%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/dnsseed.cpp.o
+[ 27%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/siphash.cpp.o
+[ 28%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/compact.cpp.o
+[ 30%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/peer.cpp.o
+[ 31%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/addrman.cpp.o
+[ 32%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/transport.cpp.o
+[ 33%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/node.cpp.o
+[ 35%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/block.cpp.o
+[ 36%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/chain.cpp.o
+[ 37%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/merkle.cpp.o
+[ 38%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/verify.cpp.o
+[ 40%] Building CXX object CMakeFiles/oeeoo_core.dir/src/db/database.cpp.o
+[ 41%] Building CXX object CMakeFiles/oeeoo_core.dir/src/db/chainstore.cpp.o
+[ 42%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/bip39.cpp.o
+[ 43%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/bip32.cpp.o
+[ 45%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/wallet.cpp.o
+[ 46%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/walletfile.cpp.o
+[ 47%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/json.cpp.o
+[ 48%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/rpcserver.cpp.o
+[ 50%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/stratum.cpp.o
+[ 51%] Building CXX object CMakeFiles/oeeoo_core.dir/src/app/config.cpp.o
+[ 52%] Building CXX object CMakeFiles/oeeoo_core.dir/src/app/genesis.cpp.o
+[ 53%] Building CXX object CMakeFiles/oeeoo_core.dir/src/app/cli.cpp.o
+[ 55%] Linking CXX static library liboeeoo_core.a
+[ 55%] Built target oeeoo_core
+[ 56%] Building CXX object CMakeFiles/oeeoo-genesis.dir/src/app/genesis_main.cpp.o
+[ 57%] Building CXX object CMakeFiles/oeeoo-cli.dir/src/app/cli_main.cpp.o
+[ 58%] Building CXX object CMakeFiles/oeeoo-node.dir/src/app/node_main.cpp.o
+[ 60%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_main.cpp.o
+[ 61%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_amount.cpp.o
+[ 62%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_subsidy.cpp.o
+[ 63%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_crypto.cpp.o
+[ 65%] Linking CXX executable oeeoo-cli
+[ 66%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_block.cpp.o
+[ 66%] Built target oeeoo-cli
+[ 67%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_varint.cpp.o
+[ 68%] Linking CXX executable oeeoo-genesis
+[ 70%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_transaction.cpp.o
+[ 71%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_merkle.cpp.o
+[ 71%] Built target oeeoo-genesis
+[ 72%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_address.cpp.o
+[ 73%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_difficulty.cpp.o
+[ 75%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_chain.cpp.o
+[ 76%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_script.cpp.o
+[ 77%] Linking CXX executable oeeoo-node
+[ 78%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_validation.cpp.o
+[ 78%] Built target oeeoo-node
+[ 80%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_mining.cpp.o
+[ 81%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_network.cpp.o
+[ 82%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_node.cpp.o
+[ 83%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_db.cpp.o
+[ 85%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_wallet.cpp.o
+[ 86%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_vesting.cpp.o
+[ 87%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_rpc.cpp.o
+[ 88%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_stratum.cpp.o
+[ 90%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_reorg.cpp.o
+[ 91%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_verify.cpp.o
+[ 92%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_fuzz.cpp.o
+[ 93%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_config.cpp.o
+[ 95%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_genesis.cpp.o
+[ 96%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_cli.cpp.o
+[ 97%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_dnsseed.cpp.o
+[ 98%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone13.cpp.o
+[100%] Linking CXX executable oeeoo_tests
+[100%] Built target oeeoo_tests
+
+--- FULL TEST BINARY ---
+$ ./build/oeeoo_tests
+[test] amount / money constants
+[test] subsidy boundaries
+[test] subsidy total issuance = 20,000,000 OEEOO
+[test] sha256 / sha256d test vectors
+[test] block header serialization + hash
+[test] varint encodings
+[test] varint round-trips + rejections
+[test] transaction serialization + txid
+[test] transaction deserialize round-trip + rejections
+[test] transaction CheckBasic rules
+[test] merkle root vectors
+[test] base58check + p2pkh address vectors
+[test] address decode + rejections
+[test] difficulty bits <-> target vectors
+[test] difficulty invalid bits rejected
+[test] difficulty proof-of-work check
+[test] difficulty retarget (mainnet limit 0x1d00ffff)
+[test] difficulty retarget (test limit 0x207fffff)
+[test] difficulty block proof + chain work
+[test] uint256 divide
+[test] block structure: serialize round-trip + CheckBasic
+[test] chain: genesis + 5 blocks, tip + work
+[test] chain: reorg — heavier fork becomes tip
+[test] chain: invalid blocks rejected
+[test] chain: median-time-past rule
+[test] chain: retarget at height 2016
+[test] genesis params: not finalized yet
+[test] script: valid P2PKH spend
+[test] script: P2PKH failures
+[test] script: multisig 2-of-3
+[test] script: CLTV timelock
+[test] script: CSV relative lock
+[test] script: limits and rejections
+[test] validation: valid spend + fee
+[test] validation: missing input, overspend
+[test] validation: locktime finality
+[test] validation: coinbase maturity (100 blocks)
+[test] validation: BIP68 sequence locks
+[test] validation: block connection + double spend
+[test] validation: coinbase outputs enter UTXO set
+[test] utxo: add/spend basics
+[test] mining: coinbase construction + validation
+[test] mining: IsCoinbase + block fees with a real coinbase
+[test] mining: mempool rules
+[test] mining: block template assembly
+[test] mining: nonce search + extraNonce rollover
+[test] mining: mined block accepted by the chain
+[test] network: message framing + checksum
+[test] network: payload codecs
+[test] network: SipHash-2-4 reference vector
+[test] network: compact blocks
+[test] network: peer scoring + bans
+[test] network: address manager
+[test] node: handshake + tx relay across 3 nodes
+[test] node: block relay (compact) + mempool cleanup
+[test] node: headers-first sync of a fresh node
+[test] node: compact block with missing tx (getblocktxn)
+[test] node: invalid block earns a ban
+[test] node: real TCP handshake (localhost)
+[test] db: open, schema version, tip meta
+[test] db: block + UTXO round-trip
+[test] db: node restart restores state
+[test] db: atomicity — rollback discards, commit keeps
+[test] db: pruning drops bodies, keeps headers + UTXO
+[test] db: corruption is detected, never accepted
+[test] db: peers and bans persist
+[test] db: fork blocks are retained after a reorg
+[test] wallet: BIP39 mnemonic vectors
+[test] wallet: BIP32 test vector 1
+[test] wallet: addresses, balance, gap limit
+[test] wallet: build + sign a payment
+[test] wallet: encrypted wallet file
+[test] vesting: calendar math
+[test] vesting: schedule
+[test] vesting: genesis founder output + spend rule
+[test] vesting: wrong genesis is rejected, disabled is fine
+[test] rpc: minimal JSON
+[test] rpc: server methods + wallet
+[test] rpc: cookie auth
+[test] stratum: subscribe, mine a share, block found
+[test] stratum: low difficulty share is rejected
+[test] reorg: disconnect restores the UTXO set exactly
+[test] reorg: store disconnect rolls the tip back
+[test] reorg: node follows the heavier fork, store follows
+[test] verify: a good chain re-validates from genesis
+[test] verify: tampered UTXO set is caught
+[test] verify: pruned history cannot be fully re-validated
+[test] verify: empty store fails
+[test] fuzz: mutated transactions never crash
+[test] fuzz: mutated blocks and headers never crash
+[test] fuzz: mutated JSON never crashes the parser
+[test] fuzz: mutated P2P messages never crash the framer
+[test] fuzz: random scripts never crash the interpreter
+[test] config: file parsing + defaults
+[test] config: file errors
+[test] config: CLI overrides the file
+[test] config: new M13 options
+[test] config: CLI errors + help/version
+[test] genesis: 2-of-3 multisig script
+[test] genesis: build, mine, verify, round-trip
+[test] genesis: a node accepts it as block 0
+[test] cli: calls the local RPC server
+[test] dnsseed: localhost resolves to 127.0.0.1
+[test] dnsseed: unresolvable names fail cleanly
+[test] dnsseed: node queries seeds into the AddrMan
+[test] dnsseed: a node with no seeds adds nothing
+[test] m13: dust thresholds are dynamic and script-aware
+[test] m13: mempool opt-in RBF
+[test] m13: mempool eviction under pressure
+[test] m13: mempool expiry is enforced by the node
+[test] m13: fee estimator over the last 24 blocks
+[test] m13: long-range supply simulation
+[test] m13: genesis file negatives
+[test] m13: vesting at extreme times
+[test] m13: low-S signatures (BIP62)
+[test] m13: JSON depth limit
+[test] m13: wallet file truncation is rejected
+[test] m13: crash recovery (store never closed)
+[test] m13: genesis identity (file vs store vs checkpoint)
+[test] m13: peer cap is enforced
+[test] m13: transport close is idempotent and safe
+[test] m13: SIGHASH_ALL vector
+[test] m13: handshake rejects old versions and self-connections
+[test] m13: compact header without PoW is ignored, pending entries expire
+[test] m13: addrman cap, IP validation, addr serialization
+[test] m13: loopback close purges peer links
+[test] m13: tcp connect rejects malformed addresses
+[test] ALL CHECKS PASSED
+exit: 0
+
+--- CTEST ---
+$ ctest --test-dir build
+Internal ctest changing into directory: /home/hatch/workspace/oeeoo-coin/build
+Test project /home/hatch/workspace/oeeoo-coin/build
+    Start 1: oeeoo_tests
+1/1 Test #1: oeeoo_tests ......................   Passed    5.90 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   5.91 sec
+
+--- ASAN + UBSAN ---
+$ rm -rf build-asan && cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+-- Configuring done (0.5s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/hatch/workspace/oeeoo-coin/build-asan
+$ cmake --build build-asan -j4
+[ 98%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone13.cpp.o
+[100%] Linking CXX executable oeeoo_tests
+[100%] Built target oeeoo_tests
+$ ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=0 ./build-asan/oeeoo_tests
+[test] m13: compact header without PoW is ignored, pending entries expire
+[test] m13: addrman cap, IP validation, addr serialization
+[test] m13: loopback close purges peer links
+[test] m13: tcp connect rejects malformed addresses
+[test] ALL CHECKS PASSED
+exit: 0
+
+--- CPPCHECK ---
+$ cppcheck --enable=warning,performance,portability --suppress=missingIncludeSystem -Isrc src tests
+Checking src/app/cli.cpp ...
+1/75 files checked 0% done
+Checking src/app/cli_main.cpp ...
+2/75 files checked 0% done
+Checking src/app/config.cpp ...
+3/75 files checked 2% done
+Checking src/app/genesis.cpp ...
+4/75 files checked 4% done
+Checking src/app/genesis_main.cpp ...
+5/75 files checked 5% done
+Checking src/app/node_main.cpp ...
+6/75 files checked 6% done
+Checking src/blockchain/block.cpp ...
+7/75 files checked 7% done
+Checking src/blockchain/chain.cpp ...
+8/75 files checked 8% done
+Checking src/blockchain/merkle.cpp ...
+9/75 files checked 9% done
+Checking src/blockchain/verify.cpp ...
+10/75 files checked 9% done
+Checking src/consensus/difficulty.cpp ...
+11/75 files checked 10% done
+Checking src/consensus/subsidy.cpp ...
+12/75 files checked 10% done
+Checking src/consensus/uint256.cpp ...
+13/75 files checked 11% done
+Checking src/consensus/vesting.cpp ...
+14/75 files checked 12% done
+Checking src/crypto/address.cpp ...
+15/75 files checked 12% done
+Checking src/crypto/base58.cpp ...
+16/75 files checked 13% done
+Checking src/crypto/ecdsa.cpp ...
+17/75 files checked 14% done
+Checking src/crypto/hash160.cpp ...
+18/75 files checked 14% done
+Checking src/crypto/sha256.cpp ...
+19/75 files checked 14% done
+Checking src/db/chainstore.cpp ...
+20/75 files checked 19% done
+Checking src/db/database.cpp ...
+21/75 files checked 20% done
+Checking src/mempool/feeestimator.cpp ...
+22/75 files checked 20% done
+Checking src/mempool/mempool.cpp ...
+23/75 files checked 22% done
+Checking src/mining/miner.cpp ...
+24/75 files checked 23% done
+Checking src/network/addrman.cpp ...
+25/75 files checked 23% done
+Checking src/network/compact.cpp ...
+26/75 files checked 25% done
+Checking src/network/dnsseed.cpp ...
+27/75 files checked 25% done
+Checking src/network/node.cpp ...
+28/75 files checked 31% done
+Checking src/network/peer.cpp ...
+29/75 files checked 31% done
+Checking src/network/protocol.cpp ...
+30/75 files checked 33% done
+Checking src/network/siphash.cpp ...
+31/75 files checked 33% done
+Checking src/network/transport.cpp ...
+32/75 files checked 34% done
+Checking src/rpc/json.cpp ...
+33/75 files checked 36% done
+Checking src/rpc/rpcserver.cpp ...
+34/75 files checked 42% done
+Checking src/rpc/stratum.cpp ...
+35/75 files checked 46% done
+Checking src/script/script.cpp ...
+36/75 files checked 49% done
+Checking src/serialize/varint.cpp ...
+37/75 files checked 49% done
+Checking src/transactions/dust.cpp ...
+38/75 files checked 50% done
+Checking src/transactions/sighash.cpp ...
+39/75 files checked 50% done
+Checking src/transactions/transaction.cpp ...
+40/75 files checked 51% done
+Checking src/transactions/validation.cpp ...
+41/75 files checked 52% done
+Checking src/utxo/coins.cpp ...
+42/75 files checked 52% done
+Checking src/wallet/bip32.cpp ...
+43/75 files checked 54% done
+Checking src/wallet/bip39.cpp ...
+44/75 files checked 55% done
+Checking src/wallet/wallet.cpp ...
+45/75 files checked 57% done
+Checking src/wallet/walletfile.cpp ...
+46/75 files checked 59% done
+Checking tests/test_address.cpp ...
+47/75 files checked 59% done
+Checking tests/test_amount.cpp ...
+48/75 files checked 59% done
+Checking tests/test_block.cpp ...
+49/75 files checked 60% done
+Checking tests/test_chain.cpp ...
+50/75 files checked 62% done
+Checking tests/test_cli.cpp ...
+51/75 files checked 62% done
+Checking tests/test_config.cpp ...
+52/75 files checked 63% done
+Checking tests/test_crypto.cpp ...
+53/75 files checked 63% done
+Checking tests/test_db.cpp ...
+54/75 files checked 66% done
+Checking tests/test_difficulty.cpp ...
+55/75 files checked 67% done
+Checking tests/test_dnsseed.cpp ...
+56/75 files checked 68% done
+Checking tests/test_fuzz.cpp ...
+57/75 files checked 69% done
+Checking tests/test_genesis.cpp ...
+58/75 files checked 70% done
+Checking tests/test_main.cpp ...
+59/75 files checked 70% done
+Checking tests/test_merkle.cpp ...
+60/75 files checked 70% done
+Checking tests/test_milestone13.cpp ...
+61/75 files checked 76% done
+Checking tests/test_mining.cpp ...
+62/75 files checked 78% done
+Checking tests/test_network.cpp ...
+63/75 files checked 80% done
+Checking tests/test_node.cpp ...
+64/75 files checked 82% done
+Checking tests/test_reorg.cpp ...
+65/75 files checked 83% done
+Checking tests/test_rpc.cpp ...
+66/75 files checked 86% done
+Checking tests/test_script.cpp ...
+67/75 files checked 88% done
+Checking tests/test_stratum.cpp ...
+68/75 files checked 90% done
+Checking tests/test_subsidy.cpp ...
+69/75 files checked 91% done
+Checking tests/test_transaction.cpp ...
+70/75 files checked 91% done
+Checking tests/test_validation.cpp ...
+71/75 files checked 93% done
+Checking tests/test_varint.cpp ...
+72/75 files checked 93% done
+Checking tests/test_verify.cpp ...
+73/75 files checked 94% done
+Checking tests/test_vesting.cpp ...
+74/75 files checked 97% done
+Checking tests/test_wallet.cpp ...
+75/75 files checked 100% done
+cppcheck exit: 0 (no output above = 0 findings)
+
+--- REPRODUCIBLE BUILD ---
+$ ./scripts/reproducible-build.sh
+SOURCE_DATE_EPOCH=1793915486
+REPRODUCIBLE: all three binaries are byte-identical across two builds
+REPRODUCIBLE: archive is byte-identical across two builds
+release package: oeeoo-coin-0.1.0.tar.gz
+95047a0642a0242de32608dceddef21963eeccb49d6ece74507fb119a7f3726d  oeeoo-coin-0.1.0.tar.gz
+
+--- E2E NODE CHECK (test values only) ---
+$ oeeoo-node --datadir /tmp/oeeoo-e2e-data --genesis-file /tmp/oeeoo-e2e-genesis.json --pow-limit-bits 207fffff
+banner: *** WARNING: TESTING MODE — proof-of-work limit is 0x207fffff, not the mainnet limit 0x1d00ffff. This node is NOT on Mainnet. ***
+$ oeeoo-cli getblockcount -> 0
+$ oeeoo-cli getbestblockhash -> 2ee2bc4bee136c8bc30e22b298c9b5f9ed883b96c0afdfcb0db5d537c8323faa
+$ oeeoo-cli getmempoolinfo -> {"bytes":0,"maxmempool":314572800,"mempoolminfee":1e-08,"size":0,"usage":0}
+$ oeeoo-cli estimatesmartfee -> {"blocks":0,"feerate":1e-08}
+$ oeeoo-node --genesis-checkpoint 0000...0000 -> exit 1: genesis file hash ... does not match the genesis checkpoint ...
+$ oeeoo-node (default PoW limit, test genesis) -> exit 1: stored header failed index validation: genesis bits must equal the proof-of-work limit
+
+===== END OF MILESTONE 13 TEST LOG =====
