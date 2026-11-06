@@ -644,8 +644,12 @@ package built from `82759ff`; a rebuild from a later docs-only
 commit differs only in `release-0.1.0/SOURCE.txt` (the
 commit-hash line).
 
-Confirmation run from the docs commit [PENDING — run after the
-docs commit, before delivery].
+Confirmation run from the docs commit `53b9801`
+(SOURCE_DATE_EPOCH=1793978895): **REPRODUCIBLE — binaries
+byte-identical, archive byte-identical**; all three binary hashes
+identical to the run above; tarball
+`c20fb50807235d45af4d96ff5ee525cc8a4e9ce8fb5abdd24fc8e18f05f12479`
+(differs from the `82759ff` tarball only via SOURCE.txt).
 
 ## G. Outstanding decisions (carried + new)
 
