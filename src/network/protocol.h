@@ -99,6 +99,12 @@ struct AddrEntry {
   uint64_t services = 0;
   std::string ip;  // dotted IPv4, e.g. "1.2.3.4"
   uint16_t port = kMainnetPort;
+  // Connection-failure count, maintained by AddressManager
+  // (RecordFailure / RecordSuccess). NOT part of the wire format:
+  // SerializeAddr / ParseAddr carry only time/services/ip/port, so
+  // this field never crosses the network and is always 0 for an
+  // entry freshly parsed from an `addr` message.
+  int failures = 0;
 };
 
 // Parse a dotted-quad IPv4 address ("1.2.3.4"). Returns false for

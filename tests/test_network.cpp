@@ -308,4 +308,132 @@ void TestNetwork() {
     CHECK(am.Size() == 1);
     CHECK(!am.Remove("1.2.3.4", 64775));
   }
+
+  test::BeginSection("network: addrman netgroup cap");
+  {
+    // NetgroupOf: the /16 (first two octets); invalid IP -> empty.
+    CHECK(AddressManager::NetgroupOf("10.20.3.4") == "10.20");
+    CHECK(AddressManager::NetgroupOf("1.2.3.4") == "1.2");
+    CHECK(AddressManager::NetgroupOf("not-an-ip").empty());
+    CHECK(AddressManager::NetgroupOf("").empty());
+    CHECK(AddressManager::NetgroupOf("10.20.3.256").empty());
+
+    // Fill one /16 (10.20.x.y) to its cap of 64.
+    AddressManager am;
+    for (int i = 0; i < 64; ++i) {
+      const std::string ip =
+          "10.20." + std::to_string(i) + ".1";
+      CHECK(am.Add({1700000000, 1, ip, 64775}));
+    }
+    CHECK(am.Size() == 64);
+    // The 65th address from the same /16 is refused (netgroup full),
+    // even though the table as a whole has room.
+    CHECK(!am.Add({1700000000, 1, "10.20.64.1", 64775}));
+    CHECK(am.Size() == 64);
+    // The same host part in a different /16 is accepted.
+    CHECK(am.Add({1700000000, 1, "10.21.64.1", 64775}));
+    CHECK(am.Size() == 65);
+    // Removing one entry from the full netgroup frees a slot in it.
+    CHECK(am.Remove("10.20.0.1", 64775));
+    CHECK(am.Add({1700000000, 1, "10.20.64.1", 64775}));
+    CHECK(am.Size() == 65);
+
+    // Total cap still 1000: fill a fresh table across many /16s.
+    AddressManager full;
+    std::size_t added = 0;
+    for (int g = 0; g < 32 && added < 1000; ++g) {
+      for (int i = 0; i < 64 && added < 1000; ++i) {
+        const std::string ip = "10." + std::to_string(g) + "." +
+                               std::to_string(i) + ".1";
+        if (full.Add({1700000000, 1, ip, 64775})) ++added;
+      }
+    }
+    CHECK(added == 1000);
+    CHECK(full.Size() == 1000);
+    // One more address, from a fresh /16 with room in it, is refused:
+    // the total cap, not the netgroup cap, is what stops it.
+    CHECK(!full.Add({1700000000, 1, "11.0.0.1", 64775}));
+    CHECK(full.Size() == 1000);
+  }
+
+  test::BeginSection("network: addrman expiry");
+  {
+    const uint32_t now = 1700000000;
+    const uint32_t horizon = AddressManager::kAddrExpirySeconds;
+    CHECK(horizon == 30u * 24u * 3600u);  // 30 days
+    AddressManager am;
+    CHECK(am.Add({now - horizon - 1, 1, "1.2.3.4", 64775}));  // stale
+    CHECK(am.Add({now - horizon, 1, "5.6.7.8", 64775}));      // exactly 30d
+    CHECK(am.Add({now - 100, 1, "9.10.11.12", 64775}));       // fresh
+    CHECK(am.Add({now, 1, "13.14.15.16", 64775}));            // now
+    CHECK(am.Size() == 4);
+    am.RemoveExpired(now);
+    // Only the entry older than 30 days is dropped; the exactly-30-day
+    // entry survives (expiry is `age > horizon`, not `>=`).
+    CHECK(am.Size() == 3);
+    CHECK(!am.Contains("1.2.3.4", 64775));
+    CHECK(am.Contains("5.6.7.8", 64775));
+    CHECK(am.Contains("9.10.11.12", 64775));
+    CHECK(am.Contains("13.14.15.16", 64775));
+    // A second sweep at the same time drops nothing further.
+    am.RemoveExpired(now);
+    CHECK(am.Size() == 3);
+    // A later sweep drops the rest once they age past the horizon.
+    am.RemoveExpired(now + horizon + 1);
+    CHECK(am.Size() == 0);
+
+    // Wrap-safe: an entry timestamped just before the uint32 epoch
+    // wraps is RECENT as of a small `now` just after the wrap, not
+    // billions of seconds old.
+    AddressManager wrapped;
+    CHECK(wrapped.Add({0xFFFFFF00u, 1, "1.2.3.4", 64775}));
+    wrapped.RemoveExpired(0x00000100u);  // age 0x200 = 512s
+    CHECK(wrapped.Size() == 1);
+    // And an entry genuinely older than 30 days across the wrap is
+    // still dropped (age wraps the other way: 0x100 - 0xFF000000).
+    AddressManager wrappedOld;
+    CHECK(wrappedOld.Add({0xFF000000u, 1, "1.2.3.4", 64775}));
+    wrappedOld.RemoveExpired(0x00000100u);  // age ~0x01000100 > 30d
+    CHECK(wrappedOld.Size() == 0);
+  }
+
+  test::BeginSection("network: addrman failure counting");
+  {
+    AddressManager am;
+    CHECK(am.Add({1700000000, 1, "1.2.3.4", 64775}));
+    CHECK(am.Add({1700000000, 1, "5.6.7.8", 64775}));
+    // Unknown addresses: no-op, reported as false.
+    CHECK(!am.RecordFailure("9.9.9.9", 64775));
+    CHECK(!am.RecordSuccess("9.9.9.9", 64775));
+    // 1-2 failures: the entry survives and is still offered as a
+    // candidate (documented behaviour — only removal stops it).
+    CHECK(am.RecordFailure("1.2.3.4", 64775));
+    CHECK(am.Contains("1.2.3.4", 64775));
+    CHECK(am.RecordFailure("1.2.3.4", 64775));
+    CHECK(am.Contains("1.2.3.4", 64775));
+    bool offered = false;
+    for (const AddrEntry& a : am.GetCandidates(10)) {
+      if (a.ip == "1.2.3.4") offered = true;
+    }
+    CHECK(offered);
+    // The third failure removes the entry.
+    CHECK(am.RecordFailure("1.2.3.4", 64775));
+    CHECK(!am.Contains("1.2.3.4", 64775));
+    CHECK(am.Size() == 1);
+    // A further failure/success on the removed entry is a no-op.
+    CHECK(!am.RecordFailure("1.2.3.4", 64775));
+    CHECK(!am.RecordSuccess("1.2.3.4", 64775));
+    // RecordSuccess resets the count: 2 failures + success + 2
+    // failures does NOT remove the entry.
+    CHECK(am.RecordFailure("5.6.7.8", 64775));
+    CHECK(am.RecordFailure("5.6.7.8", 64775));
+    CHECK(am.RecordSuccess("5.6.7.8", 64775));
+    CHECK(am.RecordFailure("5.6.7.8", 64775));
+    CHECK(am.RecordFailure("5.6.7.8", 64775));
+    CHECK(am.Contains("5.6.7.8", 64775));
+    // ...but the very next failure (3rd since the reset) removes it.
+    CHECK(am.RecordFailure("5.6.7.8", 64775));
+    CHECK(!am.Contains("5.6.7.8", 64775));
+    CHECK(am.Size() == 0);
+  }
 }
