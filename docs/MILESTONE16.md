@@ -516,6 +516,13 @@ source. The tarball hash is for the release package built from
 `d0c644b`; a rebuild from a later docs-only commit differs only in
 `release-0.1.0/SOURCE.txt` (the commit-hash line).
 
+Confirmation run from the docs commit `1f21b81`
+(SOURCE_DATE_EPOCH=1793962495): **REPRODUCIBLE — binaries
+byte-identical, archive byte-identical**; all three binary hashes
+identical to the run above; tarball
+`5b7ff2a6e8dea7fccc6895fc94d43b97bc61a818f6fc0252c1eeb9326cef878b`
+(differs from the `d0c644b` tarball only via SOURCE.txt).
+
 ## G. Outstanding decisions (carried + new)
 
 All 7 previously open decisions were DECIDED by user delegation

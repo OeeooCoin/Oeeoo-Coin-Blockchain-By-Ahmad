@@ -675,3 +675,16 @@ $ sha256sum release-0.1.0/oeeoo-node release-0.1.0/oeeoo-genesis release-0.1.0/o
 a7d0d880d39d5008b38f4f659e533374fb7d05a5400d58ca2348fcb3cf3f6f5f  release-0.1.0/oeeoo-node
 110168c17be7c8cb51c0b0bc9103f2189e2108e82ff07cca02f949e2ca8ace82  release-0.1.0/oeeoo-genesis
 a80b3c6f0677814b3ee181f4f5b6bb9bee85f56171d71b964c621a79b8323136  release-0.1.0/oeeoo-cli
+
+--- REPRODUCIBLE BUILD (run 2, confirmation, from commit 1f21b81) ---
+$ ./scripts/reproducible-build.sh   (from commit 1f21b81; SOURCE_DATE_EPOCH=1793962495)
+SOURCE_DATE_EPOCH=1793962495
+REPRODUCIBLE: all three binaries are byte-identical across two builds
+REPRODUCIBLE: archive is byte-identical across two builds
+release package: oeeoo-coin-0.1.0.tar.gz
+5b7ff2a6e8dea7fccc6895fc94d43b97bc61a818f6fc0252c1eeb9326cef878b  oeeoo-coin-0.1.0.tar.gz
+$ sha256sum release-0.1.0/oeeoo-node release-0.1.0/oeeoo-genesis release-0.1.0/oeeoo-cli
+a7d0d880d39d5008b38f4f659e533374fb7d05a5400d58ca2348fcb3cf3f6f5f  release-0.1.0/oeeoo-node
+110168c17be7c8cb51c0b0bc9103f2189e2108e82ff07cca02f949e2ca8ace82  release-0.1.0/oeeoo-genesis
+a80b3c6f0677814b3ee181f4f5b6bb9bee85f56171d71b964c621a79b8323136  release-0.1.0/oeeoo-cli
+(All three binary hashes identical to run 1; tarball differs only via SOURCE.txt.)
