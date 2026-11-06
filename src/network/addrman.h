@@ -12,7 +12,9 @@
 // data file plus an operator decision about which file to trust, and
 // neither exists yet. Netgroup (/16) bucketing below is the anti-fill
 // defence Oeeoo ships instead; AS-map support is a future decision,
-// not a silent omission.
+// not a silent omission. (Milestone 16 decision, ACCEPTED: /16
+// bucketing is the permanent defence for v0.1.0; AS-map is deferred
+// post-launch.)
 #pragma once
 
 #include <cstdint>

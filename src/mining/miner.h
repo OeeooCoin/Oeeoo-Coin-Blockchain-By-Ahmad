@@ -53,6 +53,13 @@ struct BlockTemplate {
   Block block;
   Amount totalFees = 0;
   std::size_t txCount = 0;  // non-coinbase transactions included
+  // Per-transaction fees (satoshis) parallel to the non-coinbase
+  // transactions in `block.vtx` (txFees[i] is the fee of
+  // block.vtx[i + 1]), recorded in AssembleBlock from the fee each
+  // tx validated with — never recomputed in the RPC layer.
+  // `getblocktemplate` reports these as integer satoshis, matching
+  // Bitcoin (NOT OEEOO doubles like the other amount fields).
+  std::vector<Amount> txFees;
 };
 
 // Assemble a block template on `prevHash` at `height`: take the

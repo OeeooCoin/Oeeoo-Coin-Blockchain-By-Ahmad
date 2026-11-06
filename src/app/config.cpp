@@ -101,6 +101,20 @@ bool SetKey(AppConfig& config, const std::string& key,
     config.dnsSeeds.push_back(value);
   } else if (key == "deepverify") {
     if (!ParseBool(value, config.deepVerify, error)) return false;
+  } else if (key == "rpcthreads") {
+    uint64_t v = 0;
+    if (!ParseUint(value, v) || v < 1 || v > 1024) {
+      error = "invalid rpcthreads (1..1024): " + value;
+      return false;
+    }
+    config.rpcThreads = static_cast<int>(v);
+  } else if (key == "rpcworkqueue") {
+    uint64_t v = 0;
+    if (!ParseUint(value, v) || v < 1 || v > 100000) {
+      error = "invalid rpcworkqueue (1..100000): " + value;
+      return false;
+    }
+    config.rpcWorkQueueSize = static_cast<int>(v);
   } else if (key == "maxpeers") {
     uint64_t v = 0;
     if (!ParseUint(value, v) || v > 1000000) {
@@ -237,6 +251,24 @@ bool ParseArgs(int argc, char** argv, AppConfig& config,
       config.deepVerify = true;
     } else if (arg == "--no-deep-verify") {
       config.deepVerify = false;
+    } else if (arg == "--rpcthreads") {
+      std::string value;
+      if (!needValue("--rpcthreads", value)) return false;
+      uint64_t v = 0;
+      if (!ParseUint(value, v) || v < 1 || v > 1024) {
+        error = "invalid --rpcthreads (1..1024): " + value;
+        return false;
+      }
+      config.rpcThreads = static_cast<int>(v);
+    } else if (arg == "--rpcworkqueue") {
+      std::string value;
+      if (!needValue("--rpcworkqueue", value)) return false;
+      uint64_t v = 0;
+      if (!ParseUint(value, v) || v < 1 || v > 100000) {
+        error = "invalid --rpcworkqueue (1..100000): " + value;
+        return false;
+      }
+      config.rpcWorkQueueSize = static_cast<int>(v);
     } else if (arg == "--maxpeers") {
       std::string value;
       if (!needValue("--maxpeers", value)) return false;
@@ -262,6 +294,9 @@ std::string UsageText(const char* program) {
       << "  --datadir <path>      data directory (default: oeeoo-data)\n"
       << "  --port <n>            P2P port (default: 64775)\n"
       << "  --rpcport <n>         JSON-RPC port, 127.0.0.1 only (default: 64776)\n"
+      << "  --rpcthreads <n>      RPC worker threads (default: 16)\n"
+      << "  --rpcworkqueue <n>    RPC work-queue depth; queue-full -> HTTP 500\n"
+      << "                         (default: 64)\n"
       << "  --stratumport <n>     Stratum port, 127.0.0.1 only (default: 64777)\n"
       << "  --miner-address <a>   P2PKH address for Stratum coinbase (enables Stratum)\n"
       << "  --genesis-file <path> genesis file from oeeoo-genesis (fresh chain only)\n"

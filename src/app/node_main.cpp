@@ -189,6 +189,10 @@ int main(int argc, char** argv) {
   std::mutex nodeMutex;
   RpcServer rpc(node, config.rpcPort, config.dataDir, &nodeMutex);
   if (walletConfigured) rpc.AttachNodeWallet(&nodeWallet);
+  // M16: RPC load control (Core-style thread count + bounded work
+  // queue). Defaults are 16 threads / 64 queued when unconfigured.
+  rpc.SetMaxThreads(config.rpcThreads);
+  rpc.SetWorkQueueSize(config.rpcWorkQueueSize);
   if (!rpc.Start(error)) {
     std::cerr << "oeeoo-node: RPC failed to start: " << error << "\n";
     return 1;

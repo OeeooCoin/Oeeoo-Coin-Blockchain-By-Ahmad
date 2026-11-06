@@ -34,6 +34,9 @@ void TestDnsSeed();
 void TestMilestone13();
 void TestMilestone14();
 void TestMilestone15();
+void TestMilestone16A();
+void TestMilestone16B();
+void TestMilestone16C();
 
 int main() {
   TestAmount();
@@ -66,6 +69,9 @@ int main() {
   TestMilestone13();
   TestMilestone14();
   TestMilestone15();
+  TestMilestone16A();
+  TestMilestone16B();
+  TestMilestone16C();
   test::Report();
   return test::Failures() == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

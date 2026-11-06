@@ -152,7 +152,9 @@ class Node {
   void SendToAll(const Message& msg, const std::string& exceptId = "");
   // `remoteAddress` is the peer's "ip:port" from the transport
   // (empty when unknown); a new inbound peer is registered under
-  // it so bans are keyed by IP and survive a reconnect.
+  // it. The BAN key for that address is the IP alone
+  // (BanManager::BanKey, Milestone 16) — the full "ip:port" is
+  // kept only as peer.address for display/diagnostics.
   void OnBytes(const std::string& peerId,
                const std::vector<unsigned char>& bytes,
                const std::string& remoteAddress = "");

@@ -3,6 +3,7 @@
 #include "blockchain/chain.h"
 
 #include <algorithm>
+#include <unordered_set>
 
 #include "blockchain/genesis.h"
 #include "consensus/consensus.h"
@@ -224,6 +225,49 @@ bool ChainState::AddIndexEntry(const BlockHeader& header, const Target& work,
     tip_ = newIdx;
   }
   return true;
+}
+
+std::vector<ChainTip> ChainState::GetChainTips() const {
+  std::vector<ChainTip> tips;
+  if (tip_ < 0) return tips;
+  // The active chain, as a set of vIndex positions (walk back from
+  // the tip). A tip's fork point is the first of its ancestors that
+  // lies on this chain.
+  std::unordered_set<int> active;
+  for (int cur = tip_; cur >= 0; cur = vIndex[cur].prev) {
+    active.insert(cur);
+  }
+  // Every block that is some other block's parent is not a tip.
+  std::unordered_set<int> hasChild;
+  for (const BlockIndex& entry : vIndex) {
+    if (entry.prev >= 0) hasChild.insert(entry.prev);
+  }
+  for (int i = 0; i < static_cast<int>(vIndex.size()); ++i) {
+    if (hasChild.count(i) != 0) continue;
+    ChainTip tip;
+    tip.hash = vIndex[i].hash;
+    tip.height = vIndex[i].height;
+    tip.status = (i == tip_) ? "active" : "valid-fork";
+    if (i == tip_) {
+      tip.branchlen = 0;
+    } else {
+      int forkHeight = 0;
+      for (int cur = i; cur >= 0; cur = vIndex[cur].prev) {
+        if (active.count(cur) != 0) {
+          forkHeight = vIndex[cur].height;
+          break;
+        }
+      }
+      tip.branchlen = vIndex[i].height - forkHeight;
+    }
+    tips.push_back(tip);
+  }
+  std::sort(tips.begin(), tips.end(), [](const ChainTip& a,
+                                         const ChainTip& b) {
+    if (a.height != b.height) return a.height > b.height;
+    return HexStr(a.hash) < HexStr(b.hash);
+  });
+  return tips;
 }
 
 uint32_t ChainState::GetNextBits(std::string& error) const {

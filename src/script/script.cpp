@@ -454,6 +454,85 @@ bool VerifyScript(const std::vector<unsigned char>& scriptSig,
   return true;
 }
 
+int CountSigOps(const std::vector<unsigned char>& script) {
+  // Raw-byte fallback (same weights) when the script does not parse.
+  auto rawCount = [&]() {
+    int n = 0;
+    for (unsigned char b : script) {
+      if (b == OP_CHECKSIG || b == OP_CHECKSIGVERIFY) {
+        n += 1;
+      } else if (b == OP_CHECKMULTISIG ||
+                 b == OP_CHECKMULTISIGVERIFY) {
+        n += 20;
+      }
+    }
+    return n;
+  };
+  std::vector<Op> ops;
+  std::string error;
+  if (!ParseScript(script, ops, error)) return rawCount();
+  // Bare-multisig detection: the WHOLE script must be
+  // OP_m <n pubkey pushes> OP_n OP_CHECKMULTISIG[VERIFY] with
+  // m <= n <= 20. A CHECKMULTISIG anywhere else counts 20.
+  int bareKeys = -1;
+  if (ops.size() >= 4) {
+    auto smallInt = [](const Op& op, int& v) {
+      if (op.isPush) return false;
+      if (op.opcode == OP_0) {
+        v = 0;
+        return true;
+      }
+      if (op.opcode >= OP_1 && op.opcode <= OP_16) {
+        v = static_cast<int>(op.opcode - OP_1 + 1);
+        return true;
+      }
+      return false;
+    };
+    int m = 0;
+    int n = 0;
+    const Op& last = ops.back();
+    if ((last.opcode == OP_CHECKMULTISIG ||
+         last.opcode == OP_CHECKMULTISIGVERIFY) &&
+        smallInt(ops[0], m) &&
+        smallInt(ops[ops.size() - 2], n)) {
+      bool ok = n >= 0 && n <= kMaxPubKeysPerMultisig && m <= n &&
+                ops.size() == static_cast<std::size_t>(n) + 3;
+      if (ok) {
+        for (std::size_t i = 1; i + 2 < ops.size(); ++i) {
+          if (!ops[i].isPush) ok = false;
+        }
+      }
+      if (ok) bareKeys = n;
+    }
+  }
+  int count = 0;
+  for (std::size_t i = 0; i < ops.size(); ++i) {
+    const Op& op = ops[i];
+    if (op.isPush) continue;
+    if (op.opcode == OP_CHECKSIG || op.opcode == OP_CHECKSIGVERIFY) {
+      count += 1;
+    } else if (op.opcode == OP_CHECKMULTISIG ||
+               op.opcode == OP_CHECKMULTISIGVERIFY) {
+      count += (bareKeys >= 0 && i + 1 == ops.size()) ? bareKeys : 20;
+    }
+  }
+  return count;
+}
+
+int CountSigOps(const Transaction& tx) {
+  int count = 0;
+  for (const TxOut& out : tx.vout) {
+    count += CountSigOps(out.scriptPubKey);
+  }
+  // A coinbase scriptSig is miner data, not a script: never counted.
+  if (!IsCoinbase(tx)) {
+    for (const TxIn& in : tx.vin) {
+      count += CountSigOps(in.scriptSig);
+    }
+  }
+  return count;
+}
+
 std::vector<unsigned char> EncodeScriptNum(int64_t value) {
   if (value == 0) return {};
   std::vector<unsigned char> out;

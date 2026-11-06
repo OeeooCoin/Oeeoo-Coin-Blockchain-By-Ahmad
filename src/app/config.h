@@ -42,6 +42,14 @@ struct AppConfig {
   // the safe default. Use --no-deep-verify to skip it (e.g. on a
   // very tall chain where a full replay is slow).
   bool deepVerify = true;
+  // RPC load control (Milestone 16, Bitcoin Core-style): a fixed
+  // worker-thread pool plus a bounded work queue. Core has NO
+  // per-client rate limiting, and neither does Oeeoo. Defaults
+  // match Core: 16 threads, 64 queued connections. A connection
+  // arriving when the queue is full is answered HTTP 500
+  // (JSON-RPC -32603 "RPC work queue is full") and closed.
+  int rpcThreads = 16;
+  int rpcWorkQueueSize = 64;
   int maxPeers = 125;
   std::size_t maxMempoolBytes = 300ULL * 1024 * 1024;  // 300 MB default
   bool help = false;

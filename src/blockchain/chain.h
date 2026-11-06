@@ -29,6 +29,21 @@ struct BlockIndex {
   int prev = -1;       // index into ChainState::vIndex, -1 for genesis
 };
 
+// One chain tip (Milestone 16, `getchaintips`): a block that is no
+// other block's parent. `branchlen` is the tip's height minus the
+// height of the block where its chain diverges from the active
+// chain (0 for the active tip). `status` is "active" for the
+// greatest-work tip and "valid-fork" for every other tip: every
+// index entry was fully validated when accepted (AddBlock) or
+// re-verified on load (AddIndexEntry), so there is no headers-only
+// vs full-body distinction to report — Oeeoo does not track one.
+struct ChainTip {
+  Hash256 hash{};
+  int height = -1;
+  int branchlen = 0;
+  std::string status;  // "active" | "valid-fork"
+};
+
 class ChainState {
  public:
   // `powLimitBits` is the chain's difficulty limit (default: mainnet
@@ -76,6 +91,11 @@ class ChainState {
   // Hash of the main-chain block at `height` (-1..tip). Walks back
   // from the tip, so it always follows the greatest-work chain.
   bool GetBlockHashAtHeight(int height, Hash256& out) const;
+  // Every chain tip (Milestone 16): the active tip plus every
+  // stale-branch tip retained in the index. A block is a tip when
+  // no other indexed block names it as a parent. Sorted by height
+  // descending, ties broken by hash hex ascending (deterministic).
+  std::vector<ChainTip> GetChainTips() const;
   // Median-Time-Past of the main-chain block at `height`.
   bool GetMedianTimePastAtHeight(int height, uint32_t& out) const;
   // Founder vesting parameters (Milestone 9). Disabled by default.

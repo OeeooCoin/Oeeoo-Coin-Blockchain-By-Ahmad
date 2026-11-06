@@ -440,8 +440,9 @@ void TestMilestone15() {
     CHECK(victim->Bans().Size() == 1);
     CHECK(victim->PeerCount() == 0);  // banned peer disconnected
     // Reconnect from the same address: the ban is keyed by the
-    // remote address, so the new connection is refused before any
-    // handshake happens.
+    // address itself for loopback names (BanManager::BanKey leaves
+    // "loopback:<name>" as-is), so the new connection is refused
+    // before any handshake happens.
     std::string attackerPeerId2;
     CHECK(attacker.Connect("loopback:ban-victim", attackerPeerId2));
     VersionPayload v;
@@ -485,7 +486,8 @@ void TestMilestone15() {
     }
     CHECK(sawRealIp);
     // An invalid block from that peer earns a ban keyed by the
-    // recorded address.
+    // IP alone (Milestone 16): the port is ephemeral, so the ban
+    // must survive a reconnect from a NEW ephemeral port.
     Block bad = BadBlock(genesis.GetHash());
     CHECK(i->SendRawToAddress("127.0.0.1:46479",
                               {"block", bad.Serialize()}));
@@ -497,6 +499,20 @@ void TestMilestone15() {
     }
     CHECK(banned);
     CHECK(h->PeerCount() == 0);
+    // Reconnect from a new ephemeral port: a fresh node dialing
+    // the same listener gets a different source port, so under
+    // the old "ip:port" keying this would be a fresh key and the
+    // ban would NOT hold. With the IP-only key it is refused
+    // before registration, exactly like the first ban.
+    auto i2 = std::make_unique<Node>(kTestBits);
+    i2->SetTransport(std::make_shared<TcpTransport>());
+    CHECK(i2->ConnectTo("127.0.0.1:46479"));
+    for (int round = 0; round < 40; ++round) {
+      h->Poll(50);
+      i2->Poll(50);
+    }
+    CHECK(h->PeerCount() == 0);  // still refused, new port or not
+    CHECK(h->Bans().Size() == 1);
   }
 
   test::BeginSection(

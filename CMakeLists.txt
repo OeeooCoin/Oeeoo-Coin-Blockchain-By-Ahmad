@@ -58,6 +58,7 @@ add_library(oeeoo_core
   src/wallet/bip32.cpp
   src/wallet/wallet.cpp
   src/wallet/walletfile.cpp
+  src/wallet/txjournal.cpp
   src/wallet/nodewallet.cpp
   src/rpc/json.cpp
   src/rpc/rpcserver.cpp
@@ -103,6 +104,9 @@ add_executable(oeeoo_tests
   tests/test_milestone13.cpp
   tests/test_milestone14.cpp
   tests/test_milestone15.cpp
+  tests/test_milestone16a.cpp
+  tests/test_milestone16b.cpp
+  tests/test_milestone16c.cpp
 )
 target_link_libraries(oeeoo_tests PRIVATE oeeoo_core)
 add_test(NAME oeeoo_tests COMMAND oeeoo_tests)

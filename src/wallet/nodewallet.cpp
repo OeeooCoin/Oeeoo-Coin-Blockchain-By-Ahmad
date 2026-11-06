@@ -8,6 +8,7 @@
 
 #include <openssl/crypto.h>
 
+#include "wallet/txjournal.h"
 #include "wallet/walletfile.h"
 
 namespace oeeoo {
@@ -60,6 +61,66 @@ Wallet* NodeWallet::GetWallet() {
   return &wallet_;
 }
 
+std::string NodeWallet::JournalPath() const {
+  return TxJournalPathFor(path_);
+}
+
+bool NodeWallet::LoadJournal(std::string& error) {
+  std::vector<WalletTxRecord> records;
+  if (!LoadTxJournal(JournalPath(), records, error)) return false;
+  wallet_.SetTxRecords(records);
+  return true;
+}
+
+bool NodeWallet::SaveJournalIfDirty(std::string& error) {
+  if (!hasWallet_) return true;
+  if (!wallet_.TxRecordsDirty()) return true;
+  if (!SaveTxJournal(JournalPath(), wallet_.ListTxRecords(), error)) {
+    return false;
+  }
+  wallet_.ClearTxRecordsDirty();
+  return true;
+}
+
+bool NodeWallet::ChangePassphrase(const std::string& oldPassphrase,
+                                  const std::string& newPassphrase,
+                                  std::string& error) {
+  if (!hasWallet_) {
+    error = "no wallet file loaded";
+    return false;
+  }
+  if (locked_) {
+    error = "wallet is locked";
+    return false;
+  }
+  if (newPassphrase.empty()) {
+    error = "passphrase must not be empty";
+    return false;
+  }
+  // Verify the old passphrase by decrypting. A failure says
+  // "incorrect passphrase" and never distinguishes a wrong
+  // passphrase from a corrupt file, same as Unlock.
+  WalletFileData data;
+  if (!LoadWalletFile(path_, oldPassphrase, data, error)) {
+    error = "incorrect passphrase";
+    return false;
+  }
+  // The live wallet's indices may be newer than the file's (a
+  // rescan can advance them); persist the max, as Unlock does.
+  data.nextExternal =
+      std::max(wallet_.GetNextExternal(), data.nextExternal);
+  data.nextChange = std::max(wallet_.GetNextChange(), data.nextChange);
+  if (!SaveWalletFileAtomic(path_, data, newPassphrase, error)) {
+    OPENSSL_cleanse(data.mnemonic.data(), data.mnemonic.size());
+    return false;
+  }
+  OPENSSL_cleanse(data.mnemonic.data(), data.mnemonic.size());
+  filePassphrase_ = newPassphrase;
+  savedExternal_ = data.nextExternal;
+  savedChange_ = data.nextChange;
+  return true;
+}
+
 bool NodeWallet::LoadFile(const std::string& path, std::string& error) {
   if (hasWallet_) {
     error = "a wallet is already loaded";
@@ -96,6 +157,15 @@ bool NodeWallet::LoadFile(const std::string& path, std::string& error) {
   unlockUntil_ = 0;
   savedExternal_ = 0;
   savedChange_ = 0;
+  // The sidecar journal loads alongside the wallet file. A missing
+  // sidecar is an empty journal (migration rule, see txjournal.h);
+  // a corrupt one fails the load — silently dropping history would
+  // be worse than refusing to start.
+  if (!LoadJournal(error)) {
+    hasWallet_ = false;
+    path_.clear();
+    return false;
+  }
   return true;
 }
 
@@ -161,6 +231,16 @@ bool NodeWallet::Unlock(const std::string& passphrase,
   }
   OPENSSL_cleanse(data.mnemonic.data(), data.mnemonic.size());
   wallet_.SetNextIndices(ext, chg);
+  // Reload the journal: the unlock restored a fresh wallet, and
+  // the on-disk journal is canonical (a locked rescan may have
+  // added receives to it since the last unlock).
+  if (!LoadJournal(error)) {
+    wallet_.WipeSecrets();  // never leave keys in a "locked" wallet
+    filePassphrase_.clear();
+    locked_ = true;
+    unlockUntil_ = 0;
+    return false;
+  }
   filePassphrase_ = passphrase;
   locked_ = false;
   unlockUntil_ =
@@ -172,11 +252,14 @@ bool NodeWallet::Unlock(const std::string& passphrase,
 
 void NodeWallet::Lock() {
   if (!hasWallet_) return;
-  // Persist the indices first: saving needs the mnemonic and the
-  // passphrase, both still in memory. Best effort — the indices
-  // are also saved after every mutating RPC, so this is a
-  // belt-and-braces save, not the only one.
+  // Persist the journal first (it holds no secrets, so it saves
+  // even though the wallet is about to lock), then the indices:
+  // saving needs the mnemonic and the passphrase, both still in
+  // memory. Best effort — the indices are also saved after every
+  // mutating RPC, so this is a belt-and-braces save, not the only
+  // one.
   std::string error;
+  SaveJournalIfDirty(error);
   SaveIfDirty(error);
   wallet_.WipeSecrets();
   if (!filePassphrase_.empty()) {
@@ -188,7 +271,12 @@ void NodeWallet::Lock() {
 }
 
 bool NodeWallet::SaveIfDirty(std::string& error) {
-  if (!hasWallet_ || locked_ || filePassphrase_.empty()) return true;
+  if (!hasWallet_) return true;
+  // The journal saves even while locked (no secrets in it, and a
+  // locked rescan may have discovered receives that must survive
+  // a restart). A journal I/O failure is reported, not swallowed.
+  if (!SaveJournalIfDirty(error)) return false;
+  if (locked_ || filePassphrase_.empty()) return true;
   const uint32_t ext = wallet_.GetNextExternal();
   const uint32_t chg = wallet_.GetNextChange();
   if (ext == savedExternal_ && chg == savedChange_) return true;

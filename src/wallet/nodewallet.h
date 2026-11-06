@@ -88,9 +88,34 @@ class NodeWallet {
   // the indices moved since the last save. No-op when locked or when
   // nothing changed. False + error on I/O failure.
   bool SaveIfDirty(std::string& error);
+  // Change the file passphrase (Milestone 16). The wallet must be
+  // UNLOCKED (Bitcoin requires this too: the new passphrase can
+  // only be applied while the mnemonic is in memory). Verifies
+  // `oldPassphrase` by decrypting — a wrong old passphrase fails
+  // with "incorrect passphrase", the same message as Unlock (the
+  // file never reveals whether the passphrase or the file is bad).
+  // Re-encrypts with `newPassphrase` and saves atomically (tmp +
+  // rename), then updates the in-memory file passphrase. An empty
+  // new passphrase is refused. The wallet file format is unchanged.
+  bool ChangePassphrase(const std::string& oldPassphrase,
+                        const std::string& newPassphrase,
+                        std::string& error);
+  // The sidecar journal path (<wallet-path>.txjournal). Derives
+  // from the wallet path — never a separate config value.
+  std::string JournalPath() const;
+  // Persist the tx journal when it changed. Works while locked too:
+  // the journal holds no secrets, and receives discovered by a
+  // locked watch-only rescan must survive a restart. No-op when
+  // there is no wallet or nothing changed. False + error on I/O
+  // failure.
+  bool SaveJournalIfDirty(std::string& error);
 
  private:
   void RelockIfExpired();  // lazy auto-relock on deadline
+  // Load the sidecar journal from disk into the live wallet
+  // (missing sidecar = empty journal, not an error). False + error
+  // on a corrupt journal.
+  bool LoadJournal(std::string& error);
   static uint64_t NowSeconds();
 
   std::string path_;

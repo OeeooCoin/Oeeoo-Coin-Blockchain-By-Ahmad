@@ -71,6 +71,23 @@ std::vector<unsigned char> EncodeScriptNum(int64_t value);
 bool DecodeScriptNum(const std::vector<unsigned char>& v, int64_t& out,
                      std::size_t maxSize = 5);
 
+// Count the signature operations in a script (Milestone 16, for
+// `getblocktemplate`): OP_CHECKSIG / OP_CHECKSIGVERIFY count 1
+// each; OP_CHECKMULTISIG / OP_CHECKMULTISIGVERIFY count the exact
+// pubkey count when the whole script parses as a bare multisig
+// (OP_m <pubkeys...> OP_n OP_CHECKMULTISIG[VERIFY]), else 20
+// (conservative, documented — Bitcoin's pre-SegWit fallback).
+// An unparsable script falls back to a raw byte scan with the same
+// per-opcode weights, so the count is never silently 0. There is
+// NO P2SH rule: P2SH does not exist at launch.
+// Per-transaction form (same name, overloaded): the sum over the
+// tx's outputs' scriptPubKeys plus the sum over its inputs'
+// scriptSigs (a P2PKH scriptSig is push-only, so it contributes
+// 0). Coinbase inputs are skipped: a coinbase scriptSig is miner
+// data, not a script, and must never be counted.
+int CountSigOps(const std::vector<unsigned char>& script);
+int CountSigOps(const Transaction& tx);
+
 // Read the block height from a coinbase scriptSig (BIP34: the first
 // push must be the height). False if the first push is missing or
 // does not decode as a height.

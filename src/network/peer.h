@@ -4,8 +4,12 @@
 // advertised height, compact-block support, ping state, recently seen
 // inventory (to avoid re-requesting), and a misbehavior score.
 // Score >= 100 bans the peer: progressive ban durations (1st ban 24h,
-// then doubling up to 30 days). Bans are keyed by the peer's address
-// string and enforced by BanManager.
+// then doubling up to 30 days). Bans are keyed by IP ALONE
+// (Milestone 16): BanManager::BanKey strips the ephemeral TCP port
+// from "ip:port" before the key is stored or looked up, so a ban
+// survives a reconnect from a new ephemeral port. Peer.address
+// keeps the full "ip:port" for display/diagnostics — it is NOT the
+// ban key. Bans are enforced by BanManager.
 #pragma once
 
 #include <cstdint>
@@ -25,11 +29,24 @@ constexpr uint32_t kBanDurationMaxSeconds = 30 * 24 * 60 * 60;  // 30 days
 
 class BanManager {
  public:
+  // The ban key for an address (Milestone 16, the ONE place this
+  // rule lives, so it cannot be bypassed by a caller passing a
+  // raw address): "1.2.3.4:56789" -> "1.2.3.4" (the TCP port is
+  // ephemeral — keying by "ip:port" let a banned peer reconnect
+  // from a fresh port, M15 §C.2.6); "loopback:<name>" stays as-is
+  // (stable test identifiers, no port); an address with no port
+  // stays as-is; anything that is not a valid IPv4 "ip:port"
+  // (including IPv4-mapped forms) stays as-is — no new parsing,
+  // only the existing IPv4 check plus a numeric-port check.
+  static std::string BanKey(const std::string& address);
   // Record a ban starting at `nowSeconds`. Durations double per
-  // repeat offence, capped at 30 days.
+  // repeat offence, capped at 30 days. The key is BanKey(address).
   void Ban(const std::string& address, uint32_t nowSeconds);
+  // True when BanKey(address) is banned at `nowSeconds`.
   bool IsBanned(const std::string& address, uint32_t nowSeconds) const;
-  void Unban(const std::string& address) { bans_.erase(address); }
+  void Unban(const std::string& address) {
+    bans_.erase(BanKey(address));
+  }
   std::size_t Size() const { return bans_.size(); }
 
  private:
@@ -43,7 +60,9 @@ class BanManager {
 // One connected peer.
 struct Peer {
   std::string id;       // transport-level id (opaque to the protocol)
-  std::string address;  // "ip:port" — the ban key
+  std::string address;  // "ip:port" for display/diagnostics. The BAN
+  // key is the IP alone (BanManager::BanKey) — the port is
+  // ephemeral and must never key a ban (Milestone 16).
   bool outbound = false;
 
   // Handshake state.

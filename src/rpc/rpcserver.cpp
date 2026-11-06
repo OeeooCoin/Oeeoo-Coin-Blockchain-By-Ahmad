@@ -226,6 +226,13 @@ bool RpcServer::Start(std::string& error) {
     return false;
   }
   running_.store(true);
+  {
+    std::lock_guard<std::mutex> lock(queueMutex_);
+    queueShutdown_ = false;
+  }
+  for (int i = 0; i < maxThreads_.load(); ++i) {
+    workers_.emplace_back(&RpcServer::WorkerLoop, this);
+  }
   acceptThread_ = std::thread(&RpcServer::AcceptLoop, this);
   return true;
 }
@@ -239,6 +246,106 @@ void RpcServer::Stop() {
     listenFd_ = -1;
   }
   if (acceptThread_.joinable()) acceptThread_.join();
+  // Stop queueing and drop connections still waiting in the queue
+  // (their sockets are closed here — no worker will ever see them).
+  {
+    std::lock_guard<std::mutex> lock(queueMutex_);
+    queueShutdown_ = true;
+    while (!workQueue_.empty()) {
+      ::close(workQueue_.front());
+      workQueue_.pop();
+    }
+  }
+  queueCond_.notify_all();
+  // Unblock any worker waiting on a slow client: shutdown() makes
+  // its blocked recv return, so the join below cannot hang. Only
+  // shutdown() here — the worker itself closes the socket. The
+  // sweep cannot miss a fd: a worker registers its fd and checks
+  // queueShutdown_ (set above) under the queue lock before
+  // handling it, so any fd in flight either was registered before
+  // this sweep or is abandoned by the worker instead of handled.
+  {
+    std::lock_guard<std::mutex> lock(activeMutex_);
+    for (int fd : activeFds_) ::shutdown(fd, SHUT_RDWR);
+  }
+  for (std::thread& worker : workers_) {
+    if (worker.joinable()) worker.join();
+  }
+  workers_.clear();
+}
+
+int RpcServer::WorkQueueDepth() const {
+  std::lock_guard<std::mutex> lock(queueMutex_);
+  return static_cast<int>(workQueue_.size());
+}
+
+bool RpcServer::TryEnqueueConnection(int fd) {
+  std::lock_guard<std::mutex> lock(queueMutex_);
+  if (queueShutdown_) return false;
+  if (static_cast<int>(workQueue_.size()) >= workQueueSize_.load()) {
+    return false;
+  }
+  workQueue_.push(fd);
+  queueCond_.notify_one();
+  return true;
+}
+
+void RpcServer::SendQueueFullResponse(int fd) {
+  Json response = Json::Object();
+  response.Set("jsonrpc", "2.0");
+  response.Set("id", Json());
+  Json err = Json::Object();
+  err.Set("code", -32603);
+  err.Set("message", "RPC work queue is full");
+  response.Set("error", err);
+  const std::string body = response.Dump();
+  const std::string http = "HTTP/1.1 500 Internal Server Error\r\n"
+                           "Content-Type: application/json\r\n"
+                           "Content-Length: " +
+                           std::to_string(body.size()) +
+                           "\r\nConnection: close\r\n\r\n" + body;
+  SendAll(fd, http);
+}
+
+void RpcServer::WorkerLoop() {
+  while (true) {
+    int fd = -1;
+    {
+      std::unique_lock<std::mutex> lock(queueMutex_);
+      queueCond_.wait(lock, [this] {
+        return queueShutdown_ || !workQueue_.empty();
+      });
+      if (workQueue_.empty()) return;  // shutdown (queue drained)
+      fd = workQueue_.front();
+      workQueue_.pop();
+      // Register the fd as active while still holding the queue
+      // lock, and check the shutdown flag here: if Stop() has
+      // already set it, this fd is abandoned (closed below)
+      // instead of handled — so Stop()'s shutdown sweep cannot
+      // miss a fd a worker is about to block on. (If the flag is
+      // not set yet, Stop() has not swept either, so the sweep
+      // will see this fd.)
+      {
+        std::lock_guard<std::mutex> activeLock(activeMutex_);
+        activeFds_.insert(fd);
+      }
+      if (queueShutdown_) {
+        std::lock_guard<std::mutex> activeLock(activeMutex_);
+        activeFds_.erase(fd);
+        ::close(fd);
+        return;
+      }
+    }  // queueMutex_ released BEFORE HandleConnection: a slow
+    // client must not block the queue or Stop().
+    activeConnections_.fetch_add(1);
+    HandleConnection(fd);
+    ::close(fd);
+    activeConnections_.fetch_sub(1);
+    {
+      std::lock_guard<std::mutex> activeLock(activeMutex_);
+      activeFds_.erase(fd);
+    }
+  }
 }
 
 void RpcServer::AcceptLoop() {
@@ -254,19 +361,16 @@ void RpcServer::AcceptLoop() {
     const int fd = ::accept(listenFd_, reinterpret_cast<sockaddr*>(&client),
                             &len);
     if (fd < 0) continue;
-    // One thread per connection: a slow client must not block all
-    // RPC. Cap the count so a connection flood cannot grow threads
-    // without bound; excess connections are refused immediately.
-    if (activeConnections_.load() >= kMaxConnections) {
+    // Fixed worker pool + bounded queue (Milestone 16): the
+    // connection is queued for a worker instead of spawning a
+    // thread. When the queue is full the connection is answered
+    // HTTP 500 (JSON-RPC -32603 "RPC work queue is full") and
+    // closed immediately; the server keeps running.
+    if (!TryEnqueueConnection(fd)) {
+      SendQueueFullResponse(fd);
       ::close(fd);
       continue;
     }
-    activeConnections_.fetch_add(1);
-    std::thread([this, fd] {
-      HandleConnection(fd);
-      ::close(fd);
-      activeConnections_.fetch_sub(1);
-    }).detach();
   }
 }
 
@@ -484,6 +588,9 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
                           "getblockhash",
                           "getblock",
                           "getblockheader",
+                          "getchaintips",
+                          "getblockstats",
+                          "getchaintxstats",
                           "getdifficulty",
                           "gettxout",
                           "gettxoutsetinfo",
@@ -504,8 +611,11 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
                           "listunspent",
                           "sendtoaddress",
                           "getwalletinfo",
+                          "listtransactions",
+                          "gettransaction",
                           "createwallet",
                           "walletpassphrase",
+                          "walletpassphrasechange",
                           "walletlock"}) {
       methods.Push(std::string(m));
     }
@@ -805,6 +915,215 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
     return j;
   }
 
+  // ---- Milestone 16: chain tips, block stats, chain tx stats ----
+  if (method == "getchaintips") {
+    Json arr = Json::Array();
+    for (const ChainTip& tip : chain.GetChainTips()) {
+      Json item = Json::Object();
+      item.Set("height", static_cast<int64_t>(tip.height));
+      item.Set("hash", HashHex(tip.hash));
+      item.Set("branchlen", static_cast<int64_t>(tip.branchlen));
+      item.Set("status", tip.status);
+      arr.Push(item);
+    }
+    return arr;
+  }
+
+  if (method == "getblockstats") {
+    const Json* p = Param(params, 0, "blockhash");
+    if (p == nullptr || !p->IsString()) {
+      return fail(-32602, "getblockstats needs a block hash");
+    }
+    Hash256 hash;
+    if (!HexToHash(p->AsString(), hash)) {
+      return fail(-8, "invalid block hash");
+    }
+    BlockHeader header;
+    if (!chain.GetBlockHeader(hash, header)) {
+      return fail(-5, "Block not found");
+    }
+    Block block;
+    if (!node_.GetBlock(hash, block)) {
+      return fail(-5, "Block not found (pruned or not stored)");
+    }
+    const int height = chain.GetHeight(hash);
+    // Fees: recomputed by replaying the block's own ancestry from
+    // the genesis block through stored blocks, applying each
+    // transaction's inputs/outputs to a fresh UTXO view. The node's
+    // current UTXO view is the TIP's view and cannot price older
+    // blocks (their inputs are already spent), so it is deliberately
+    // NOT used here. Blocks were fully validated at accept time, so
+    // a missing input during replay is an internal inconsistency,
+    // not a client error. O(chain length) per call — acceptable for
+    // a v0.1.0 node; a fee index at accept time would be the
+    // optimisation if this ever gets slow. No SegWit fields: there
+    // is no SegWit.
+    std::vector<Hash256> ancestry;
+    {
+      Hash256 cur = hash;
+      // Defensive bound: the ancestry cannot be longer than the
+      // index itself.
+      for (std::size_t guard = 0; guard <= chain.Size(); ++guard) {
+        ancestry.push_back(cur);
+        Hash256 prev;
+        if (!chain.GetPrevHash(cur, prev)) {
+          return fail(-32603, "cannot recompute fees: broken ancestry");
+        }
+        if (prev == Hash256{}) break;  // genesis reached
+        cur = prev;
+      }
+      // The walk must end at the genesis block (height 0); anything
+      // else means the ancestry is broken or the guard tripped.
+      if (ancestry.empty() || chain.GetHeight(ancestry.back()) != 0) {
+        return fail(-32603, "cannot recompute fees: broken ancestry");
+      }
+    }
+    std::reverse(ancestry.begin(), ancestry.end());
+    CoinsView view;
+    Amount targetFee = 0;
+    std::size_t targetNonCoinbaseBytes = 0;
+    for (const Hash256& ancHash : ancestry) {
+      Block ancBlock;
+      if (!node_.GetBlock(ancHash, ancBlock)) {
+        return fail(-5, "Block not found (pruned or not stored)");
+      }
+      const int ancHeight = chain.GetHeight(ancHash);
+      const bool isTarget = (ancHash == hash);
+      for (const Transaction& tx : ancBlock.vtx) {
+        if (IsCoinbase(tx)) {
+          for (std::size_t i = 0; i < tx.vout.size(); ++i) {
+            Coin coin;
+            coin.out = tx.vout[i];
+            coin.height = ancHeight;
+            coin.isCoinbase = true;
+            view.AddCoin({tx.GetTxId(), static_cast<uint32_t>(i)}, coin);
+          }
+          continue;
+        }
+        __int128 inSum = 0;
+        __int128 outSum = 0;
+        for (const TxIn& in : tx.vin) {
+          Coin coin;
+          if (!view.GetCoin({in.prevTxHash, in.prevOutIndex}, coin)) {
+            return fail(-32603,
+                        "cannot recompute fees: input not in replayed "
+                        "UTXO view");
+          }
+          inSum += coin.out.value;
+        }
+        for (const TxOut& out : tx.vout) outSum += out.value;
+        const Amount fee = static_cast<Amount>(inSum - outSum);
+        if (isTarget) {
+          targetFee += fee;
+          targetNonCoinbaseBytes += tx.Serialize().size();
+        }
+        for (const TxIn& in : tx.vin) {
+          view.SpendCoin({in.prevTxHash, in.prevOutIndex});
+        }
+        for (std::size_t i = 0; i < tx.vout.size(); ++i) {
+          Coin coin;
+          coin.out = tx.vout[i];
+          coin.height = ancHeight;
+          coin.isCoinbase = false;
+          view.AddCoin({tx.GetTxId(), static_cast<uint32_t>(i)}, coin);
+        }
+      }
+    }
+    // Median-Time-Past of this block: median of the last 11 block
+    // times on ITS OWN ancestry (not the active chain's), so side
+    // branches report their own mediantime.
+    uint32_t mediantime = 0;
+    {
+      std::vector<uint32_t> times;
+      Hash256 cur = hash;
+      for (int i = 0; i < 11; ++i) {
+        BlockHeader h;
+        if (!chain.GetBlockHeader(cur, h)) break;
+        times.push_back(h.nTime);
+        Hash256 prev;
+        if (!chain.GetPrevHash(cur, prev) || prev == Hash256{}) break;
+        cur = prev;
+      }
+      std::sort(times.begin(), times.end());
+      if (!times.empty()) mediantime = times[times.size() / 2];
+    }
+    Json j = Json::Object();
+    j.Set("height", static_cast<int64_t>(height));
+    j.Set("hash", HashHex(hash));
+    j.Set("txs", static_cast<int64_t>(block.vtx.size()));
+    j.Set("size", static_cast<int64_t>(block.Serialize().size()));
+    j.Set("totalfee", AmountToOeeoo(targetFee));
+    const double avgFeeRate =
+        targetNonCoinbaseBytes == 0
+            ? 0.0
+            : static_cast<double>(targetFee) /
+                  static_cast<double>(targetNonCoinbaseBytes);
+    j.Set("avgfeerate", avgFeeRate);
+    j.Set("time", static_cast<int64_t>(header.nTime));
+    j.Set("mediantime", static_cast<int64_t>(mediantime));
+    return j;
+  }
+
+  if (method == "getchaintxstats") {
+    // Params: [nblocks] — default 2016 (Bitcoin Core's default).
+    // The window is the last min(nblocks, tipHeight + 1) blocks.
+    // `txcount` is the total tx count of the whole chain up to the
+    // window's final block (Core's definition), while
+    // `window_tx_count` counts only the window. Stored blocks only;
+    // no UTXO walk is needed.
+    const Json* nP = Param(params, 0, "nblocks");
+    int64_t nblocks = 2016;
+    if (nP != nullptr) {
+      if (!nP->IsNumber()) {
+        return fail(-32602, "getchaintxstats needs a numeric nblocks");
+      }
+      nblocks = nP->AsInt();
+      if (nblocks < 1) {
+        return fail(-8, "nblocks must be at least 1");
+      }
+    }
+    const int tipHeight = chain.GetTipHeight();
+    if (tipHeight < 0) {
+      return fail(-8, "no blocks in chain");
+    }
+    const int64_t window =
+        std::min<int64_t>(nblocks, static_cast<int64_t>(tipHeight) + 1);
+    const int firstHeight =
+        static_cast<int>(static_cast<int64_t>(tipHeight) - window + 1);
+    int64_t totalTx = 0;
+    int64_t windowTx = 0;
+    int64_t firstTime = 0;
+    int64_t lastTime = 0;
+    for (int h = 0; h <= tipHeight; ++h) {
+      Hash256 blockHash;
+      Block block;
+      if (!chain.GetBlockHashAtHeight(h, blockHash) ||
+          !node_.GetBlock(blockHash, block)) {
+        return fail(-5, "Block not found (pruned or not stored)");
+      }
+      totalTx += static_cast<int64_t>(block.vtx.size());
+      if (h >= firstHeight) {
+        windowTx += static_cast<int64_t>(block.vtx.size());
+        if (h == firstHeight) firstTime = block.header.nTime;
+        if (h == tipHeight) lastTime = block.header.nTime;
+      }
+    }
+    const int64_t interval =
+        std::max<int64_t>(0, lastTime - firstTime);
+    Json j = Json::Object();
+    j.Set("time", lastTime);
+    j.Set("txcount", totalTx);
+    j.Set("window_block_count", window);
+    j.Set("window_final_block_height", static_cast<int64_t>(tipHeight));
+    j.Set("window_tx_count", windowTx);
+    j.Set("window_interval", interval);
+    j.Set("txrate", interval == 0
+                        ? 0.0
+                        : static_cast<double>(windowTx) /
+                              static_cast<double>(interval));
+    return j;
+  }
+
   if (method == "getblocktemplate") {
     // Resolve the miner script: param coinbaseaddress, else wallet.
     std::vector<unsigned char> minerScript;
@@ -860,8 +1179,14 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
       item.Set("data", BytesToHexStr(tx.Serialize()));
       item.Set("txid", HashHex(tx.GetTxId()));
       item.Set("hash", HashHex(tx.GetTxId()));
-      item.Set("fee", 0);
-      item.Set("sigops", 0);
+      // `fee` is integer satoshis (Bitcoin's unit here, NOT OEEOO),
+      // recorded by AssembleBlock from validation — never
+      // recomputed in the RPC layer.
+      const std::size_t feeIdx = i - 1;
+      item.Set("fee", feeIdx < templ.txFees.size()
+                          ? static_cast<int64_t>(templ.txFees[feeIdx])
+                          : 0);
+      item.Set("sigops", static_cast<int64_t>(CountSigOps(tx)));
       item.Set("weight", static_cast<int64_t>(tx.Serialize().size() * 4));
       txs.Push(item);
     }
@@ -884,6 +1209,10 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
     mutable_.Push("prevblock");
     j.Set("mutable", mutable_);
     j.Set("noncerange", "00000000ffffffff");
+    // sigoplimit 20000 is a POLICY limit for templates only (NOT a
+    // consensus limit, NOT Core's 80,000 — a weight-era SegWit
+    // number): Oeeoo has no consensus sigop limit. M16 decision,
+    // recorded here and in docs/ROADMAP_BITCOIN_LEVEL.md.
     j.Set("sigoplimit", 20000);
     j.Set("sizelimit", 1000000);
     j.Set("curtime", static_cast<int64_t>(blockTime));
@@ -1076,7 +1405,214 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
     if (!node_.BroadcastTx(tx, error)) {
       return fail(-26, "transaction rejected: " + error);
     }
+    // Record the send in the wallet tx journal (Milestone 16):
+    // amount is negative excluding the fee (Bitcoin convention),
+    // unconfirmed (blockheight -1), time = first seen (now).
+    // The journal persists best-effort here: the transaction is
+    // already broadcast, so a journal I/O failure must not turn a
+    // successful send into an error.
+    WalletTxRecord sendRec;
+    sendRec.txid = HashHex(tx.GetTxId());
+    sendRec.category = "send";
+    sendRec.amount = -amount;
+    sendRec.fee = fee;
+    sendRec.time = static_cast<int64_t>(node_.Now());
+    sendRec.blockheight = -1;
+    sendRec.address = addrP->AsString();
+    w->RecordTx(sendRec);
+    std::string journalError;
+    saveWallet(journalError);  // best-effort (see above)
     return Json(HashHex(tx.GetTxId()));
+  }
+
+  if (method == "walletpassphrasechange") {
+    const Json* oldP = Param(params, 0, "oldpassphrase");
+    const Json* newP = Param(params, 1, "newpassphrase");
+    if (oldP == nullptr || !oldP->IsString() || newP == nullptr ||
+        !newP->IsString()) {
+      return fail(-32602,
+                  "walletpassphrasechange needs an old and a new "
+                  "passphrase");
+    }
+    if (newP->AsString().empty()) {
+      return fail(-8, "new passphrase must not be empty");
+    }
+    if (nodeWallet_ == nullptr || !nodeWallet_->HasWallet()) {
+      return fail(-13, "wallet not loaded");
+    }
+    if (nodeWallet_->IsLocked()) {
+      // Bitcoin requires the wallet to be unlocked to change the
+      // passphrase; so does Oeeoo.
+      return fail(-13, "wallet is locked");
+    }
+    std::string error;
+    if (!nodeWallet_->ChangePassphrase(oldP->AsString(),
+                                       newP->AsString(), error)) {
+      // A wrong old passphrase is -14, the same code as
+      // walletpassphrase; the message never distinguishes a wrong
+      // passphrase from a corrupt file.
+      if (error == "incorrect passphrase") return fail(-14, error);
+      return fail(-13, error);
+    }
+    return Json("passphrase changed");
+  }
+
+  // ---- wallet transaction history (Milestone 16) ----
+  // listtransactions / gettransaction read the sidecar journal
+  // (txjournal.h) through the wallet's in-memory tx records. The
+  // journal holds no secrets, so both methods work while the wallet
+  // is locked (watch-only view): receives AND sends are history,
+  // not spending. Confirmations are computed from the tip height
+  // at call time, never stored. blockindex is always -1: the
+  // journal does not track a transaction's index within its block.
+  // A confirmed record's blockhash is looked up by height on the
+  // CURRENT main chain, so after a reorg the height may point at a
+  // different block — the journal does not track reorgs (a
+  // documented limitation; Oeeoo has no abandon-transaction
+  // handling in v0.1.0).
+
+  if (method == "listtransactions" || method == "gettransaction") {
+    Wallet* w = activeWallet();
+    if (w == nullptr) return Json();
+    // A rescan first: it (re)discovers receives, so a receive
+    // confirmed since the last call is listed immediately.
+    w->ScanUtxo(node_.Utxo(), chain.GetTipHeight() + 1);
+    std::string saveError;
+    saveWallet(saveError);  // best-effort
+    auto txInfo = [&](const WalletTxRecord& rec, int64_t& confirmations,
+                      std::string& blockhash, int64_t& blocktime) {
+      confirmations = 0;
+      blockhash = "";
+      blocktime = 0;
+      if (rec.blockheight < 0) return;
+      const int64_t conf = static_cast<int64_t>(chain.GetTipHeight()) -
+                           rec.blockheight + 1;
+      if (conf <= 0) return;
+      Hash256 h;
+      if (!chain.GetBlockHashAtHeight(rec.blockheight, h)) return;
+      BlockHeader hdr;
+      if (!chain.GetBlockHeader(h, hdr)) return;
+      confirmations = conf;
+      blockhash = HashHex(h);
+      blocktime = static_cast<int64_t>(hdr.nTime);
+    };
+    auto recordToJson = [&](const WalletTxRecord& rec) {
+      int64_t confirmations = 0;
+      std::string blockhash;
+      int64_t blocktime = 0;
+      txInfo(rec, confirmations, blockhash, blocktime);
+      Json item = Json::Object();
+      item.Set("account", "");
+      item.Set("address", rec.address);
+      item.Set("category", rec.category);
+      item.Set("amount", AmountToOeeoo(rec.amount));
+      if (rec.category == "send") {
+        item.Set("fee", AmountToOeeoo(rec.fee));
+      }
+      item.Set("confirmations", confirmations);
+      item.Set("blockhash", blockhash);
+      item.Set("blockindex", static_cast<int64_t>(-1));
+      item.Set("blocktime", blocktime);
+      item.Set("txid", rec.txid);
+      item.Set("time", rec.time);
+      item.Set("timereceived", rec.time);
+      return item;
+    };
+
+    if (method == "listtransactions") {
+      const Json* accountP = Param(params, 0, "account");
+      if (accountP != nullptr) {
+        if (!accountP->IsString()) {
+          return fail(-8, "listtransactions account must be a string");
+        }
+        const std::string account = accountP->AsString();
+        if (account != "*" && !account.empty()) {
+          return fail(-8, "invalid account (only \"*\" is supported)");
+        }
+      }
+      const Json* countP = Param(params, 1, "count");
+      int64_t count = 10;
+      if (countP != nullptr) {
+        if (!countP->IsNumber()) {
+          return fail(-8, "listtransactions count must be a number");
+        }
+        count = countP->AsInt();
+        if (count < 0) return fail(-8, "count must not be negative");
+      }
+      const Json* skipP = Param(params, 2, "skip");
+      int64_t skip = 0;
+      if (skipP != nullptr) {
+        if (!skipP->IsNumber()) {
+          return fail(-8, "listtransactions skip must be a number");
+        }
+        skip = skipP->AsInt();
+        if (skip < 0) return fail(-8, "skip must not be negative");
+      }
+      // include_watchonly (param 3) is accepted and ignored: there
+      // is no watch-only distinction in the journal — every record
+      // belongs to this wallet.
+      std::vector<WalletTxRecord> records = w->ListTxRecords();
+      // Newest first (stable: equal times keep journal order).
+      std::stable_sort(records.begin(), records.end(),
+                       [](const WalletTxRecord& a,
+                          const WalletTxRecord& b) {
+                         return a.time > b.time;
+                       });
+      Json arr = Json::Array();
+      int64_t shown = 0;
+      for (std::size_t i = 0; i < records.size(); ++i) {
+        if (static_cast<int64_t>(i) < skip) continue;
+        if (shown >= count) break;
+        arr.Push(recordToJson(records[i]));
+        ++shown;
+      }
+      return arr;
+    }
+
+    // gettransaction
+    const Json* txidP = Param(params, 0, "txid");
+    if (txidP == nullptr || !txidP->IsString()) {
+      return fail(-32602, "gettransaction needs a txid");
+    }
+    Hash256 txid;
+    if (!HexToHash(txidP->AsString(), txid)) {
+      return fail(-5, "Invalid or non-wallet transaction id");
+    }
+    const std::string want = HashHex(txid);  // normalised lowercase
+    // Keep the records in a local vector: ListTxRecords() returns
+    // by value, and a pointer into that temporary would dangle
+    // once the loop ends.
+    const std::vector<WalletTxRecord> records = w->ListTxRecords();
+    const WalletTxRecord* found = nullptr;
+    for (const WalletTxRecord& rec : records) {
+      if (rec.txid == want) {
+        found = &rec;
+        break;
+      }
+    }
+    if (found == nullptr) {
+      return fail(-5, "Invalid or non-wallet transaction id");
+    }
+    int64_t confirmations = 0;
+    std::string blockhash;
+    int64_t blocktime = 0;
+    txInfo(*found, confirmations, blockhash, blocktime);
+    Json j = Json::Object();
+    j.Set("amount", AmountToOeeoo(found->amount));
+    if (found->category == "send") {
+      j.Set("fee", AmountToOeeoo(found->fee));
+    }
+    j.Set("confirmations", confirmations);
+    j.Set("blockhash", blockhash);
+    j.Set("blockindex", static_cast<int64_t>(-1));
+    j.Set("blocktime", blocktime);
+    j.Set("txid", found->txid);
+    j.Set("time", found->time);
+    j.Set("timereceived", found->time);
+    Json details = Json::Array();
+    details.Push(recordToJson(*found));
+    j.Set("details", details);
+    return j;
   }
 
   if (method == "getwalletinfo") {

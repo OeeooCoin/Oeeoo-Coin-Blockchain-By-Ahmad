@@ -134,6 +134,9 @@ bool Node::GenesisHash(Hash256& out) const {
 
 bool Node::ConnectTo(const std::string& address) {
   if (!transport_) return false;
+  // The ban check is IP-only (Milestone 16): BanManager::BanKey
+  // strips the ephemeral port inside IsBanned, so an outbound
+  // dial to a banned IP is refused whatever port it uses.
   if (bans_.IsBanned(address, Now())) return false;
   if (static_cast<int>(peers_.size()) >= maxPeers_) return false;
   std::string peerId;
@@ -254,6 +257,10 @@ void Node::Misbehave(const std::string& peerId, int score) {
   auto it = peers_.find(peerId);
   if (it == peers_.end()) return;
   if (it->second.AddMisbehavior(score)) {
+    // Ban key is the IP alone (Milestone 16): BanManager::BanKey
+    // strips the ephemeral port inside Ban, so the ban survives
+    // a reconnect from a new port. peer.address itself keeps the
+    // full "ip:port" for display/diagnostics.
     bans_.Ban(it->second.address, Now());
     DisconnectPeer(peerId);
   }
@@ -283,7 +290,10 @@ void Node::OnBytes(const std::string& peerId,
     // registering the peer. Before Milestone 15 inbound peers were
     // never ban-checked — bans were keyed by the ephemeral
     // transport id, so a banned inbound peer could reconnect
-    // immediately under a fresh id.
+    // immediately under a fresh id. Since Milestone 16 the check
+    // is IP-only (BanManager::BanKey strips the ephemeral port
+    // inside IsBanned), so a TCP peer reconnecting from a new
+    // ephemeral port is still refused.
     if (bans_.IsBanned(address, Now())) {
       if (transport_) transport_->Disconnect(peerId);
       return;

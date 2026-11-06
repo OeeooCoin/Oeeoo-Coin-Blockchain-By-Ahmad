@@ -251,6 +251,24 @@ bool Wallet::IsMineScript(
   return scriptToPath_.find(HexStr(scriptPubKey)) != scriptToPath_.end();
 }
 
+void Wallet::RecordTx(const WalletTxRecord& record) {
+  if (record.txid.empty()) return;
+  for (WalletTxRecord& existing : txRecords_) {
+    if (existing.txid == record.txid) {
+      existing = record;  // latest wins, never duplicated
+      txDirty_ = true;
+      return;
+    }
+  }
+  txRecords_.push_back(record);
+  txDirty_ = true;
+}
+
+void Wallet::SetTxRecords(const std::vector<WalletTxRecord>& records) {
+  txRecords_ = records;
+  txDirty_ = false;
+}
+
 void Wallet::ScanUtxo(const CoinsView& utxo, int nextHeight) {
   // Reset usage, then mark every address that owns a UTXO.
   for (auto& kv : addresses_) kv.second.used = false;
@@ -263,6 +281,10 @@ void Wallet::ScanUtxo(const CoinsView& utxo, int nextHeight) {
   uint32_t maxUsedChange = 0;
   bool anyExternalUsed = false;
   bool anyChangeUsed = false;
+  // Receives discovered by this scan, aggregated per txid: one
+  // transaction paying the wallet in several outputs is ONE receive
+  // record (amount = sum), so the journal stays keyed by txid.
+  std::map<std::string, WalletTxRecord> receiveByTxid;
   for (const auto& entry : coins) {
     const std::string scriptHex = HexStr(entry.second.out.scriptPubKey);
     auto it = scriptToPath_.find(scriptHex);
@@ -308,7 +330,22 @@ void Wallet::ScanUtxo(const CoinsView& utxo, int nextHeight) {
       anyExternalUsed = true;
       maxUsedExternal = std::max(maxUsedExternal, index);
     }
+    // Record the receive (also for immature coinbases: they are
+    // receives, just not spendable yet). Time is the funding
+    // block's time, carried on the Coin — no chain lookup needed.
+    const std::string txidHex = HexStr(std::vector<unsigned char>(
+        entry.first.txid.begin(), entry.first.txid.end()));
+    WalletTxRecord& rec = receiveByTxid[txidHex];
+    if (rec.txid.empty()) {
+      rec.txid = txidHex;
+      rec.category = "receive";
+      rec.time = static_cast<int64_t>(coin.blockTime);
+      rec.blockheight = static_cast<int>(coin.height);
+      rec.address = ait->second.address;
+    }
+    rec.amount += coin.out.value;
   }
+  for (const auto& kv : receiveByTxid) RecordTx(kv.second);
   // Advance past the last used address (+1) so the gap window moves.
   if (anyExternalUsed) nextExternal_ = std::max(nextExternal_, maxUsedExternal + 1);
   if (anyChangeUsed) nextChange_ = std::max(nextChange_, maxUsedChange + 1);

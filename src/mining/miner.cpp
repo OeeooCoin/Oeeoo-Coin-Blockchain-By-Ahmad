@@ -177,6 +177,7 @@ BlockTemplate AssembleBlock(const Hash256& prevHash, int height,
     }
     included.push_back(entry.tx);
     templ.totalFees += r.fee;
+    templ.txFees.push_back(r.fee);
     blockBytes += entry.size;
   }
   templ.txCount = included.size();

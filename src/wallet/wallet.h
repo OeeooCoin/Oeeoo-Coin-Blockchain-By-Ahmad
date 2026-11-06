@@ -51,6 +51,30 @@ struct WalletUtxo {
   bool isCoinbase = false;
 };
 
+// One wallet transaction-history record (Milestone 16). Persisted in
+// the sidecar journal (wallet/txjournal.h), NOT in the encrypted
+// wallet file. Amount follows the Bitcoin convention: negative for
+// sends (excluding the fee, reported separately in `fee`), positive
+// for receives. `confirmations` is NOT stored — it is computed at
+// query time from the tip height. `label` is always "" in v0.1.0
+// (no labels). The record holds no secrets.
+struct WalletTxRecord {
+  std::string txid;      // 64 hex chars
+  std::string category;  // "send" or "receive"
+  int64_t amount = 0;    // sats, signed
+  int64_t fee = 0;       // sats, sends only (0 for receives)
+  int64_t time = 0;      // unix: block time when confirmed, else first seen
+  int blockheight = -1;  // -1 when unconfirmed
+  std::string address;   // counterparty (sends) / first mine address (receives)
+  std::string label;     // "" in v0.1.0
+  bool operator==(const WalletTxRecord& o) const {
+    return txid == o.txid && category == o.category &&
+           amount == o.amount && fee == o.fee && time == o.time &&
+           blockheight == o.blockheight && address == o.address &&
+           label == o.label;
+  }
+};
+
 class Wallet {
  public:
   Wallet() = default;
@@ -113,6 +137,30 @@ class Wallet {
   Amount GetImmatureBalance() const { return immatureBalance_; }
   std::vector<WalletUtxo> ListUnspent() const;
 
+  // --- Transaction history (Milestone 16) ---
+  // Minimal in-memory tx-record store, persisted in the sidecar
+  // journal (txjournal.h) by the node wallet. RecordTx upserts by
+  // txid (latest wins, never duplicated). Populated (a) by ScanUtxo:
+  // every UTXO paying to a mine address creates/updates a "receive"
+  // record (time = the funding block's time, from Coin.blockTime;
+  // blockheight = the funding height) — including immature
+  // coinbases, which are receives even though they are not yet
+  // spendable; and (b) by the RPC layer on sendtoaddress, which
+  // records a "send" immediately after broadcast. There is NO
+  // mempool-acceptance hook in the Node: receives appear once
+  // confirmed via rescan, sends appear immediately. A receive whose
+  // UTXO has since been spent stays in the journal (the record
+  // outlives the UTXO); a re-scan only refreshes records for UTXOs
+  // still present. Sends made before the journal existed are not
+  // recoverable (see txjournal.h).
+  void RecordTx(const WalletTxRecord& record);
+  std::vector<WalletTxRecord> ListTxRecords() const { return txRecords_; }
+  // Replace the whole record store (used when loading the journal
+  // from disk). Clears the dirty flag.
+  void SetTxRecords(const std::vector<WalletTxRecord>& records);
+  bool TxRecordsDirty() const { return txDirty_; }
+  void ClearTxRecordsDirty() { txDirty_ = false; }
+
   // Build + sign a payment. `feeRateSatVb` defaults to 1; values
   // above the wallet max (100 sat/vB) are refused. Change below the
   // dust limit is added to the fee instead of creating an output.
@@ -151,6 +199,9 @@ class Wallet {
   std::vector<WalletUtxo> unspent_;
   Amount balance_ = 0;
   Amount immatureBalance_ = 0;
+  // Transaction history (Milestone 16), keyed by txid via RecordTx.
+  std::vector<WalletTxRecord> txRecords_;
+  bool txDirty_ = false;
 };
 
 }  // namespace oeeoo
