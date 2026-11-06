@@ -18,6 +18,11 @@ namespace oeeoo {
 struct TransportMessage {
   std::string peerId;
   std::vector<unsigned char> bytes;
+  // Address of the remote peer as "ip:port" (TCP) or
+  // "loopback:<sender>" (loopback). Empty when unknown. The node
+  // uses it as the peer's address so bans are keyed by IP and
+  // survive a reconnect (Milestone 15).
+  std::string remoteAddress;
 };
 
 class ITransport {
@@ -88,8 +93,15 @@ class TcpTransport : public ITransport {
   void CloseTcp();
 
   int listenFd_ = -1;
-  // peerId -> socket fd.
-  std::vector<std::pair<std::string, int>> peers_;
+  // One entry per connected peer: transport id, socket fd, and the
+  // remote "ip:port" recorded at accept()/Connect time (Milestone
+  // 15 — the node needs the real IP so bans survive reconnects).
+  struct TcpPeer {
+    std::string peerId;
+    int fd = -1;
+    std::string address;  // "ip:port"; empty if it could not be read
+  };
+  std::vector<TcpPeer> peers_;
   int nextPeer_ = 0;
   bool FindPeer(const std::string& peerId, int& fd) const;
 };

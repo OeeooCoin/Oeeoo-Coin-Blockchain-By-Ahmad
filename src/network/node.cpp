@@ -26,7 +26,53 @@ constexpr uint32_t kPingIntervalSeconds = 60;
 // after this long, so a peer cannot pin memory here.
 constexpr uint32_t kPendingCompactTimeoutSeconds = 120;
 constexpr std::size_t kMaxHeadersPerMessage = 2000;
+// Compact relay limits (Milestone 15). Both are Oeeoo's starting
+// values, not Bitcoin Core constants: Core's getblocktxn depth is
+// 10 and Oeeoo starts at the same depth; the per-peer in-flight
+// limit of 5 pending compact blocks is Oeeoo's own choice —
+// enough for a healthy peer relaying several blocks at once, small
+// enough that one peer cannot pin much reconstruction state.
+constexpr std::size_t kMaxCompactInFlightPerPeer = 5;
+constexpr std::size_t kMaxBlockTxnIndexes = 10;
+// Block-stalling disconnect (Milestone 15): a peer asked for a
+// block (getdata) or block transactions (getblocktxn) that has not
+// answered within this long is disconnected. Bitcoin Core's
+// default is 2 seconds, adopted here.
+constexpr uint32_t kBlockStallTimeoutSeconds = 2;
 const char* kUserAgent = "/OeeooCoin:0.1.0/";
+
+// Steady-clock milliseconds (monotonic — the wall clock can jump).
+// Used for ping round-trips, never for consensus or expiry.
+uint64_t SteadyMs() {
+  return static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::steady_clock::now().time_since_epoch())
+          .count());
+}
+
+// Parse an "ip:port" address string into its parts. Returns false
+// for anything else. Loopback names ("loopback:...") have no port
+// and are test-only addresses, so they are never recorded in the
+// address manager — only real IPv4 addresses with a port are.
+bool ParseIpPort(const std::string& address, std::string& ip,
+                 uint16_t& port) {
+  const std::size_t colon = address.rfind(':');
+  if (colon == std::string::npos) return false;
+  ip = address.substr(0, colon);
+  std::array<unsigned char, 4> octets{};
+  if (!ParseIPv4(ip, octets)) return false;
+  // std::stoi throws on a non-numeric port; a malformed address
+  // must fail cleanly, never crash the node.
+  int parsed = 0;
+  try {
+    parsed = std::stoi(address.substr(colon + 1));
+  } catch (...) {
+    return false;
+  }
+  if (parsed <= 0 || parsed > 65535) return false;
+  port = static_cast<uint16_t>(parsed);
+  return true;
+}
 }  // namespace
 
 Node::Node(uint32_t powLimitBits) : chain_(powLimitBits) {
@@ -91,12 +137,22 @@ bool Node::ConnectTo(const std::string& address) {
   if (bans_.IsBanned(address, Now())) return false;
   if (static_cast<int>(peers_.size()) >= maxPeers_) return false;
   std::string peerId;
-  if (!transport_->Connect(address, peerId)) return false;
+  if (!transport_->Connect(address, peerId)) {
+    // A failed outbound attempt counts against the address in the
+    // address manager (3 failures and the entry is dropped as
+    // dead). Loopback names are not recorded (ParseIpPort rejects
+    // them — they are test-only addresses with no port).
+    std::string ip;
+    uint16_t port = 0;
+    if (ParseIpPort(address, ip, port)) addrman_.RecordFailure(ip, port);
+    return false;
+  }
   Peer peer;
   peer.id = peerId;
   peer.address = address;
   peer.outbound = true;
   peer.nonce = nodeNonce_;
+  peer.connectedAt = Now();
   peers_.emplace(peerId, std::move(peer));
   SendVersion(peerId);
   return true;
@@ -106,10 +162,10 @@ void Node::Poll(int timeoutMs) {
   if (!transport_) return;
   TransportMessage msg;
   // Drain everything already queued, then one blocking wait.
-  while (transport_->Poll(msg, 0)) OnBytes(msg.peerId, msg.bytes);
+  while (transport_->Poll(msg, 0)) OnBytes(msg.peerId, msg.bytes, msg.remoteAddress);
   if (timeoutMs > 0 && transport_->Poll(msg, timeoutMs)) {
-    OnBytes(msg.peerId, msg.bytes);
-    while (transport_->Poll(msg, 0)) OnBytes(msg.peerId, msg.bytes);
+    OnBytes(msg.peerId, msg.bytes, msg.remoteAddress);
+    while (transport_->Poll(msg, 0)) OnBytes(msg.peerId, msg.bytes, msg.remoteAddress);
   }
   // Ping peers we have not pinged recently.
   const uint32_t now = Now();
@@ -119,7 +175,32 @@ void Node::Poll(int timeoutMs) {
     if (now - peer.lastPingTime >= kPingIntervalSeconds) {
       peer.lastPingTime = now;
       peer.lastPingNonce = now;
+      peer.lastPingSentMs = SteadyMs();
       SendMessage(peer.id, {"ping", SerializePing(peer.lastPingNonce)});
+    }
+  }
+  // Block-stalling disconnect, checked on EVERY Poll call (not
+  // just the 60-second sweep below): a peer asked for a block
+  // (getdata) or block transactions (getblocktxn) that has not
+  // answered within kBlockStallTimeoutSeconds is disconnected.
+  // No misbehavior points: stalling is not proof of malice — the
+  // peer may be slow, overloaded, or on a bad link, and punishing
+  // it would ban honest slow peers. There is deliberately NO
+  // Core-style 64-second backoff after the disconnect: the
+  // backoff only matters if the node kept requesting from the same
+  // peer, which it does not — the peer is gone.
+  // Frozen test time (SetTime) cannot trigger this: blockRequestAt
+  // is stamped with Now(), so the difference stays 0 until the
+  // clock actually advances.
+  for (auto it = peers_.begin(); it != peers_.end();) {
+    Peer& peer = it->second;
+    if (peer.awaitingBlock != Hash256{} &&
+        now - peer.blockRequestAt >= kBlockStallTimeoutSeconds) {
+      const std::string peerId = it->first;
+      ++it;  // advance before DisconnectPeer erases the entry
+      DisconnectPeer(peerId);
+    } else {
+      ++it;
     }
   }
   // Mempool expiry: drop entries older than 14 days, at most once
@@ -127,6 +208,10 @@ void Node::Poll(int timeoutMs) {
   if (now - lastExpirySweep_ >= 60) {
     lastExpirySweep_ = now;
     mempool_.RemoveExpired(now);
+    // Orphan expiry (20 minutes) and address-manager expiry (30
+    // days) ride the same sweep.
+    orphans_.RemoveExpired(now);
+    addrman_.RemoveExpired(now);
     // Pending compact blocks that never completed expire, so a
     // peer that sends a header and never answers blocktxn cannot
     // pin memory here.
@@ -176,23 +261,48 @@ void Node::Misbehave(const std::string& peerId, int score) {
 
 void Node::DisconnectPeer(const std::string& peerId) {
   if (transport_) transport_->Disconnect(peerId);
+  // The peer's orphans go with it (Milestone 15): an orphan from a
+  // disconnected peer is never promoted later. This also covers
+  // ban-disconnects via Misbehave, which funnel through here.
+  orphans_.PurgePeer(peerId);
   peers_.erase(peerId);
 }
 
 void Node::OnBytes(const std::string& peerId,
-                   const std::vector<unsigned char>& bytes) {
+                   const std::vector<unsigned char>& bytes,
+                   const std::string& remoteAddress) {
   auto it = peers_.find(peerId);
   if (it == peers_.end()) {
     // Inbound connection: register the peer and wait for its version.
-    // Past the peer cap, the connection is refused outright.
-    if (static_cast<int>(peers_.size()) >= maxPeers_) {
+    // The peer's address is the transport's remote address (the
+    // real "ip:port" for TCP); when the transport does not know it,
+    // fall back to the transport peer id as before.
+    const std::string address =
+        remoteAddress.empty() ? peerId : remoteAddress;
+    // A ban survives a reconnect: check the ban list BEFORE
+    // registering the peer. Before Milestone 15 inbound peers were
+    // never ban-checked — bans were keyed by the ephemeral
+    // transport id, so a banned inbound peer could reconnect
+    // immediately under a fresh id.
+    if (bans_.IsBanned(address, Now())) {
       if (transport_) transport_->Disconnect(peerId);
       return;
     }
+    // Past the peer cap, try to evict a worse inbound peer
+    // (Milestone 15); only refuse outright when nobody may be
+    // evicted. Outbound connections keep refusing at the cap —
+    // eviction is inbound-only.
+    if (static_cast<int>(peers_.size()) >= maxPeers_) {
+      if (!EvictInboundPeerFor(address)) {
+        if (transport_) transport_->Disconnect(peerId);
+        return;
+      }
+    }
     Peer peer;
     peer.id = peerId;
-    peer.address = peerId;  // ban key is the transport peer id
+    peer.address = address;
     peer.outbound = false;
+    peer.connectedAt = Now();
     it = peers_.emplace(peerId, std::move(peer)).first;
   }
   Peer& peer = it->second;
@@ -231,6 +341,147 @@ void Node::OnBytes(const std::string& peerId,
   if (offset > 0) {
     peer.recvBuffer.erase(peer.recvBuffer.begin(),
                           peer.recvBuffer.begin() + offset);
+  }
+}
+
+// Peer eviction when the node is full (Milestone 15; Bitcoin
+// Core's AttemptToEvictConnection, adapted to Oeeoo's peer data).
+// Ranking, applied in order:
+//   Among INBOUND peers only, exclude from candidacy
+//   (a) the peer with the lowest known pingRttMs (unknown RTT —
+//       UINT32_MAX — does not count as "lowest known"),
+//   (b) peers that sent a tx or block within the last 60 s,
+//   (c) the longest-connected peer (smallest connectedAt).
+//   Among the rest, evict the one in the largest netgroup (most
+//   peers sharing its /16 via AddressManager::NetgroupOf —
+//   loopback addresses group as "" and tie); tie-break by
+//   most-recently-connected (largest connectedAt); final tie-break
+//   by highest peerId string (deterministic).
+// The new peer's address is not part of the ranking: the victim is
+// chosen among existing inbound peers only. If no candidate
+// exists, returns false and the new connection is refused.
+bool Node::EvictInboundPeerFor(const std::string& newAddress) {
+  (void)newAddress;
+  std::vector<std::string> inbound;
+  for (const auto& kv : peers_) {
+    if (!kv.second.outbound) inbound.push_back(kv.first);
+  }
+  if (inbound.empty()) return false;
+  const uint32_t now = Now();
+  // (a) The peer with the lowest known ping RTT is protected.
+  std::string lowestPingPeer;
+  uint32_t lowestPing = UINT32_MAX;
+  for (const std::string& id : inbound) {
+    const Peer& peer = peers_.at(id);
+    if (peer.pingRttMs < lowestPing) {
+      lowestPing = peer.pingRttMs;
+      lowestPingPeer = id;
+    }
+  }
+  if (lowestPing == UINT32_MAX) lowestPingPeer.clear();  // none known
+  // (c) The longest-connected peer is protected.
+  std::string longestPeer;
+  uint32_t smallestConnectedAt = UINT32_MAX;
+  for (const std::string& id : inbound) {
+    const Peer& peer = peers_.at(id);
+    if (peer.connectedAt < smallestConnectedAt) {
+      smallestConnectedAt = peer.connectedAt;
+      longestPeer = id;
+    }
+  }
+  // Candidates: inbound peers excluded by none of (a), (b), (c).
+  std::vector<std::string> candidates;
+  for (const std::string& id : inbound) {
+    const Peer& peer = peers_.at(id);
+    if (id == lowestPingPeer) continue;
+    if (id == longestPeer) continue;
+    // (b) A peer that sent a tx or block within the last 60 s is
+    // protected. A zero timestamp means "never": it is not recent.
+    const uint32_t lastActivity =
+        std::max(peer.lastTxTime, peer.lastBlockTime);
+    if (lastActivity != 0 && now - lastActivity < 60) continue;
+    candidates.push_back(id);
+  }
+  if (candidates.empty()) return false;
+  // Netgroup of a peer: the /16 of the IP part of its address.
+  // Loopback addresses have no IP part, so NetgroupOf returns ""
+  // and they all tie in this ranking.
+  auto netgroupOfPeer = [&](const std::string& id) {
+    const std::string& address = peers_.at(id).address;
+    const std::size_t colon = address.rfind(':');
+    const std::string ip = (colon == std::string::npos)
+                               ? address
+                               : address.substr(0, colon);
+    return AddressManager::NetgroupOf(ip);
+  };
+  // Netgroup size counts ALL inbound peers sharing the /16, not
+  // just candidates — the group that crowds the node is the one
+  // that loses a member.
+  auto netgroupSize = [&](const std::string& group) {
+    std::size_t n = 0;
+    for (const std::string& id : inbound) {
+      if (netgroupOfPeer(id) == group) ++n;
+    }
+    return n;
+  };
+  // Rank: largest netgroup first, then most-recently-connected,
+  // then highest peerId string.
+  std::sort(candidates.begin(), candidates.end(),
+            [&](const std::string& a, const std::string& b) {
+              const std::size_t groupA = netgroupSize(netgroupOfPeer(a));
+              const std::size_t groupB = netgroupSize(netgroupOfPeer(b));
+              if (groupA != groupB) return groupA > groupB;
+              const uint32_t connectedA = peers_.at(a).connectedAt;
+              const uint32_t connectedB = peers_.at(b).connectedAt;
+              if (connectedA != connectedB) return connectedA > connectedB;
+              return a > b;
+            });
+  const std::string victim = candidates.front();
+  DisconnectPeer(victim);
+  return true;
+}
+
+// Re-validate orphans waiting on `parentTxid` now that the parent
+// has arrived. On success the orphan enters the mempool, is
+// relayed, and its own children are processed recursively. On a
+// missing-input failure it stays in the pool (it still waits on
+// another parent); on any other failure it is dropped.
+// Bound: at most 100 orphans are processed per call, so one parent
+// arrival cannot make the node do unbounded work. (The recursion
+// is bounded by the pool itself: at most 100 orphans can exist,
+// so a chain of orphans recurses at most 100 deep.)
+void Node::ProcessOrphansFor(const Hash256& parentTxid) {
+  constexpr std::size_t kMaxOrphansPerCall = 100;
+  std::size_t processed = 0;
+  const std::vector<Hash256> waiting =
+      orphans_.GetOrphansDependingOn(parentTxid);
+  for (const Hash256& txid : waiting) {
+    if (processed >= kMaxOrphansPerCall) break;
+    ++processed;
+    Transaction tx;
+    if (!orphans_.Get(txid, tx)) continue;  // already promoted
+    TxValidationResult r = ValidateTransaction(
+        tx, utxo_, chain_.GetTipHeight() + 1, chain_.GetMedianTimePast());
+    if (!r.ok) {
+      if (r.error == "missing input" ||
+          r.error == "sequence lock: missing input") {
+        continue;  // still waits on another parent: leave it
+      }
+      orphans_.Remove(txid);  // now invalid for another reason: drop
+      continue;
+    }
+    std::string error;
+    if (!mempool_.AddTransaction(tx, utxo_, chain_.GetTipHeight() + 1,
+                                 chain_.GetMedianTimePast(), Now(), error,
+                                 chain_.GetVestingParams())) {
+      // Validated but the mempool refused it (fee, dust, ...):
+      // drop it rather than retrying it forever.
+      orphans_.Remove(txid);
+      continue;
+    }
+    orphans_.Remove(txid);
+    RelayTxInv(txid, "");
+    ProcessOrphansFor(txid);
   }
 }
 
@@ -274,6 +525,16 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
     peer.verackReceived = true;
     if (peer.versionReceived && peer.verackReceived) {
       peer.handshakeComplete = true;
+      // The handshake completed: the address works. Reset its
+      // failure count in the address manager (a peer that failed
+      // twice and then connects is not dead). Loopback names are
+      // not recorded (ParseIpPort rejects them — test-only
+      // addresses with no port).
+      std::string ip;
+      uint16_t port = 0;
+      if (ParseIpPort(peer.address, ip, port)) {
+        addrman_.RecordSuccess(ip, port);
+      }
       // Advertise compact-block support and our addresses.
       SendMessage(peerId,
                   {"sendcmpct", SerializeSendCmpct(true, 1)});
@@ -296,7 +557,18 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
     }
     return;
   }
-  if (msg.command == "pong") return;
+  if (msg.command == "pong") {
+    // A pong answering our last ping measures the round-trip.
+    // Anything else (an unsolicited pong, or one for an old ping)
+    // is ignored: it carries no timing information.
+    uint64_t nonce = 0;
+    if (ParsePing(msg.payload, nonce) && nonce == peer.lastPingNonce) {
+      peer.pingRttMs =
+          static_cast<uint32_t>(SteadyMs() - peer.lastPingSentMs);
+      peer.lastPongTime = Now();
+    }
+    return;
+  }
   if (msg.command == "sendcmpct") {
     bool announce = false;
     uint64_t version = 0;
@@ -431,6 +703,13 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
     }
     if (!want.empty()) {
       SendMessage(peerId, {"getdata", SerializeInventory(want)});
+      // The peer should answer the first requested block first:
+      // track it for the block-stalling disconnect. (A later
+      // block in the batch is not tracked — the field holds one
+      // hash — but the peer answers in order, so the first hash
+      // is the one whose delay matters.)
+      peer.awaitingBlock = want.front().hash;
+      peer.blockRequestAt = Now();
     }
     return;
   }
@@ -445,6 +724,17 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
     TxValidationResult r = ValidateTransaction(
         tx, utxo_, chain_.GetTipHeight() + 1, chain_.GetMedianTimePast());
     if (!r.ok) {
+      // A missing parent is normal, not malice: the transaction
+      // goes to the orphan pool until its parent arrives, with no
+      // misbehavior and no relay (orphans are never relayed).
+      // An oversized or duplicate orphan is just dropped by the
+      // pool — also with no punishment.
+      if (r.error == "missing input" ||
+          r.error == "sequence lock: missing input") {
+        std::string orphanError;
+        orphans_.Add(tx, peerId, Now(), orphanError);
+        return;
+      }
       Misbehave(peerId, 10);
       return;
     }
@@ -454,8 +744,12 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
                                  chain_.GetVestingParams())) {
       return;
     }
+    peer.lastTxTime = Now();
     peer.knownInventory.insert(txid);
     RelayTxInv(txid, peerId);
+    // The parent may have arrived: re-validate orphans waiting on
+    // this transaction.
+    ProcessOrphansFor(txid);
     return;
   }
   if (msg.command == "block") {
@@ -464,12 +758,18 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
       Misbehave(peerId, 20);
       return;
     }
+    // The request was answered — whatever the outcome — so the
+    // stalling clock for this block stops here.
+    if (peer.awaitingBlock == block.GetHash()) {
+      peer.awaitingBlock = Hash256{};
+    }
     std::string error;
     bool punish = false;
     if (!AcceptBlock(block, error, punish)) {
       if (punish) Misbehave(peerId, 100);
       return;
     }
+    peer.lastBlockTime = Now();
     peer.knownInventory.insert(block.GetHash());
     requestedBlocks_.erase(block.GetHash());
     RelayBlock(block, peerId);
@@ -481,6 +781,11 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
       Misbehave(peerId, 20);
       return;
     }
+    // The request was answered — whatever the outcome — so the
+    // stalling clock for this block stops here.
+    if (peer.awaitingBlock == cb.header.GetHash()) {
+      peer.awaitingBlock = Hash256{};
+    }
     // Do not fetch transactions for a header that fails proof of
     // work: a peer could otherwise make this node do useless work
     // for a fake header.
@@ -488,13 +793,31 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
       Misbehave(peerId, 20);
       return;
     }
+    // Per-peer in-flight limit: a peer may have at most
+    // kMaxCompactInFlightPerPeer compact blocks awaiting blocktxn
+    // at once. Past that, the message is ignored and the peer is
+    // misbehaving (+20) — it is flooding the node with headers it
+    // never completes.
+    std::size_t inFlight = 0;
+    for (const auto& kv : pendingCompact_) {
+      if (kv.second.peerId == peerId) ++inFlight;
+    }
+    if (inFlight >= kMaxCompactInFlightPerPeer) {
+      Misbehave(peerId, 20);
+      return;
+    }
     Block block;
     std::vector<uint32_t> missing;
     if (!ReconstructBlock(cb, mempool_, block, missing)) {
-      pendingCompact_[cb.header.GetHash()] = {cb, peerId, Now()};
-      SendMessage(peerId,
-                  {"getblocktxn",
-                   SerializeGetBlockTxn(cb.header.GetHash(), missing)});
+      // Too many missing transactions for a getblocktxn: ask for
+      // the full block instead, and do NOT create a pending entry
+      // (there is nothing to complete later).
+      if (missing.size() > kMaxBlockTxnIndexes) {
+        SendBlockRequest(peerId, cb.header.GetHash());
+        return;
+      }
+      pendingCompact_[cb.header.GetHash()] = {cb, peerId, Now(), 0};
+      SendBlockTxnRequest(peerId, cb.header.GetHash(), missing);
       return;
     }
     std::string error;
@@ -503,6 +826,7 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
       if (punish) Misbehave(peerId, 100);
       return;
     }
+    peer.lastBlockTime = Now();
     RelayBlock(block, peerId);
     return;
   }
@@ -528,11 +852,14 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
     if (!ParseBlockTxn(msg.payload, blockHash, txs)) return;
     auto pit = pendingCompact_.find(blockHash);
     if (pit == pendingCompact_.end()) return;
+    // The getblocktxn request was answered — whatever the outcome
+    // — so the stalling clock for this block stops here. (A retry
+    // or the full-block fallback below starts a fresh clock.)
+    if (peer.awaitingBlock == blockHash) {
+      peer.awaitingBlock = Hash256{};
+    }
     CompactBlock cb = pit->second.cb;
-    // Save the peer id before erasing: the iterator is invalid
-    // after the erase, and the fallback below needs the peer.
     const std::string compactPeer = pit->second.peerId;
-    pendingCompact_.erase(pit);
     // Fill the prefilled list with the received transactions.
     for (const auto& entry : txs) {
       cb.prefilled.push_back(entry);
@@ -540,21 +867,29 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
     Block block;
     std::vector<uint32_t> missing;
     if (!ReconstructBlock(cb, mempool_, block, missing)) {
-      // Full-block fallback: the compact relay could not be
-      // completed even after blocktxn (the peer did not supply the
-      // missing transactions), so request the full block.
-      requestedBlocks_.insert(blockHash);
-      SendMessage(compactPeer,
-                  {"getdata",
-                   SerializeInventory({{kInvBlock, blockHash}})});
+      // One retry, then the full-block fallback: the peer may
+      // have sent a stale or partial answer, so ask once more for
+      // exactly what is still missing — keeping the pending entry
+      // (and the transactions already received) — before giving
+      // up on the compact relay and requesting the full block.
+      if (pit->second.retries < 1) {
+        ++pit->second.retries;
+        pit->second.cb = cb;  // keep the received transactions
+        SendBlockTxnRequest(compactPeer, blockHash, missing);
+        return;
+      }
+      pendingCompact_.erase(pit);
+      SendBlockRequest(compactPeer, blockHash);
       return;
     }
+    pendingCompact_.erase(pit);
     std::string error;
     bool punish = false;
     if (!AcceptBlock(block, error, punish)) {
       if (punish) Misbehave(peerId, 100);
       return;
     }
+    peer.lastBlockTime = Now();
     RelayBlock(block, peerId);
     return;
   }
@@ -572,6 +907,33 @@ void Node::SendGetHeaders(const std::string& peerId,
   SendMessage(peerId,
               {"getheaders",
                SerializeGetHeaders(kProtocolVersion, locator, hashStop)});
+}
+
+// Request a full block from a peer (getdata) and record the
+// request on the peer for the block-stalling disconnect.
+void Node::SendBlockRequest(const std::string& peerId,
+                            const Hash256& hash) {
+  auto it = peers_.find(peerId);
+  if (it == peers_.end()) return;
+  requestedBlocks_.insert(hash);
+  SendMessage(peerId,
+              {"getdata", SerializeInventory({{kInvBlock, hash}})});
+  it->second.awaitingBlock = hash;
+  it->second.blockRequestAt = Now();
+}
+
+// Request missing block transactions from a peer (getblocktxn)
+// and record the request on the peer for the block-stalling
+// disconnect.
+void Node::SendBlockTxnRequest(const std::string& peerId,
+                               const Hash256& hash,
+                               const std::vector<uint32_t>& indexes) {
+  auto it = peers_.find(peerId);
+  if (it == peers_.end()) return;
+  SendMessage(peerId,
+              {"getblocktxn", SerializeGetBlockTxn(hash, indexes)});
+  it->second.awaitingBlock = hash;
+  it->second.blockRequestAt = Now();
 }
 
 void Node::RequestSync(const std::string& peerId) {
@@ -697,6 +1059,11 @@ bool Node::AcceptBlockDirect(const Block& block, int height,
         lastStoreError_ = storeError;
       }
     }
+  }
+  // The block's transactions are now confirmed parents: orphans
+  // waiting on any of them may validate now.
+  for (std::size_t i = 1; i < block.vtx.size(); ++i) {
+    ProcessOrphansFor(block.vtx[i].GetTxId());
   }
   return true;
 }
@@ -920,6 +1287,15 @@ bool Node::AcceptBlockReorg(const Block& block, int height,
       }
     }
   }
+  // Adopted path only: the side branch's transactions are now
+  // confirmed parents, so orphans waiting on any of them may
+  // validate now. (The inactive-side-branch path returns earlier
+  // and never reaches this.)
+  for (const Block& sideBlock : sideBlocks) {
+    for (std::size_t i = 1; i < sideBlock.vtx.size(); ++i) {
+      ProcessOrphansFor(sideBlock.vtx[i].GetTxId());
+    }
+  }
   return true;
 }
 
@@ -1030,6 +1406,9 @@ bool Node::BroadcastTx(const Transaction& tx, std::string& error) {
     return false;
   }
   RelayTxInv(tx.GetTxId(), "");
+  // A locally broadcast transaction may be the parent an orphan
+  // was waiting on.
+  ProcessOrphansFor(tx.GetTxId());
   return true;
 }
 

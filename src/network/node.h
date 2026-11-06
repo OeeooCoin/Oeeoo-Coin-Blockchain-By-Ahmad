@@ -30,6 +30,7 @@
 #include "db/chainstore.h"
 #include "mempool/feeestimator.h"
 #include "mempool/mempool.h"
+#include "mempool/orphan.h"
 #include "mining/miner.h"
 #include "network/addrman.h"
 #include "network/compact.h"
@@ -132,6 +133,12 @@ class Node {
   bool HasBlock(const Hash256& hash) const { return chain_.Contains(hash); }
   const BanManager& Bans() const { return bans_; }
   const AddressManager& AddrMan() const { return addrman_; }
+  // Orphan transactions held while their parent is unknown
+  // (Milestone 15). Orphans are never relayed.
+  std::size_t OrphanCount() const { return orphans_.Size(); }
+  OrphanPool& Orphans() { return orphans_; }
+  // Pending compact blocks awaiting blocktxn (Milestone 15).
+  std::size_t PendingCompactCount() const { return pendingCompact_.size(); }
   CoinsView& Utxo() { return utxo_; }
   Mempool& MempoolRef() { return mempool_; }
   ChainState& Chain() { return chain_; }
@@ -143,11 +150,23 @@ class Node {
  private:
   void SendMessage(const std::string& peerId, const Message& msg);
   void SendToAll(const Message& msg, const std::string& exceptId = "");
+  // `remoteAddress` is the peer's "ip:port" from the transport
+  // (empty when unknown); a new inbound peer is registered under
+  // it so bans are keyed by IP and survive a reconnect.
   void OnBytes(const std::string& peerId,
-               const std::vector<unsigned char>& bytes);
+               const std::vector<unsigned char>& bytes,
+               const std::string& remoteAddress = "");
   void OnMessage(const std::string& peerId, const Message& msg);
   void Misbehave(const std::string& peerId, int score);
   void DisconnectPeer(const std::string& peerId);
+  // Evict one inbound peer to make room for a new connection.
+  // Returns false when no peer may be evicted (see node.cpp for
+  // the ranking). Inbound-only: outbound connections still
+  // refuse at the cap instead of evicting.
+  bool EvictInboundPeerFor(const std::string& newAddress);
+  // Re-validate orphans waiting on `parentTxid` now that the
+  // parent has arrived (Milestone 15).
+  void ProcessOrphansFor(const Hash256& parentTxid);
   void SendVersion(const std::string& peerId);
   void RequestSync(const std::string& peerId);
   void RelayTxInv(const Hash256& txid, const std::string& exceptId);
@@ -170,10 +189,19 @@ class Node {
   bool GetUndoForBlock(const Hash256& hash, BlockUndo& undo,
                        std::string& error);
   void SendGetHeaders(const std::string& peerId, const Hash256& hashStop);
+  // Request a full block (getdata) / missing block transactions
+  // (getblocktxn) from a peer, and record the request on the peer
+  // for the block-stalling disconnect (Milestone 15).
+  void SendBlockRequest(const std::string& peerId, const Hash256& hash);
+  void SendBlockTxnRequest(const std::string& peerId, const Hash256& hash,
+                           const std::vector<uint32_t>& indexes);
 
   ChainState chain_;
   CoinsView utxo_;
   Mempool mempool_;
+  // Orphan transactions: validated when their parent arrives,
+  // never relayed (Milestone 15).
+  OrphanPool orphans_;
   FeeEstimator feeEstimator_;
   uint32_t lastExpirySweep_ = 0;  // last mempool expiry sweep (seconds)
   int maxPeers_ = 125;            // spec section 11
@@ -193,6 +221,9 @@ class Node {
     CompactBlock cb;
     std::string peerId;
     uint32_t receivedAt = 0;  // Node::Now() seconds; expires in Poll()
+    // getblocktxn retries used for this compact block (Milestone
+    // 15): one retry, then the full-block getdata fallback.
+    int retries = 0;
   };
   std::unordered_map<Hash256, PendingCompact, Hash256Hash> pendingCompact_;
   std::shared_ptr<ITransport> transport_;

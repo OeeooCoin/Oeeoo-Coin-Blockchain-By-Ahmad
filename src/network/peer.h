@@ -66,6 +66,28 @@ struct Peer {
 
   uint64_t lastPingNonce = 0;
   uint32_t lastPingTime = 0;
+  // Peer-eviction data (Milestone 15): when the node is full, the
+  // worst inbound peer is evicted. connectedAt is set at
+  // registration (ConnectTo / OnBytes); lastTxTime / lastBlockTime
+  // update on receipt of a valid tx / accepted block from the peer;
+  // pingRttMs is the round-trip of the last answered ping
+  // (UINT32_MAX = unknown); lastPingSentMs is steady-clock
+  // milliseconds of the last ping sent (NOT wall clock — the wall
+  // clock can jump, the steady clock cannot).
+  uint32_t connectedAt = 0;
+  uint32_t lastTxTime = 0;
+  uint32_t lastBlockTime = 0;
+  uint32_t lastPongTime = 0;
+  uint32_t pingRttMs = UINT32_MAX;
+  uint64_t lastPingSentMs = 0;
+  // Block-stalling data (Milestone 15): the block this peer was
+  // most recently asked for (getdata / getblocktxn) and when the
+  // request went out. Empty hash = no outstanding request. The
+  // explicit {} initializer matters: without it the array holds
+  // indeterminate bytes and the stall sweep in Poll would read
+  // garbage and disconnect every peer on its first call.
+  Hash256 awaitingBlock{};
+  uint32_t blockRequestAt = 0;
   // Buffered bytes from the transport (stream reassembly).
   std::vector<unsigned char> recvBuffer;
 

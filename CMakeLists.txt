@@ -38,6 +38,7 @@ add_library(oeeoo_core
   src/utxo/coins.cpp
   src/mempool/mempool.cpp
   src/mempool/feeestimator.cpp
+  src/mempool/orphan.cpp
   src/mining/miner.cpp
   src/network/protocol.cpp
   src/network/dnsseed.cpp
@@ -101,6 +102,7 @@ add_executable(oeeoo_tests
   tests/test_dnsseed.cpp
   tests/test_milestone13.cpp
   tests/test_milestone14.cpp
+  tests/test_milestone15.cpp
 )
 target_link_libraries(oeeoo_tests PRIVATE oeeoo_core)
 add_test(NAME oeeoo_tests COMMAND oeeoo_tests)

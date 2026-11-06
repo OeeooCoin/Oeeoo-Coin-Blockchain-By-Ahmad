@@ -66,6 +66,9 @@ bool LoopbackTransport::Send(const std::string& peerId,
       TransportMessage msg;
       msg.peerId = entry.second.remotePeerId;
       msg.bytes = bytes;
+      // The receiver needs to know WHO sent this: the sender's own
+      // loopback address (its registry name), not the receiver's.
+      msg.remoteAddress = "loopback:" + address_;
       entry.second.remote->inbound_.push_back(std::move(msg));
       return true;
     }
@@ -131,8 +134,8 @@ TcpTransport::~TcpTransport() { CloseTcp(); }
 
 bool TcpTransport::FindPeer(const std::string& peerId, int& fd) const {
   for (const auto& entry : peers_) {
-    if (entry.first == peerId) {
-      fd = entry.second;
+    if (entry.peerId == peerId) {
+      fd = entry.fd;
       return true;
     }
   }
@@ -170,7 +173,7 @@ bool TcpTransport::Connect(const std::string& address, std::string& peerId) {
     return false;
   }
   peerId = "tcp:" + std::to_string(nextPeer_++);
-  peers_.push_back({peerId, fd});
+  peers_.push_back({peerId, fd, address});
   return true;
 }
 
@@ -219,8 +222,8 @@ bool TcpTransport::Poll(TransportMessage& msg, int timeoutMs) {
     maxFd = listenFd_;
   }
   for (const auto& entry : peers_) {
-    FD_SET(entry.second, &readSet);
-    if (entry.second > maxFd) maxFd = entry.second;
+    FD_SET(entry.fd, &readSet);
+    if (entry.fd > maxFd) maxFd = entry.fd;
   }
   if (maxFd < 0) {
     std::this_thread::sleep_for(std::chrono::milliseconds(timeoutMs));
@@ -232,29 +235,44 @@ bool TcpTransport::Poll(TransportMessage& msg, int timeoutMs) {
   const int ready = select(maxFd + 1, &readSet, nullptr, nullptr, &timeout);
   if (ready <= 0) return false;
   if (listenFd_ >= 0 && FD_ISSET(listenFd_, &readSet)) {
-    const int fd = accept(listenFd_, nullptr, nullptr);
+    // Record the real peer IP at accept() time: the node keys bans
+    // by it, so a ban survives a reconnect (Milestone 15). Before
+    // this the address was discarded and bans were keyed by the
+    // ephemeral transport id.
+    sockaddr_in peerAddr{};
+    socklen_t peerLen = sizeof(peerAddr);
+    const int fd =
+        accept(listenFd_, reinterpret_cast<sockaddr*>(&peerAddr), &peerLen);
     if (fd >= 0) {
       const std::string peerId = "tcp:" + std::to_string(nextPeer_++);
-      peers_.push_back({peerId, fd});
+      std::string address;
+      char ipBuf[INET_ADDRSTRLEN] = {};
+      if (inet_ntop(AF_INET, &peerAddr.sin_addr, ipBuf, sizeof(ipBuf)) !=
+          nullptr) {
+        address = std::string(ipBuf) + ":" +
+                  std::to_string(ntohs(peerAddr.sin_port));
+      }
+      peers_.push_back({peerId, fd, address});
     }
     return false;  // no data yet; the next Poll will read from the peer
   }
   for (const auto& entry : peers_) {
-    if (!FD_ISSET(entry.second, &readSet)) continue;
+    if (!FD_ISSET(entry.fd, &readSet)) continue;
     unsigned char buffer[65536];
-    const ssize_t n = recv(entry.second, buffer, sizeof(buffer), 0);
+    const ssize_t n = recv(entry.fd, buffer, sizeof(buffer), 0);
     if (n <= 0) {
       // Peer closed or error: drop the connection.
-      close(entry.second);
+      close(entry.fd);
       peers_.erase(std::remove_if(peers_.begin(), peers_.end(),
                                   [&](const auto& e) {
-                                    return e.first == entry.first;
+                                    return e.peerId == entry.peerId;
                                   }),
                    peers_.end());
       return false;
     }
-    msg.peerId = entry.first;
+    msg.peerId = entry.peerId;
     msg.bytes.assign(buffer, buffer + n);
+    msg.remoteAddress = entry.address;
     return true;
   }
   return false;
@@ -266,7 +284,7 @@ void TcpTransport::Disconnect(const std::string& peerId) {
   close(fd);
   peers_.erase(std::remove_if(peers_.begin(), peers_.end(),
                               [&](const auto& e) {
-                                return e.first == peerId;
+                                return e.peerId == peerId;
                               }),
                peers_.end());
 }
@@ -274,7 +292,7 @@ void TcpTransport::Disconnect(const std::string& peerId) {
 void TcpTransport::Close() { CloseTcp(); }
 
 void TcpTransport::CloseTcp() {
-  for (const auto& entry : peers_) close(entry.second);
+  for (const auto& entry : peers_) close(entry.fd);
   peers_.clear();
   if (listenFd_ >= 0) {
     close(listenFd_);
