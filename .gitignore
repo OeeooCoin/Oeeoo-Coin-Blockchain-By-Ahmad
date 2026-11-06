@@ -16,3 +16,7 @@ oeeoo-data/
 
 # Soak-test chain data (never commit a live chain or wallet).
 soak17/*/data-*/
+soak18/*/data-*/
+soak18/data-*/
+soak18/*.pid
+__pycache__/

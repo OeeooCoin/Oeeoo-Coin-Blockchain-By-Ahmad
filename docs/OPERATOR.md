@@ -34,12 +34,24 @@ oeeoo-node --datadir oeeoo-data --genesis-file genesis.json
   demand even when persistence is off; `importmempool` loads a
   mempool file into the live pool; `getmempoolinfo` reports a
   `loaded` flag (true once the startup load attempt finished).
-- **Peering limitation (Milestone 17 finding): the node accepts
-  inbound P2P connections but cannot dial out** — there is no
-  `--addnode` and no dial loop, and DNS seeds only fill the
-  address book (nothing dials the discovered addresses). A fresh
-  node has no peers until other nodes connect to it. Outbound
-  dialing is the #1 open item for M18.
+- **Outbound peering (Milestone 18): the node dials out.** On every
+  poll the node runs a dial loop over its address book (filled by
+  DNS seeds, `addr` messages from peers, and `--addnode` / the
+  `addnode` RPC), opening outbound connections up to 10 peers
+  (plus the 125-peer total cap). A banned address is never dialed;
+  the node never dials its own listen address or a peer it is
+  already connected to. A failed dial counts against the address
+  (3 failures and it is dropped as dead), and dial passes are
+  throttled to one every 5 seconds, so a dead address is not spun
+  on. When the address book empties out entirely, the node
+  re-asks its configured DNS seeds (at most once per 10 minutes).
+- `--addnode <ip:port>` (repeatable; config key `addnode`): a
+  manually added peer. It goes into the address book, so the dial
+  loop dials it at startup and keeps it. A malformed `--addnode`
+  refuses startup loudly. The `addnode` RPC does the same at
+  runtime: `addnode <ip:port> add|remove|onetry` (Bitcoin-shaped;
+  `remove` also disconnects a live peer at that address, `onetry`
+  dials once without adding the address to the book).
 - `--no-deep-verify`: skips the full chain replay at startup. **The
   default is to deep-verify**: on every start the node replays the
   chain from the genesis block and compares the resulting UTXO set
@@ -145,7 +157,11 @@ oeeoo-node --datadir oeeoo-data --genesis-file genesis.json
   each other and reject each other's blocks only at consensus. The
   testing-mode banner is the only guard — read it.
 - DNS seeds do not exist yet (list is empty). A new node with an
-  empty address book learns peers only from `--dns-seed` entries you
-  configure or from peers you connect to manually.
-- Inbound peers are identified by their transport id, not their IP,
-  so a ban on an inbound peer does not survive a reconnect.
+  empty address book learns peers from `--dns-seed` entries you
+  configure, from `--addnode` peers, or from peers that connect to
+  it (their `addr` messages advertise further addresses, which
+  the dial loop then dials).
+- Bans are keyed by IP alone and are checked on inbound
+  connections too, so a banned peer cannot reconnect from a new
+  ephemeral port (see `docs/MILESTONE16.md`). Bans are NOT
+  persisted across restarts: a restart clears the ban list.

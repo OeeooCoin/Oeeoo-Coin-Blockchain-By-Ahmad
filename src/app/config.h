@@ -34,6 +34,11 @@ struct AppConfig {
   std::string founderScript;     // hex, optional (derived otherwise)
   uint32_t powLimitBits = 0x1d00ffff;  // testing only; mainnet = default
   std::vector<std::string> dnsSeeds;  // empty by default (none invented)
+  // Manually configured peers (Milestone 18): "ip:port" addresses
+  // added to the address manager at startup, so the dial loop
+  // dials them. Repeatable (--addnode / `addnode` key). Empty by
+  // default — no peer addresses are invented.
+  std::vector<std::string> addNodes;
   // Default true since Milestone 13: a normal (light) load trusts
   // the stored UTXO table and headers without re-validating the
   // chain, so a tampered store would pass a restart. Deep

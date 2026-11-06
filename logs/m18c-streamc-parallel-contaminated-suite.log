@@ -1,0 +1,800 @@
+[test] amount / money constants
+[test] subsidy boundaries
+[test] subsidy total issuance = 20,000,000 OEEOO
+[test] sha256 / sha256d test vectors
+[test] block header serialization + hash
+[test] varint encodings
+[test] varint round-trips + rejections
+[test] transaction serialization + txid
+[test] transaction deserialize round-trip + rejections
+[test] transaction CheckBasic rules
+[test] merkle root vectors
+[test] base58check + p2pkh address vectors
+[test] address decode + rejections
+[test] difficulty bits <-> target vectors
+[test] difficulty invalid bits rejected
+[test] difficulty proof-of-work check
+[test] difficulty retarget (mainnet limit 0x1d00ffff)
+[test] difficulty retarget (test limit 0x207fffff)
+[test] difficulty block proof + chain work
+[test] uint256 divide
+[test] block structure: serialize round-trip + CheckBasic
+[test] chain: genesis + 5 blocks, tip + work
+[test] chain: reorg — heavier fork becomes tip
+[test] chain: invalid blocks rejected
+[test] chain: median-time-past rule
+[test] chain: retarget at height 2016
+[test] genesis params: not finalized yet
+[test] script: valid P2PKH spend
+[test] script: P2PKH failures
+[test] script: multisig 2-of-3
+[test] script: CLTV timelock
+[test] script: CSV relative lock
+[test] script: limits and rejections
+[test] validation: valid spend + fee
+[test] validation: missing input, overspend
+[test] validation: locktime finality
+[test] validation: coinbase maturity (100 blocks)
+[test] validation: BIP68 sequence locks
+[test] validation: block connection + double spend
+[test] validation: coinbase outputs enter UTXO set
+[test] utxo: add/spend basics
+[test] mining: coinbase construction + validation
+[test] mining: IsCoinbase + block fees with a real coinbase
+[test] mining: mempool rules
+[test] mining: block template assembly
+[test] mining: nonce search + extraNonce rollover
+[test] mining: mined block accepted by the chain
+[test] network: message framing + checksum
+[test] network: payload codecs
+[test] network: SipHash-2-4 reference vector
+[test] network: compact blocks
+[test] network: peer scoring + bans
+[test] network: address manager
+[test] network: addrman netgroup cap
+[test] network: addrman expiry
+[test] network: addrman failure counting
+[test] node: handshake + tx relay across 3 nodes
+[test] node: block relay (compact) + mempool cleanup
+[test] node: headers-first sync of a fresh node
+[test] node: compact block with missing tx (getblocktxn)
+[test] node: invalid block earns a ban
+[test] node: real TCP handshake (localhost)
+[test] db: open, schema version, tip meta
+[test] db: block + UTXO round-trip
+[test] db: node restart restores state
+[test] db: atomicity — rollback discards, commit keeps
+[test] db: pruning drops bodies, keeps headers + UTXO
+[test] db: corruption is detected, never accepted
+[test] db: peers and bans persist
+[test] db: fork blocks are retained after a reorg
+[test] wallet: BIP39 mnemonic vectors
+[test] wallet: BIP32 test vector 1
+[test] wallet: addresses, balance, gap limit
+[test] wallet: build + sign a payment
+[test] wallet: encrypted wallet file
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_wallet.cpp:400: f != nullptr
+[test] vesting: calendar math
+[test] vesting: schedule
+[test] vesting: genesis founder output + spend rule
+[test] vesting: wrong genesis is rejected, disabled is fine
+[test] rpc: minimal JSON
+[test] rpc: server methods + wallet
+[test] rpc: cookie auth
+[test] stratum: subscribe, mine a share, block found
+[test] stratum: low difficulty share is rejected
+[test] reorg: disconnect restores the UTXO set exactly
+[test] reorg: store disconnect rolls the tip back
+[test] reorg: node follows the heavier fork, store follows
+[test] reorg: depth-100 reorg (coinbase-maturity bound)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:330: store.Open(path, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:407: store.LoadTip(storeTip, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:408: storeTip == forkChain[100].GetHash()
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:410: store.GetAllCoins(coins, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:418: hasTxA2
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:420: hasFundB
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:425: store.GetUndo(forkChain[100].GetHash(), forkUndo, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:429: node.LastStoreError().empty()
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:441: store.GetAllCoins(storeCoins, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:444: storeCoins.size() == nodeCoins.size()
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:448: stored.out.value == entry.second.out.value
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:447: store.GetCoin(entry.first, stored, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:449: stored.out.scriptPubKey == entry.second.out.scriptPubKey
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:450: stored.height == entry.second.height
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:451: stored.blockTime == entry.second.blockTime
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_reorg.cpp:452: stored.isCoinbase == entry.second.isCoinbase
+[test] verify: a good chain re-validates from genesis
+[test] verify: tampered UTXO set is caught
+[test] verify: pruned history cannot be fully re-validated
+[test] verify: empty store fails
+[test] fuzz: mutated transactions never crash
+[test] fuzz: mutated blocks and headers never crash
+[test] fuzz: mutated JSON never crashes the parser
+[test] fuzz: mutated P2P messages never crash the framer
+[test] fuzz: random scripts never crash the interpreter
+[test] config: file parsing + defaults
+[test] config: file errors
+[test] config: CLI overrides the file
+[test] config: new M13 options
+[test] config: CLI errors + help/version
+[test] genesis: 2-of-3 multisig script
+[test] genesis: build, mine, verify, round-trip
+[test] genesis: a node accepts it as block 0
+[test] cli: calls the local RPC server
+[test] dnsseed: localhost resolves to 127.0.0.1
+[test] dnsseed: unresolvable names fail cleanly
+[test] dnsseed: node queries seeds into the AddrMan
+[test] dnsseed: a node with no seeds adds nothing
+[test] dnsseed: slow resolver times out
+[test] dnsseed: injected fast resolver still works
+[test] dnsseed: normal resolve still works (localhost)
+[test] m13: dust thresholds are dynamic and script-aware
+[test] m13: mempool opt-in RBF
+[test] m13: mempool eviction under pressure
+[test] m13: mempool expiry is enforced by the node
+[test] m13: fee estimator over the last 24 blocks
+[test] m13: long-range supply simulation
+[test] m13: genesis file negatives
+[test] m13: vesting at extreme times
+[test] m13: low-S signatures (BIP62)
+[test] m13: JSON depth limit
+[test] m13: wallet file truncation is rejected
+[test] m13: crash recovery (store never closed)
+[test] m13: genesis identity (file vs store vs checkpoint)
+[test] m13: peer cap is enforced
+[test] m13: transport close is idempotent and safe
+[test] m13: SIGHASH_ALL vector
+[test] m13: handshake rejects old versions and self-connections
+[test] m13: compact header without PoW is ignored, pending entries expire
+[test] m13: addrman cap, IP validatio  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17a.cpp:717: node2->TipHeight() == 102
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17a.cpp:724: stats.droppedInvalid == 1
+[test] m17a: importmempool round-trip (node + RPC)
+[test] m17b: SIGKILL during a block burst, restart recovers
+  [m17b] burst kill: 7 submit attempts, last acked height 12 (baseline 6)
+  [m17b] burst kill: restart height 3, tip 11bedcb7197e629529fb5aa0427e7bfdf4c90e0ddc341d061c811970ea7dd5e4
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:528: height2 >= acked
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:530: height2 >= 6
+[test] m17b: SIGKILL during shutdown, restart recovers
+  [m17b] shutdown kill: died by SIGKILL mid-shutdown
+[test] m17b: disk-full (RLIMIT_FSIZE), restart recovers
+  [m17b] disk-full A: node refused to start under a 4 KiB file limit (0 startup-error log line(s)): 
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:616: matches > 0
+  [m17b] disk-full B: chain.db is 4096 bytes after 5 blocks; file-size limit set to 12288
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:681: StartNodeReady(nodeBin, dataB, "", logB, limit, pidB2, rpcB2)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:683: RpcHeight(dataB, rpcB2, heightB)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:684: heightB == 5
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:705: RpcHeight(dataB, rpcB2, memHeightSeen)
+  [m17b] disk-full B: 0 submits ok under the limit, in-memory height 5 (node reports -1); then a submit failed: cannot connect to the RPC server at 127.0.0.1:0 (is the node running?)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:717: memHeightSeen == memHeight
+  [m17b] disk-full B: restart height 3 (was 5 in-memory); rolled back 2 block(s)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:740: heightB3 >= 5
+  [m17b] disk-full B: 0 log line(s) contain "error" in the restart log (first: (none)); 0 "chain store error" warning(s) in the limited run's log (first: (none))
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone17b.cpp:760: loudBeforeRestart > 0
+  [m17b] disk-full B: OBSERVED — submitblock kept returning success while persistence failed; the failure surfaced as a height rollback after restart AND as a "chain store error" warning in the node's log during the run (M17 fix)
+[test] m18c: differential subsidy (node vs Python reference)
+[test] m18c: differential difficulty retarget (node vs Python reference)
+[test] m18c: differential vesting (node vs Python reference)
+[test] m18c: differential Merkle + Base58Check (node vs Python reference)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone18c.cpp:439: encoded[0] == '7'
+[test] m18c: two-node agreement on identical inputs
+[test] m18c: block acceptance equivalence node vs standalone ChainState
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone18c.cpp:570: !StandaloneAccepts(standalone, overclaim, 5, view, error)
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone18c.cpp:577: standalone.GetTipHash() == tipBefore
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone18c.cpp:579: UtxoFingerprint(view) == viewBefore
+  FAIL /home/hatch/workspace/oeeoo-pristine/tests/test_milestone18c.cpp:580: UtxoFingerprint(node.Utxo()) == UtxoFingerprint(view)
+[test] 665 CHECK(S) FAILED

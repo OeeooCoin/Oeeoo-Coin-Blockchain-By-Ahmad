@@ -25,8 +25,17 @@ Json Json::IntFromString(const std::string& v) {
     j.type_ = Type::Int;
     j.int_ = std::stoll(v);
   } catch (...) {
-    j.type_ = Type::Double;
-    j.double_ = std::stod(v);
+    // Milestone 18: the old code called std::stod(v) here
+    // unguarded, so a string that is neither an integer nor a
+    // double ("abc") threw out of IntFromString. No caller
+    // exists yet, but any future caller passing untrusted input
+    // would crash; return a null Json instead.
+    try {
+      j.type_ = Type::Double;
+      j.double_ = std::stod(v);
+    } catch (...) {
+      j.type_ = Type::Null;
+    }
   }
   return j;
 }

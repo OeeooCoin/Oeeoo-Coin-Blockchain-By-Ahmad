@@ -1,0 +1,37 @@
+2026-11-06 21:41:08 INFO soak driver starting: deadline 2026-11-06 23:06:10 UTC (5101s remaining)
+2026-11-06 21:41:09 INFO A: createwallet: A createwallet -> error {'code': -13, 'message': 'wallet already loaded'}
+2026-11-06 21:41:22 INFO A: unlock: wallet unlocked
+2026-11-06 21:41:22 INFO B: createwallet: B createwallet -> error {'code': -13, 'message': 'wallet already loaded'}
+2026-11-06 21:41:30 INFO B: unlock: wallet unlocked
+2026-11-06 21:41:46 INFO miner addr A=7JYkMSkMUWpRgad2c369wPb9XmyYVZDYbr B=7RGWEbvD8njrTSGZx8bYn6wjXoJ4pZRoDP
+2026-11-06 21:41:46 INFO sample hA=93 hB=93 peers 1/1 mempool 0/0 RSS 492264/489556 kB
+2026-11-06 21:41:47 INFO sample hA=94 hB=94 peers 1/1 mempool 0/0 RSS 497940/492656 kB
+2026-11-06 21:46:36 INFO mined 20 blocks (latest h=113, 0 txs, solve 107.1ms, lag 0.6s)
+2026-11-06 21:46:46 INFO sample hA=113 hB=113 peers 1/1 mempool 0/0 RSS 532812/496784 kB
+2026-11-06 21:51:40 INFO mined 40 blocks (latest h=133, 0 txs, solve 175.4ms, lag 0.5s)
+2026-11-06 21:51:53 INFO tx A->B ba6eff5478fcf42f490dbc72af628506d34f7e7947b6614013da7ffb56e0b345 (bal 1700.0)
+2026-11-06 21:51:54 INFO sample hA=133 hB=133 peers 1/1 mempool 1/1 RSS 565520/501696 kB
+2026-11-06 21:54:57 INFO tx A->B 9199dc072a936a3b0da7992fccf1ba21a8b4702f0f10c418899507dcc5657b39 (bal 2299.0)
+2026-11-06 21:56:46 INFO mined 60 blocks (latest h=153, 0 txs, solve 341.0ms, lag 0.6s)
+2026-11-06 21:56:47 INFO progress: 60 blocks, 2 txs, 0 block failures, 0 tx failures
+2026-11-06 21:57:03 INFO sample hA=153 hB=153 peers 1/1 mempool 0/0 RSS 580148/510008 kB
+2026-11-06 21:57:55 WARNING block 154: B did NOT catch up within 30s
+2026-11-06 21:58:55 WARNING block 155: B did NOT catch up within 30s
+2026-11-06 21:59:25 WARNING send failed: timed out
+2026-11-06 22:00:01 WARNING block 156: B did NOT catch up within 30s
+2026-11-06 22:01:22 INFO tx B->A 37a44cf93f028e688119755ee15ded004d2940ea68e6c809f73cfeb3b4892450 (bal 2.0)
+2026-11-06 22:02:31 INFO sample hA=163 hB=163 peers 3/1 mempool 0/0 RSS 586276/525844 kB
+2026-11-06 22:03:16 WARNING block 164: B did NOT catch up within 30s
+2026-11-06 22:04:23 INFO tx A->B 2e41c10e9f8e50e66ec5b4644b96cedab55bd4ae33db1b07c7c6a38c75ee615d (bal 3349.0)
+2026-11-06 22:06:14 INFO mined 80 blocks (latest h=173, 0 txs, solve 12707.0ms, lag 5.6s)
+2026-11-06 22:06:55 INFO sample hA=176 hB=176 peers 3/1 mempool 0/0 RSS 601688/535336 kB
+2026-11-06 22:07:32 INFO tx A->B 56be831722549c0b83956073f0cb6b9a81710fc45271c1c1ab9890f1a82b3f1c (bal 3898.0)
+2026-11-06 22:09:15 WARNING block 179: B did NOT catch up within 30s
+2026-11-06 22:09:51 WARNING mine failed: timed out
+2026-11-06 22:10:52 WARNING block 181: B did NOT catch up within 30s
+2026-11-06 22:11:24 WARNING block 182: B did NOT catch up within 30s
+2026-11-06 22:11:44 INFO tx B->A 60344b40ee86ff0994c419f507d694757a6ff852d7a6f79d9651a9cbe5053058 (bal 3.0)
+2026-11-06 22:11:47 INFO progress: 89 blocks, 6 txs, 1 block failures, 1 tx failures
+2026-11-06 22:11:55 INFO sample hA=183 hB=183 peers 5/1 mempool 0/0 RSS 612240/556216 kB
+2026-11-06 22:13:03 WARNING block 185: B did NOT catch up within 30s
+2026-11-06 22:14:45 WARNING block 186: B did NOT catch up within 30s

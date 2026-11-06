@@ -1,0 +1,8 @@
+Internal ctest changing into directory: /home/hatch/workspace/oeeoo-pristine/build-pristine
+Test project /home/hatch/workspace/oeeoo-pristine/build-pristine
+    Start 1: oeeoo_tests
+1/1 Test #1: oeeoo_tests ......................   Passed  450.98 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) = 451.02 sec

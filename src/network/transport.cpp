@@ -94,9 +94,27 @@ bool LoopbackTransport::Poll(TransportMessage& msg, int timeoutMs) {
 }
 
 void LoopbackTransport::Disconnect(const std::string& peerId) {
-  links_.erase(std::remove_if(links_.begin(), links_.end(),
-                              [&](const auto& e) { return e.first == peerId; }),
-               links_.end());
+  for (auto it = links_.begin(); it != links_.end(); ++it) {
+    if (it->first != peerId) continue;
+    const Link link = it->second;
+    links_.erase(it);
+    if (link.remote == nullptr) return;
+    // Tell the remote node its peer is gone (Milestone 18): a
+    // disconnect the node never learns about leaves a dead peer
+    // entry that can never be re-dialed. The reverse link is
+    // deliberately LEFT in place (pre-existing behaviour): the
+    // remote end can still Send, and the node re-registers it as
+    // a new inbound peer if it does — the M13 compact-block test
+    // relies on a stall-disconnected peer still being able to
+    // deliver a late blocktxn. Erasing the reverse link here
+    // broke that test, so only the notification is new.
+    TransportMessage msg;
+    msg.peerId = link.remotePeerId;
+    msg.remoteAddress = "loopback:" + address_;
+    msg.disconnected = true;
+    link.remote->inbound_.push_back(std::move(msg));
+    return;
+  }
 }
 
 void LoopbackTransport::Close() { CloseLoopback(); }
@@ -109,15 +127,24 @@ void LoopbackTransport::CloseLoopback() {
   // (use-after-free). Then drop this transport's own links, its
   // inbound queue, and its registry entry, so no new connection
   // can be made to it either. Idempotent: a second call finds
-  // nothing left to remove.
+  // nothing left to remove. Each dropped link also notifies the
+  // remote node that its peer is gone (Milestone 18), so it does
+  // not keep a dead peer entry it can never re-dial.
   for (const auto& e : g_loopbackRegistry) {
     if (e.second == this) continue;
     auto& other = e.second->links_;
-    other.erase(std::remove_if(other.begin(), other.end(),
-                               [&](const auto& l) {
-                                 return l.second.remote == this;
-                               }),
-                other.end());
+    for (auto it = other.begin(); it != other.end();) {
+      if (it->second.remote != this) {
+        ++it;
+        continue;
+      }
+      TransportMessage msg;
+      msg.peerId = it->first;
+      msg.remoteAddress = "loopback:" + address_;
+      msg.disconnected = true;
+      e.second->inbound_.push_back(std::move(msg));
+      it = other.erase(it);
+    }
   }
   inbound_.clear();
   links_.clear();
@@ -261,14 +288,25 @@ bool TcpTransport::Poll(TransportMessage& msg, int timeoutMs) {
     unsigned char buffer[65536];
     const ssize_t n = recv(entry.fd, buffer, sizeof(buffer), 0);
     if (n <= 0) {
-      // Peer closed or error: drop the connection.
+      // Peer closed or error: drop the connection AND tell the
+      // node (Milestone 18). Before this the transport erased
+      // the peer and returned false with no message, so the node
+      // kept a dead peer entry forever — it could never re-dial
+      // that address (ConnectTo / the dial loop refuse an
+      // already-connected peer) and the entry kept a peer slot.
+      const std::string peerId = entry.peerId;
+      const std::string address = entry.address;
       close(entry.fd);
       peers_.erase(std::remove_if(peers_.begin(), peers_.end(),
                                   [&](const auto& e) {
-                                    return e.peerId == entry.peerId;
+                                    return e.peerId == peerId;
                                   }),
                    peers_.end());
-      return false;
+      msg.peerId = peerId;
+      msg.bytes.clear();
+      msg.remoteAddress = address;
+      msg.disconnected = true;
+      return true;
     }
     msg.peerId = entry.peerId;
     msg.bytes.assign(buffer, buffer + n);

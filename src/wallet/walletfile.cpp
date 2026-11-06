@@ -68,7 +68,16 @@ bool ParsePayload(const std::vector<unsigned char>& bytes,
   const uint32_t version = ReadLE32(bytes.data());
   if (version != kPayloadVersion) return false;
   const uint32_t mnemonicLen = ReadLE32(bytes.data() + 4);
-  if (bytes.size() < 16 + mnemonicLen) return false;
+  // Milestone 18 (fuzzing find M18B-R2): `16 + mnemonicLen` was
+  // computed in uint32 arithmetic, so mnemonicLen = 0xFFFFFFF0
+  // wrapped it to 0 and the bounds check passed — then
+  // std::string::assign read ~4 GB out of the small plaintext
+  // buffer (ASan heap-buffer-overflow). Compare in size_t so the
+  // length can never wrap: the payload is version(4) + len(4) +
+  // mnemonic + nextExternal(4) + nextChange(4).
+  if (static_cast<std::size_t>(mnemonicLen) > bytes.size() - 16) {
+    return false;
+  }
   data.mnemonic.assign(
       reinterpret_cast<const char*>(bytes.data() + 8), mnemonicLen);
   data.nextExternal = ReadLE32(bytes.data() + 8 + mnemonicLen);

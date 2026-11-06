@@ -1,0 +1,24 @@
+Genesis accepted: 7819075d2e1f77757476a7bee410c3d1e92b38b0d292d8f70a6bb443b0af8c01
+Oeeoo Coin node 0.1.0
+  data dir: /home/hatch/workspace/oeeoo-coin/soak18/data-b
+  height: 0  tip: 7819075d2e1f77757476a7bee410c3d1e92b38b0d292d8f70a6bb443b0af8c01
+  P2P: 64876  RPC: 127.0.0.1:64878  Stratum: off
+  vesting: enabled
+  wallet: /home/hatch/workspace/oeeoo-coin/soak18/data-b/wallet.dat (not created yet — use createwallet RPC)
+  *** WARNING: TESTING MODE — proof-of-work limit is 0x207fffff, not the mainnet limit 0x1d00ffff. This node is NOT on Mainnet. ***
+Shutting down...
+Oeeoo Coin node 0.1.0
+  data dir: /home/hatch/workspace/oeeoo-coin/soak18/data-b
+  height: 93  tip: 5854714aba72684ee09496e71c3a09b50a5784fb32b512683a3fece110b67401
+  P2P: 64876  RPC: 127.0.0.1:64878  Stratum: off
+  vesting: enabled
+  wallet: /home/hatch/workspace/oeeoo-coin/soak18/data-b/wallet.dat (locked)
+  *** WARNING: TESTING MODE — proof-of-work limit is 0x207fffff, not the mainnet limit 0x1d00ffff. This node is NOT on Mainnet. ***
+Oeeoo Coin node 0.1.0
+  data dir: /home/hatch/workspace/oeeoo-coin/soak18/data-b
+  height: 187  tip: 0a60c1ec4094df87f48214b1b08d9f6c3984a7f8541759a43d1bcd69412afdb6
+  P2P: 64876  RPC: 127.0.0.1:64878  Stratum: off
+  vesting: enabled
+  wallet: /home/hatch/workspace/oeeoo-coin/soak18/data-b/wallet.dat (locked)
+  *** WARNING: TESTING MODE — proof-of-work limit is 0x207fffff, not the mainnet limit 0x1d00ffff. This node is NOT on Mainnet. ***
+Shutting down...

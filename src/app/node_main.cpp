@@ -200,6 +200,18 @@ int main(int argc, char** argv) {
     if (!seedError.empty()) std::cout << " (" << seedError << ")";
     std::cout << "\n";
   }
+  // Manually added peers (Milestone 18, --addnode / `addnode`
+  // config key): into the address manager, so the dial loop in
+  // Node::Poll dials them. A malformed address refuses startup
+  // loudly — a typo here would otherwise silently leave the node
+  // with no peers.
+  for (const std::string& peerAddr : config.addNodes) {
+    std::string addError;
+    if (!node.AddManualPeer(peerAddr, addError)) {
+      std::cerr << "oeeoo-node: --addnode: " << addError << "\n";
+      return 1;
+    }
+  }
   auto transport = std::make_shared<TcpTransport>();
   node.SetTransport(transport);
   if (!node.Listen(config.port)) {

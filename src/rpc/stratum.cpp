@@ -238,6 +238,21 @@ void StratumServer::ClientLoop(int fd) {
         }
       }
     }
+    // Milestone 18 (fuzzing find M18B-R3): session->buffer only
+    // shrinks when a '\n' arrives, so a client sending megabytes
+    // with no newline grew it without bound (20 MB held for a
+    // 20 MB no-newline stream). The cap must sit ABOVE the
+    // longest skipped line (65536 bytes): a long but properly
+    // terminated line is skipped on arrival, so dropping the
+    // connection at 65536 would kill legitimate long lines
+    // mid-stream. At 1 MB a tail can never become a valid line
+    // either — it is 16x the line cap — and per-session memory
+    // stays bounded.
+    if (session->buffer.size() > 1024 * 1024) {
+      ::close(fd);
+      RemoveSession(fd);
+      return;
+    }
   }
   ::close(fd);
   RemoveSession(fd);

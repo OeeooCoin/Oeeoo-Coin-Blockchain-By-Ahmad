@@ -13,8 +13,11 @@
 //  - invalid blocks earn misbehavior points; score >= 100 bans the
 //    peer. A block whose parent is unknown is NOT punished — the
 //    node asks for its headers instead.
-//  - DNS seeds do not exist yet (spec item 15): peers come from
-//    manual configuration and `addr` messages only.
+//  - outbound dialing (Milestone 18): Poll() runs a dial loop
+//    over the address manager (filled by DNS seeds, `addr`
+//    messages and --addnode / the `addnode` RPC), up to 10
+//    outbound peers, never dialing a banned address, itself,
+//    or an already-connected peer.
 // The node never reads the wall clock directly in consensus paths;
 // SetTime() fixes the clock for deterministic tests (0 = real time).
 #pragma once
@@ -74,9 +77,67 @@ class Node {
   uint32_t Now() const;
 
   bool Listen(uint16_t port);
+  // This node's P2P listen port (0 = not listening). The dial
+  // loop never dials 127.0.0.1:<this port> — that is this node
+  // (the version-handshake nonce check is the backstop for the
+  // node's other addresses, which it cannot know).
+  uint16_t ListenPort() const { return listenPort_; }
   // Outbound connection; sends our version on success. Refused
-  // when the peer cap is reached (default 125, spec section 11).
+  // when the peer cap is reached (default 125, spec section 11),
+  // when the address is banned, or when it is this node's own
+  // listen address. Always attempts the dial otherwise (even
+  // when the address looks connected — a stale peer entry must
+  // not block a re-dial; the failure is recorded in the address
+  // manager). The already-connected guard lives in the dial loop
+  // and the `addnode onetry` RPC, not here.
   bool ConnectTo(const std::string& address);
+  // Maximum outbound peers the automatic dial loop opens (default
+  // 10 — Oeeoo's own choice, NOT a Bitcoin Core constant).
+  // Explicit connections (ConnectTo, `addnode onetry`) are NOT
+  // bounded by this; they are bounded only by the total peer cap
+  // (maxPeers_, default 125), like Core's manual connections.
+  void SetMaxOutboundPeers(int maxOutbound) {
+    maxOutboundPeers_ = maxOutbound < 0 ? 0 : maxOutbound;
+  }
+  int MaxOutboundPeers() const { return maxOutboundPeers_; }
+  // Connected peers this node dialed out to.
+  std::size_t OutboundPeerCount() const;
+  // True when a peer is connected at `address` ("ip:port").
+  bool IsConnectedTo(const std::string& address) const;
+  // True when "ip:port" is already in the address manager.
+  bool IsKnownPeer(const std::string& address) const;
+  // Add a manually configured peer address ("ip:port", from
+  // --addnode or the `addnode` RPC) to the address manager, so
+  // the dial loop dials it. False + `error` when the address is
+  // malformed, already known, or the address book is full.
+  bool AddManualPeer(const std::string& address, std::string& error);
+  // Remove a manually added address from the address manager.
+  // Also disconnects a live peer at that address, so removing a
+  // node takes effect immediately instead of lingering until the
+  // peer drops. False when the address is malformed or unknown.
+  bool RemoveManualPeer(const std::string& address);
+  // Disconnect the peer connected at `address` ("ip:port"), if
+  // any. False when no peer is connected there.
+  bool DisconnectAddress(const std::string& address);
+  // One pass of the outbound dial loop: dial AddrMan candidates
+  // until the outbound cap (MaxOutboundPeers) or the total peer
+  // cap is reached. Skips banned addresses (never dialed), this
+  // node's own listen address, and already-connected peers.
+  // Throttled: at most one pass per dial interval (default 5 s),
+  // so a dead address is not spun on every Poll — a failed dial
+  // also counts against the address in the AddrManager (3
+  // failures and the entry is dropped as dead). When the address
+  // book is empty and DNS seeds are configured, the seeds are
+  // re-queried first, so a node whose seed addresses all died
+  // can still learn peers. Called from Poll(); public so tests
+  // can drive a dial pass deterministically.
+  void TryDialPeers();
+  // Seconds between dial passes (default 5). Tests set 0 to
+  // disable the throttle.
+  void SetDialIntervalSeconds(uint32_t seconds) {
+    dialIntervalSeconds_ = seconds;
+  }
+  uint32_t DialIntervalSeconds() const { return dialIntervalSeconds_; }
   // Maximum connected peers (default 125, spec section 11). The
   // cap is enforced for outbound connections (ConnectTo) and for
   // inbound connections (OnBytes refuses to register a new peer
@@ -133,7 +194,8 @@ class Node {
   // false when the chain is empty. Used by the node binary to
   // verify a --genesis-file against an existing data directory.
   bool GenesisHash(Hash256& out) const;
-  // Add a peer address manually (no DNS seeds exist yet).
+  // Add a peer address to the address manager (the dial loop's
+  // source, alongside DNS seeds and `addr` messages).
   void AddPeerAddress(const AddrEntry& entry) { addrman_.Add(entry); }
   // Register a DNS seed hostname (resolved by QueryDnsSeeds).
   // The seed list starts empty; seeds come only from operator
@@ -250,6 +312,19 @@ class Node {
   FeeEstimator feeEstimator_;
   uint32_t lastExpirySweep_ = 0;  // last mempool expiry sweep (seconds)
   int maxPeers_ = 125;            // spec section 11
+  // Outbound dialing (Milestone 18): at most this many outbound
+  // peers (default 10). listenPort_ is set by Listen() so the
+  // dial loop can skip this node's own address.
+  // lastDialAttempt_ throttles TryDialPeers to one pass per
+  // dialIntervalSeconds_ (default 5 s).
+  int maxOutboundPeers_ = 10;
+  uint16_t listenPort_ = 0;
+  uint32_t lastDialAttempt_ = 0;
+  uint32_t dialIntervalSeconds_ = 5;
+  // Last DNS-seed query (Now() seconds, stamped by
+  // QueryDnsSeeds). The dial loop re-queries seeds only when the
+  // address book is empty and this long has passed.
+  uint32_t lastSeedQuery_ = 0;
   AddressManager addrman_;
   std::vector<std::string> dnsSeeds_;
   BanManager bans_;

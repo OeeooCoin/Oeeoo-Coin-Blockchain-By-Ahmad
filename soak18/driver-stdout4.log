@@ -1,0 +1,48 @@
+2026-11-06 22:18:24 INFO soak driver starting: deadline 2026-11-06 23:06:10 UTC (2866s remaining)
+2026-11-06 22:18:24 INFO A: createwallet: A createwallet -> error {'code': -13, 'message': 'wallet already loaded'}
+2026-11-06 22:18:30 INFO A: unlock: wallet unlocked
+2026-11-06 22:18:30 INFO B: createwallet: B createwallet -> error {'code': -13, 'message': 'wallet already loaded'}
+2026-11-06 22:18:34 INFO B: unlock: wallet unlocked
+2026-11-06 22:18:44 INFO miner addr A=7GomynWQuigobBJ2frLFCNvxhDxFQXsZzK B=7QiGameDt2xULbBKwMgkbhsotmVUJPjz5Z
+2026-11-06 22:18:44 INFO sample hA=187 hB=187 peers 1/1 mempool 0/0 RSS 497360/499096 kB
+2026-11-06 22:18:45 INFO sample hA=188 hB=188 peers 1/1 mempool 0/0 RSS 501280/506120 kB
+2026-11-06 22:23:35 INFO mined 20 blocks (latest h=207, 0 txs, solve 181.2ms, lag 0.5s)
+2026-11-06 22:23:44 INFO sample hA=207 hB=207 peers 1/1 mempool 0/0 RSS 501476/536560 kB
+2026-11-06 22:28:39 INFO mined 40 blocks (latest h=227, 0 txs, solve 214.5ms, lag 0.6s)
+2026-11-06 22:28:52 INFO tx A->B 842b06fd51f24e56b0a13aea6f1ab2250fa9f2f7dbd553f68ed59bc17392b0c9 (bal 6398.0)
+2026-11-06 22:28:52 INFO sample hA=227 hB=227 peers 1/1 mempool 1/1 RSS 509408/572996 kB
+2026-11-06 22:31:55 INFO tx B->A 5104b970d872970f7a2db5f291063b6562974ca37fa364638828bc2dccc934bd (bal 3.0)
+2026-11-06 22:33:44 INFO mined 60 blocks (latest h=247, 0 txs, solve 412.0ms, lag 0.5s)
+2026-11-06 22:33:45 INFO progress: 60 blocks, 2 txs, 0 block failures, 0 tx failures
+2026-11-06 22:33:53 INFO sample hA=247 hB=247 peers 1/1 mempool 0/0 RSS 520156/585296 kB
+2026-11-06 22:34:49 INFO tx A->B 7b63faae1d26dfb5f26f32b8d05d63270c863e58f4c2a14485ecb578abeb68d0 (bal 7548.0)
+2026-11-06 22:37:50 INFO tx B->A ceecf062bfa4e2a37fcabc3b9761dca2124db52b1e7a4c3992910ed96ac72344 (bal 3.0)
+2026-11-06 22:38:53 INFO mined 80 blocks (latest h=267, 0 txs, solve 113.4ms, lag 0.6s)
+2026-11-06 22:38:53 INFO sample hA=267 hB=267 peers 1/1 mempool 0/0 RSS 550200/614220 kB
+2026-11-06 22:40:50 INFO tx A->B 0fe899ece4e1d2f4c409d6be1f2883daf6519e0f7819a1e9e521b59a1faff451 (bal 8748.0)
+2026-11-06 22:43:50 INFO tx B->A e51db35b10be9a2d34d6799eb44412160b1650dd13edfa3ddbcae98e796532ff (bal 3.0)
+2026-11-06 22:43:53 INFO sample hA=286 hB=286 peers 1/1 mempool 1/1 RSS 554020/612840 kB
+2026-11-06 22:43:57 INFO mined 100 blocks (latest h=287, 1 txs, solve 191.4ms, lag 0.5s)
+2026-11-06 22:46:51 INFO tx A->B 6848119ac32c23b3cf0d23207fc75b04a75b8af2933ac05933ac2901ba345ef2 (bal 9948.0)
+2026-11-06 22:48:46 INFO progress: 119 blocks, 7 txs, 0 block failures, 0 tx failures
+2026-11-06 22:48:53 INFO sample hA=306 hB=306 peers 1/1 mempool 0/0 RSS 557820/642704 kB
+2026-11-06 22:49:01 INFO mined 120 blocks (latest h=307, 0 txs, solve 98.9ms, lag 0.5s)
+2026-11-06 22:49:49 INFO tx B->A 06445ea122e95cb8c8458946ce5184da69a1e7858d0a7ee645b36b4572add7be (bal 3.0)
+2026-11-06 22:52:51 INFO tx A->B 2b87a57f111bcbf0ea2eb0bccaea41f821300a8f7456e8e45b58be765af232b3 (bal 11098.0)
+2026-11-06 22:53:54 INFO sample hA=326 hB=326 peers 1/1 mempool 0/0 RSS 569392/634744 kB
+2026-11-06 22:54:09 INFO mined 140 blocks (latest h=327, 0 txs, solve 97.2ms, lag 0.5s)
+2026-11-06 22:55:50 INFO tx B->A a6df0597030b80858861a3edff868038f503290674e47e7e5ea497820835858d (bal 3.0)
+2026-11-06 22:58:51 INFO tx A->B b867c0c1da63b7c1d985a99028d1645105f827870e0b36daa5dfdd6de5eaf971 (bal 12298.0)
+2026-11-06 22:58:54 INFO sample hA=345 hB=345 peers 1/1 mempool 1/1 RSS 575464/648228 kB
+2026-11-06 22:59:13 INFO mined 160 blocks (latest h=347, 0 txs, solve 186.2ms, lag 0.5s)
+2026-11-06 23:01:51 INFO tx B->A 88d33944a3654d1761752a81dba178a46a9eb5895a3f68d64aba58feae31c1f8 (bal 3.0)
+2026-11-06 23:03:46 INFO progress: 177 blocks, 12 txs, 0 block failures, 0 tx failures
+2026-11-06 23:03:54 INFO sample hA=365 hB=365 peers 1/1 mempool 0/0 RSS 580884/648460 kB
+2026-11-06 23:04:18 INFO mined 180 blocks (latest h=367, 0 txs, solve 202.9ms, lag 0.5s)
+2026-11-06 23:04:53 INFO tx A->B ed751021e2ba94437659bc47952a5a37fd63a48632a41a02b2569f8cf526dda0 (bal 13448.0)
+2026-11-06 23:06:10 INFO sample hA=374 hB=374 peers 1/1 mempool 0/0 RSS 582632/645948 kB
+2026-11-06 23:06:10 INFO SOAK DONE: {"start": "2026-11-06 22:18:24 UTC", "end": "2026-11-06 23:06:10 UTC", "duration_s": 2866.6, "binary": "build-asan/oeeoo-node HEAD b9977af (M17, no dialing merged \u2014 bridge reused)", "genesis": "soak18/genesis17.json hash 7819075d2e1f77757476a7bee410c3d1e92b38b0d292d8f70a6bb443b0af8c01 (fresh genesis18.json, throwaway test keys)", "heightA": 374, "heightB": 374, "blocks_mined": 187, "txs_sent": 13, "block_failures": 0, "tx_failures": 0, "max_B_catchup_lag_s": 0.67, "B_missed_30s_window": 0, "samples": 12, "driver_restart_note": "driver restarted once 2026-11-06 ~12:09 UTC to fix a tx-alternation deadlock (see driver.log); nodes ran continuously since 11:21 UTC. blocks_mined/txs_sent below are SECOND-LEG counts only \u2014 add leg 1 (160 blocks, 1 tx) from driver.log for the full totals."}
+2026-11-06 23:06:10 INFO A: stop sent
+2026-11-06 23:06:10 INFO B: stop sent
+2026-11-06 23:06:10 INFO bridge (pid 2685) SIGTERM sent
+2026-11-06 23:06:10 INFO driver exiting

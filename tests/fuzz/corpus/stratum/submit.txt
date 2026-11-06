@@ -1,0 +1,1 @@
+{"id":3,"method":"mining.submit","params":["worker1","1","00000002","5db8d0a9","5f4c3b2a"]}

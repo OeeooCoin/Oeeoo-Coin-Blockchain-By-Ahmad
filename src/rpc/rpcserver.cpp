@@ -423,7 +423,39 @@ void RpcServer::HandleConnection(int fd) {
         for (char& c : name) c = static_cast<char>(std::tolower(c));
         if (name == "authorization") authHeader = value;
         if (name == "content-length") {
-          contentLength = static_cast<std::size_t>(std::stoul(value));
+          // Milestone 18 (fuzzing find M18B-R1): std::stoul throws
+          // std::invalid_argument / std::out_of_range on a
+          // non-numeric or out-of-range value, and the throw
+          // escaped HandleConnection — WorkerLoop has no catch,
+          // so one bad header aborted the whole node process
+          // (std::terminate) before the auth check. Parse
+          // defensively instead: digits only, saturating at the
+          // 4 MB body cap (the read loop below stops there
+          // anyway), and answer 400 on anything else.
+          std::size_t parsedLength = 0;
+          bool lengthOk = !value.empty();
+          for (char c : value) {
+            if (c < '0' || c > '9') {
+              lengthOk = false;
+              break;
+            }
+            parsedLength = parsedLength * 10 +
+                           static_cast<std::size_t>(c - '0');
+            if (parsedLength > 4 * 1024 * 1024) {
+              parsedLength = 4 * 1024 * 1024 + 1;
+            }
+          }
+          if (!lengthOk) {
+            const std::string response =
+                "HTTP/1.1 400 Bad Request\r\n"
+                "Content-Type: application/json\r\n"
+                "Content-Length: 22\r\n"
+                "Connection: close\r\n\r\n"
+                "invalid Content-Length";
+            SendAll(fd, response);
+            return;
+          }
+          contentLength = parsedLength;
         }
       }
     }
@@ -602,6 +634,7 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
                           "getnetworkinfo",
                           "getpeerinfo",
                           "getconnectioncount",
+                          "addnode",
                           "getmininginfo",
                           "getblocktemplate",
                           "submitblock",
@@ -907,6 +940,60 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
 
   if (method == "getconnectioncount") {
     return Json(static_cast<int64_t>(node_.PeerCount()));
+  }
+
+  // Milestone 18: `addnode` — Bitcoin-shaped: addnode <node>
+  // <command>, where <node> is "ip:port" and <command> is
+  // add / remove / onetry. Error codes follow Bitcoin Core's
+  // rpc/protocol.h: -23 node already added, -24 node not added,
+  // -29 node not connected (onetry could not connect). Returns
+  // null on success, like Core.
+  if (method == "addnode") {
+    const Json* pNode = Param(params, 0, "node");
+    const Json* pCommand = Param(params, 1, "command");
+    if (pNode == nullptr || !pNode->IsString() || pCommand == nullptr ||
+        !pCommand->IsString()) {
+      return fail(-32602,
+                  "addnode needs a node address and a command "
+                  "(add/remove/onetry)");
+    }
+    const std::string address = pNode->AsString();
+    const std::string command = pCommand->AsString();
+    if (command == "add") {
+      std::string error;
+      if (!node_.AddManualPeer(address, error)) {
+        // Already in the address book -> Core's -23; anything
+        // else (malformed address, full book) is a bad parameter.
+        if (node_.IsKnownPeer(address)) {
+          return fail(-23, "Node already added");
+        }
+        return fail(-32602, error);
+      }
+      return Json();
+    }
+    if (command == "remove") {
+      if (!node_.IsKnownPeer(address)) {
+        return fail(-24, "Node has not been added");
+      }
+      node_.RemoveManualPeer(address);
+      return Json();
+    }
+    if (command == "onetry") {
+      // One immediate dial attempt, without adding the address
+      // to the book. The dial loop keeps it out of the book too:
+      // a onetry peer that disconnects is not re-dialed.
+      // Refused when already connected: ConnectTo itself always
+      // attempts (a stale entry must not block a re-dial), so the
+      // duplicate-connection guard lives here, at the RPC.
+      if (node_.IsConnectedTo(address)) {
+        return fail(-32602, "Node is already connected");
+      }
+      if (!node_.ConnectTo(address)) {
+        return fail(-29, "Unable to connect to node: " + address);
+      }
+      return Json();
+    }
+    return fail(-32602, "addnode: unknown command (add/remove/onetry)");
   }
 
   if (method == "getmininginfo") {

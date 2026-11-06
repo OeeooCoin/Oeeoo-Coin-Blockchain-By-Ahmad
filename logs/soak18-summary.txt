@@ -1,0 +1,15 @@
+start: 2026-11-06 22:18:24 UTC
+end: 2026-11-06 23:06:10 UTC
+duration_s: 2866.6
+binary: build-asan/oeeoo-node HEAD b9977af (M17, no dialing merged — bridge reused)
+genesis: soak18/genesis17.json hash 7819075d2e1f77757476a7bee410c3d1e92b38b0d292d8f70a6bb443b0af8c01 (fresh genesis18.json, throwaway test keys)
+heightA: 374
+heightB: 374
+blocks_mined: 187
+txs_sent: 13
+block_failures: 0
+tx_failures: 0
+max_B_catchup_lag_s: 0.67
+B_missed_30s_window: 0
+samples: 12
+driver_restart_note: driver restarted once 2026-11-06 ~12:09 UTC to fix a tx-alternation deadlock (see driver.log); nodes ran continuously since 11:21 UTC. blocks_mined/txs_sent below are SECOND-LEG counts only — add leg 1 (160 blocks, 1 tx) from driver.log for the full totals.

@@ -1,0 +1,8 @@
+2026-11-06 21:06:16 INFO soak driver starting: deadline 2026-11-06 23:06:10 UTC (7194s remaining)
+2026-11-06 21:06:21 INFO A: wallet created
+2026-11-06 21:06:29 INFO A: unlock: wallet unlocked
+2026-11-06 21:06:51 INFO B: wallet created
+2026-11-06 21:07:09 INFO B: unlock: wallet unlocked
+2026-11-06 21:07:22 INFO miner addr A=79uBDG91LsELoXULdPAAsiCgAkJkSSXzkb B=7NU4z4AVeByksvj7FB7QBT9gdxWSb8skeP
+2026-11-06 21:07:23 INFO sample hA=0 hB=0 peers 1/1 mempool 0/0 RSS 708/482996 kB
+2026-11-06 21:07:23 INFO sample hA=1 hB=1 peers 1/1 mempool 0/0 RSS 708/487684 kB

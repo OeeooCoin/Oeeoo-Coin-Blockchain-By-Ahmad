@@ -39,6 +39,13 @@ constexpr std::size_t kMaxBlockTxnIndexes = 10;
 // answered within this long is disconnected. Bitcoin Core's
 // default is 2 seconds, adopted here.
 constexpr uint32_t kBlockStallTimeoutSeconds = 2;
+// DNS-seed re-query interval (Milestone 18): while the address
+// book is empty, the dial loop re-asks the configured DNS seeds
+// at most this often. Oeeoo's own choice (NOT a Bitcoin Core
+// constant): DNS resolution blocks, so the interval is long —
+// and the re-query only fires while the node is already isolated
+// (zero known addresses), so a stall cannot cost live peers.
+constexpr uint32_t kSeedRequeryIntervalSeconds = 600;
 const char* kUserAgent = "/OeeooCoin:0.1.0/";
 
 // Steady-clock milliseconds (monotonic — the wall clock can jump).
@@ -119,12 +126,19 @@ std::size_t Node::QueryDnsSeeds(std::string& error) {
     }
   }
   error = failures;
+  // The dial loop re-queries seeds only when the address book is
+  // empty (TryDialPeers); stamp the query so it waits the full
+  // re-query interval after ANY query, including this one and the
+  // startup query in node_main.
+  lastSeedQuery_ = Now();
   return added;
 }
 
 bool Node::Listen(uint16_t port) {
   if (!transport_) return false;
-  return transport_->Listen(port);
+  if (!transport_->Listen(port)) return false;
+  listenPort_ = port;
+  return true;
 }
 
 bool Node::GenesisHash(Hash256& out) const {
@@ -139,6 +153,24 @@ bool Node::ConnectTo(const std::string& address) {
   // dial to a banned IP is refused whatever port it uses.
   if (bans_.IsBanned(address, Now())) return false;
   if (static_cast<int>(peers_.size()) >= maxPeers_) return false;
+  // Never dial our own listen address (a self-connection would
+  // only be caught later, by the handshake-nonce check). There
+  // is deliberately NO already-connected check here: ConnectTo
+  // always attempts the dial and records a failure when it
+  // fails — the M15 addrman test relies on that (three failed
+  // ConnectTo calls drop the entry), and a stale peer entry
+  // (the node has not Polled since the socket closed) must not
+  // block a legitimate re-dial. The duplicate-connection guard
+  // lives where it belongs: the dial loop (TryDialPeers skips
+  // already-connected peers) and the `addnode onetry` RPC.
+  if (listenPort_ != 0) {
+    std::string ip;
+    uint16_t port = 0;
+    if (ParseIpPort(address, ip, port) && ip == "127.0.0.1" &&
+        port == listenPort_) {
+      return false;
+    }
+  }
   std::string peerId;
   if (!transport_->Connect(address, peerId)) {
     // A failed outbound attempt counts against the address in the
@@ -161,15 +193,147 @@ bool Node::ConnectTo(const std::string& address) {
   return true;
 }
 
+std::size_t Node::OutboundPeerCount() const {
+  std::size_t n = 0;
+  for (const auto& kv : peers_) {
+    if (kv.second.outbound) ++n;
+  }
+  return n;
+}
+
+bool Node::IsConnectedTo(const std::string& address) const {
+  for (const auto& kv : peers_) {
+    if (kv.second.address == address) return true;
+  }
+  return false;
+}
+
+bool Node::IsKnownPeer(const std::string& address) const {
+  std::string ip;
+  uint16_t port = 0;
+  if (!ParseIpPort(address, ip, port)) return false;
+  return addrman_.Contains(ip, port);
+}
+
+bool Node::AddManualPeer(const std::string& address,
+                         std::string& error) {
+  std::string ip;
+  uint16_t port = 0;
+  if (!ParseIpPort(address, ip, port)) {
+    error = "invalid peer address (expected ip:port): " + address;
+    return false;
+  }
+  if (addrman_.Contains(ip, port)) {
+    error = "node already added: " + address;
+    return false;
+  }
+  AddrEntry entry;
+  entry.time = Now();
+  entry.ip = ip;
+  entry.port = port;
+  if (!addrman_.Add(entry)) {
+    error = "cannot add node (address book full?): " + address;
+    return false;
+  }
+  return true;
+}
+
+bool Node::RemoveManualPeer(const std::string& address) {
+  std::string ip;
+  uint16_t port = 0;
+  if (!ParseIpPort(address, ip, port)) return false;
+  // A live peer at that address is disconnected, so the removal
+  // takes effect immediately instead of lingering until the peer
+  // drops on its own.
+  DisconnectAddress(address);
+  return addrman_.Remove(ip, port);
+}
+
+bool Node::DisconnectAddress(const std::string& address) {
+  for (const auto& kv : peers_) {
+    if (kv.second.address == address) {
+      DisconnectPeer(kv.first);
+      return true;
+    }
+  }
+  return false;
+}
+
+void Node::TryDialPeers() {
+  if (!transport_) return;
+  const uint32_t now = Now();
+  // Throttle: one dial pass per interval, so a dead address is
+  // retried at most once per interval (and dropped from the
+  // address book after 3 failures) instead of being spun on
+  // every Poll.
+  if (now - lastDialAttempt_ < dialIntervalSeconds_) return;
+  lastDialAttempt_ = now;
+  // A node whose address book has emptied out (every known
+  // address failed 3 times and was dropped) re-asks its DNS
+  // seeds, so it can learn peers again without a restart. DNS
+  // resolution blocks (up to 10 s per seed), so this is throttled
+  // to once per 10 minutes — and it only ever fires while the
+  // node is already isolated (zero known addresses).
+  if (addrman_.Size() == 0 && !dnsSeeds_.empty() &&
+      now - lastSeedQuery_ >= kSeedRequeryIntervalSeconds) {
+    std::string seedError;
+    QueryDnsSeeds(seedError);
+  }
+  std::size_t outbound = OutboundPeerCount();
+  if (outbound >= static_cast<std::size_t>(maxOutboundPeers_)) return;
+  if (static_cast<int>(peers_.size()) >= maxPeers_) return;
+  // Newest addresses first (GetCandidates order). More are
+  // fetched than there are free slots because some are skipped
+  // below (banned, self, already connected).
+  const std::vector<AddrEntry> candidates = addrman_.GetCandidates(100);
+  for (const AddrEntry& cand : candidates) {
+    if (outbound >= static_cast<std::size_t>(maxOutboundPeers_)) break;
+    if (static_cast<int>(peers_.size()) >= maxPeers_) break;
+    const std::string address =
+        cand.ip + ":" + std::to_string(cand.port);
+    // A banned address is never dialed — the ban may have been
+    // earned after the address entered the book.
+    if (bans_.IsBanned(address, now)) continue;
+    // This node's own listen address, and any peer already
+    // connected, are skipped (ConnectTo refuses both as well;
+    // checking here avoids a wasted dial attempt).
+    if (listenPort_ != 0 && cand.ip == "127.0.0.1" &&
+        cand.port == listenPort_) {
+      continue;
+    }
+    if (IsConnectedTo(address)) continue;
+    if (ConnectTo(address)) ++outbound;
+    // On failure ConnectTo already recorded the AddrManager
+    // failure (3 failures and the entry is dropped as dead).
+  }
+}
+
 void Node::Poll(int timeoutMs) {
   if (!transport_) return;
   TransportMessage msg;
+  // A disconnect notice drops the peer (its orphans go with it,
+  // like any disconnect); anything else is bytes to parse. The
+  // transport reports a peer whose socket closed remotely
+  // (Milestone 18) — without this the node kept dead peer
+  // entries forever and could never re-dial them.
+  auto handleMessage = [&](const TransportMessage& m) {
+    if (m.disconnected) {
+      DisconnectPeer(m.peerId);
+    } else {
+      OnBytes(m.peerId, m.bytes, m.remoteAddress);
+    }
+  };
   // Drain everything already queued, then one blocking wait.
-  while (transport_->Poll(msg, 0)) OnBytes(msg.peerId, msg.bytes, msg.remoteAddress);
+  while (transport_->Poll(msg, 0)) handleMessage(msg);
   if (timeoutMs > 0 && transport_->Poll(msg, timeoutMs)) {
-    OnBytes(msg.peerId, msg.bytes, msg.remoteAddress);
-    while (transport_->Poll(msg, 0)) OnBytes(msg.peerId, msg.bytes, msg.remoteAddress);
+    handleMessage(msg);
+    while (transport_->Poll(msg, 0)) handleMessage(msg);
   }
+  // Outbound dialing (Milestone 18): open connections to
+  // address-book peers up to the outbound cap. Throttled inside
+  // TryDialPeers (one pass per dial interval), so this is cheap
+  // on every Poll.
+  TryDialPeers();
   // Ping peers we have not pinged recently.
   const uint32_t now = Now();
   for (auto& kv : peers_) {
@@ -324,6 +488,12 @@ void Node::OnBytes(const std::string& peerId,
     if (std::memcmp(peer.recvBuffer.data() + offset, kNetworkMagic.data(),
                     4) != 0) {
       Misbehave(peerId, 50);  // bad magic: not our network
+      // Misbehave can ban + disconnect the peer (score >= 100),
+      // which erases it from peers_ — `peer` dangles after that
+      // (Milestone 18 fuzzing find M18B-R5: heap-use-after-free
+      // on the next line). Only touch the buffer when the peer
+      // survived; the OnMessage path below guards the same way.
+      if (peers_.find(peerId) == peers_.end()) return;
       peer.recvBuffer.clear();
       return;
     }
@@ -331,6 +501,7 @@ void Node::OnBytes(const std::string& peerId,
         ReadLE32(peer.recvBuffer.data() + offset + 16);
     if (length > kMaxMessageLength) {
       Misbehave(peerId, 50);
+      if (peers_.find(peerId) == peers_.end()) return;  // M18B-R5
       peer.recvBuffer.clear();
       return;
     }
@@ -341,6 +512,7 @@ void Node::OnBytes(const std::string& peerId,
     std::size_t consumed = 0;
     if (!ParseMessage(peer.recvBuffer, offset, msg, consumed)) {
       Misbehave(peerId, 50);  // bad checksum
+      if (peers_.find(peerId) == peers_.end()) return;  // M18B-R5
       peer.recvBuffer.clear();
       return;
     }

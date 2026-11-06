@@ -23,6 +23,16 @@ struct TransportMessage {
   // uses it as the peer's address so bans are keyed by IP and
   // survive a reconnect (Milestone 15).
   std::string remoteAddress;
+  // True when the transport is reporting that this peer is GONE
+  // (its TCP connection closed, or its loopback link was dropped)
+  // rather than delivering bytes. `bytes` is empty then. The node
+  // drops the peer on such a message (Milestone 18): without it
+  // a peer whose socket closed remotely stayed in the node's peer
+  // table forever — the transport had already forgotten it — so
+  // the node could never re-dial it (ConnectTo and the dial loop
+  // both refuse an already-connected address) and the dead entry
+  // kept occupying a peer slot.
+  bool disconnected = false;
 };
 
 class ITransport {

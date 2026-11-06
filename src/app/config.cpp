@@ -100,6 +100,12 @@ bool SetKey(AppConfig& config, const std::string& key,
       return false;
     }
     config.dnsSeeds.push_back(value);
+  } else if (key == "addnode") {
+    if (value.empty()) {
+      error = "addnode must not be empty";
+      return false;
+    }
+    config.addNodes.push_back(value);
   } else if (key == "deepverify") {
     if (!ParseBool(value, config.deepVerify, error)) return false;
   } else if (key == "rpcthreads") {
@@ -240,6 +246,10 @@ bool ParseArgs(int argc, char** argv, AppConfig& config,
       std::string value;
       if (!needValue("--dns-seed", value)) return false;
       config.dnsSeeds.push_back(value);
+    } else if (arg == "--addnode") {
+      std::string value;
+      if (!needValue("--addnode", value)) return false;
+      config.addNodes.push_back(value);
     } else if (arg == "--pow-limit-bits") {
       std::string value;
       if (!needValue("--pow-limit-bits", value)) return false;
@@ -322,6 +332,8 @@ std::string UsageText(const char* program) {
          "start (savemempool RPC still works)\n"
       << "  --founder-script <hex> founder 2-of-3 multisig script (vesting)\n"
       << "  --dns-seed <host>     DNS seed hostname (repeatable; none by default)\n"
+      << "  --addnode <ip:port>   manually added peer (repeatable); the dial loop\n"
+      << "                         dials it at startup and keeps it in the address book\n"
       << "  --pow-limit-bits <hex> TESTING ONLY: easiest difficulty bits\n"
       << "                         (default: 1d00ffff = mainnet)\n"
       << "  --deep-verify         fully re-validate the stored chain on load\n"
