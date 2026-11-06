@@ -865,10 +865,13 @@ void TestMilestone13() {
     CHECK(!am.Add({1700000000, 1, "1.2.3", 64775}));
     CHECK(!am.Add({1700000000, 1, "1.2.3.256", 64775}));
     CHECK(am.Add({1700000000, 1, "1.2.3.4", 64775}));
-    // Fill to the cap: further adds are refused.
+    // Fill to the cap: further adds are refused. The fill must
+    // spread across netgroups: since M15 caps each /16 at 64
+    // entries, filling a single /16 ("10.0.x.y") would stop at 64.
+    // Here each /16 ("10.<g>") gets exactly 64 addresses.
     for (int i = 0; i < 2000; ++i) {
-      std::string ip = "10.0." + std::to_string(i / 256) + "." +
-                       std::to_string(i % 256);
+      std::string ip = "10." + std::to_string(i / 64) + "." +
+                       std::to_string(i % 64) + ".1";
       am.Add({1700000000, 1, ip, 64775});
     }
     CHECK(am.Size() == AddressManager::kMaxAddresses);
