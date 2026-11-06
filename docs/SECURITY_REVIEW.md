@@ -105,9 +105,10 @@ Adversaries, in order of exposure:
   records for blocks stored under schema v1). It refuses
   rather than corrupting state, but a node with an old store
   cannot follow a deep reorg until it re-indexes.
-- **Reorg undo is tested to depth 2** (main chain 3 vs fork
-  4). Deeper reorgs use the same code path, but a 100-block
-  reorg has not been exercised.
+- **Reorg undo is tested to depth 100** (Milestone 17: main
+  chain 100 vs fork 101, undo correctness + mempool re-adding
+  verified at the coinbase-maturity bound). Reorg across
+  pre-v2 blocks still fails closed (see above).
 - **Orphan transaction pool is now bounded** (Milestone 15:
   `src/mempool/orphan.*`, Core's `TxOrphanage` model — max 100
   orphans / 5 MB, 20-minute expiry, per-peer purge on disconnect,
@@ -180,7 +181,28 @@ Adversaries, in order of exposure:
 - **RBF descendant handling is defense-in-depth** (unreachable in
   practice: validation rejects unconfirmed inputs) and the
   100-replacement cap is untested. (Milestone 13.)
-- **Disk-full behaviour is not verified.** (Milestone 13.)
+- **Disk-full behaviour is verified** (Milestone 17:
+  `RLIMIT_FSIZE` tests). Startup under a too-small limit
+  refuses loudly (`disk I/O error`); a limit biting mid-chain
+  rolls back to the last durable height (39 blocks rolled
+  back in the test) — rollback, never corruption. The node
+  now also warns to stderr as soon as the chain store fails
+  (`chain store error — accepted blocks may not be durable`),
+  once per distinct error. `submitblock` still returns
+  success while persistence fails — the failure is loud in
+  the log but silent to RPC callers.
+- **Mempool persistence is bounded and re-validated**
+  (Milestone 17: `<datadir>/mempool.dat`, JSON-lines, caps
+  100,000 entries / 64 MiB, atomic `.new` + rename save;
+  every loaded tx is re-validated against the current UTXO
+  set, expired/invalid entries are dropped).
+- **MAJOR — the node cannot open an outbound P2P connection**
+  (Milestone 17 finding, verified by grep): no `--addnode`,
+  no `addnode` RPC, no dial loop; `Node::ConnectTo` is called
+  only from tests. Two stock nodes never peer. DNS seeds only
+  fill AddrMan — nothing dials them. Inbound connections work
+  (Listen + accept). A fresh node gets no peers until others
+  dial it. Carried as the #1 decision for M18.
 
 ## Auditor checklist
 

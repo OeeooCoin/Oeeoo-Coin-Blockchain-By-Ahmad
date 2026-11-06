@@ -13,3 +13,6 @@ oeeoo-data/
 # Editor / OS artefacts.
 .DS_Store
 *~
+
+# Soak-test chain data (never commit a live chain or wallet).
+soak17/*/data-*/

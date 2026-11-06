@@ -1,0 +1,86 @@
+2026-11-06 12:41:02 INFO soak driver starting: deadline 2026-11-06 14:41:02 UTC (7200s remaining)
+2026-11-06 12:41:02 INFO A: createwallet: A createwallet -> error {'code': -13, 'message': 'wallet already loaded'}
+2026-11-06 12:41:03 INFO A: unlock: wallet unlocked
+2026-11-06 12:41:05 INFO B: wallet created
+2026-11-06 12:41:07 INFO B: unlock: wallet unlocked
+2026-11-06 12:41:11 INFO miner addr A=7Dhha62urwQiA1D6Lmyy5D7xom9qTuf5Cn B=7F2nKLSffVqhtAXcPJhowrZnFwkq9b5Wat
+2026-11-06 12:41:11 INFO sample hA=1 hB=1 peers 1/1 mempool 0/0 RSS 515076/508004 kB
+2026-11-06 12:41:11 INFO sample hA=2 hB=2 peers 1/1 mempool 0/0 RSS 518556/509800 kB
+2026-11-06 12:45:57 INFO mined 20 blocks (latest h=21, 0 txs, solve 43.8ms, lag 0.5s)
+2026-11-06 12:46:11 INFO sample hA=21 hB=21 peers 1/1 mempool 0/0 RSS 531688/500512 kB
+2026-11-06 12:50:58 INFO mined 40 blocks (latest h=41, 0 txs, solve 38.6ms, lag 0.5s)
+2026-11-06 12:51:11 INFO tx skipped: neither balance >= 2.0 (A 0.00 / B 0.00)
+2026-11-06 12:51:12 INFO sample hA=41 hB=41 peers 1/1 mempool 0/0 RSS 558592/514712 kB
+2026-11-06 12:54:11 INFO tx skipped: neither balance >= 2.0 (A 0.00 / B 0.00)
+2026-11-06 12:56:00 INFO mined 60 blocks (latest h=61, 0 txs, solve 28.7ms, lag 0.5s)
+2026-11-06 12:56:11 INFO progress: 60 blocks, 0 txs, 0 block failures, 0 tx failures
+2026-11-06 12:56:12 INFO sample hA=61 hB=61 peers 1/1 mempool 0/0 RSS 576844/527008 kB
+2026-11-06 12:57:12 INFO tx skipped: neither balance >= 2.0 (A 0.00 / B 0.00)
+2026-11-06 13:00:12 INFO tx skipped: neither balance >= 2.0 (A 0.00 / B 0.00)
+2026-11-06 13:01:01 INFO mined 80 blocks (latest h=81, 0 txs, solve 38.4ms, lag 0.5s)
+2026-11-06 13:01:12 INFO sample hA=81 hB=81 peers 1/1 mempool 0/0 RSS 590784/549708 kB
+2026-11-06 13:03:12 INFO tx skipped: neither balance >= 2.0 (A 0.00 / B 0.00)
+2026-11-06 13:06:02 INFO mined 100 blocks (latest h=101, 0 txs, solve 28.2ms, lag 0.5s)
+2026-11-06 13:06:12 INFO sample hA=101 hB=101 peers 1/1 mempool 0/0 RSS 603764/561548 kB
+2026-11-06 13:06:13 INFO tx A->B 173a41069394d0458c5e47c2e80626d119d1c2eee12aaf7f795d58a72eb1bed7 (bal 100.0)
+2026-11-06 13:09:17 INFO tx A->B 7243fc3907243a5e8e044b81885aa79584b180646b76ddcca8ba3fc3cb737e11 (bal 649.0)
+2026-11-06 13:11:11 INFO progress: 119 blocks, 2 txs, 0 block failures, 0 tx failures
+2026-11-06 13:11:12 INFO sample hA=120 hB=120 peers 1/1 mempool 0/0 RSS 641860/548048 kB
+2026-11-06 13:11:23 INFO mined 120 blocks (latest h=121, 0 txs, solve 96.9ms, lag 0.5s)
+2026-11-06 13:12:17 INFO tx B->A 91f66b453330dac7c43f8c0e1ddf5fa7712c9ffcacb969936b6bc56993fe03cc (bal 2.0)
+2026-11-06 13:15:18 INFO tx A->B 1696374373a9cef34dfc6844f951b051d5a7494e501f3757b6c925532f5ba431 (bal 1849.0)
+2026-11-06 13:16:13 INFO sample hA=140 hB=140 peers 1/1 mempool 0/0 RSS 632308/561604 kB
+2026-11-06 13:16:26 INFO mined 140 blocks (latest h=141, 0 txs, solve 95.8ms, lag 0.5s)
+2026-11-06 13:18:19 INFO tx A->B b77f68c04d9c37658432cf72df972355ab3c767c19b7dee2441a955b69b250df (bal 2448.0)
+2026-11-06 13:21:13 INFO sample hA=160 hB=160 peers 1/1 mempool 0/0 RSS 634740/561080 kB
+2026-11-06 13:21:18 INFO tx B->A de204ec3cfd02b03676532f09d0aa3db03a2a5ede7bff4ca2f8af958aad0e4a8 (bal 3.0)
+2026-11-06 13:21:29 INFO mined 160 blocks (latest h=161, 1 txs, solve 214.0ms, lag 0.6s)
+2026-11-06 13:24:18 INFO tx A->B 8df921880e289ce521cf9a7a866de12d832d1de2141117381b6ae3aefddb2793 (bal 3598.0)
+2026-11-06 13:26:12 INFO progress: 178 blocks, 7 txs, 0 block failures, 0 tx failures
+2026-11-06 13:26:13 INFO sample hA=179 hB=179 peers 1/1 mempool 0/0 RSS 636936/599592 kB
+2026-11-06 13:26:36 INFO mined 180 blocks (latest h=181, 0 txs, solve 96.5ms, lag 0.5s)
+2026-11-06 13:27:19 INFO tx B->A 1b8ad44a02df1e74fc2b3df01923c1b62e129b87070600c860651231bfbea4ab (bal 3.0)
+2026-11-06 13:30:22 INFO tx A->B efdd10e86ea110bced21d62da56a8b6ac2d74a7718ba0f08dc17e1cbb25f10d4 (bal 4798.0)
+2026-11-06 13:31:14 INFO sample hA=199 hB=199 peers 1/1 mempool 0/0 RSS 642508/588428 kB
+2026-11-06 13:31:39 INFO mined 200 blocks (latest h=201, 0 txs, solve 95.4ms, lag 0.5s)
+2026-11-06 13:33:23 INFO tx B->A 01e3147e84476a8b85bbd86ed5ab6fe35fdc8503c92e775a0987723dec4df87a (bal 3.0)
+2026-11-06 13:36:14 INFO sample hA=219 hB=219 peers 1/1 mempool 0/0 RSS 642984/588344 kB
+2026-11-06 13:36:20 INFO tx A->B af0553877ffbe4b1daf76f3af4fcd75426b5fac49a61bbaebf64f9aeffae4292 (bal 5998.0)
+2026-11-06 13:36:43 INFO mined 220 blocks (latest h=221, 0 txs, solve 91.8ms, lag 0.5s)
+2026-11-06 13:39:20 INFO tx B->A 24a6b8cece8197abf8ab8fedbc06f6f3916cb1d080a25e8607aab1a18c993d43 (bal 3.0)
+2026-11-06 13:41:12 INFO progress: 237 blocks, 12 txs, 0 block failures, 0 tx failures
+2026-11-06 13:41:14 INFO sample hA=238 hB=238 peers 1/1 mempool 0/0 RSS 645372/601776 kB
+2026-11-06 13:41:46 INFO mined 240 blocks (latest h=241, 0 txs, solve 40.3ms, lag 0.5s)
+2026-11-06 13:42:17 INFO tx A->B b5c4fa36688d199b34b17f15bd448c9be476f7825cbc7f9c019f17a87c186026 (bal 7198.0)
+2026-11-06 13:45:21 INFO tx B->A d40a318e0c1077cda33be4a9924433bd334579d373d7df389897d05b6a6baea2 (bal 3.0)
+2026-11-06 13:46:14 INFO sample hA=258 hB=258 peers 1/1 mempool 0/0 RSS 652540/602984 kB
+2026-11-06 13:46:53 INFO mined 260 blocks (latest h=261, 0 txs, solve 189.2ms, lag 0.5s)
+2026-11-06 13:48:21 INFO tx A->B 9524bbb696e8513648cffc29308434b7bc32fce7e1ca1bbabd9a1cc259a18387 (bal 8348.0)
+2026-11-06 13:51:14 INFO sample hA=278 hB=278 peers 1/1 mempool 0/0 RSS 654172/607616 kB
+2026-11-06 13:51:21 INFO tx B->A d4dad4a14b7c2f1a2ae8def92aad4a1b15f9e5d580dcc01265cdc5106a1d2467 (bal 3.0)
+2026-11-06 13:51:57 INFO mined 280 blocks (latest h=281, 0 txs, solve 98.4ms, lag 0.5s)
+2026-11-06 13:54:23 INFO tx A->B 39ab5290093220491ac6c8141e43a33ae9f3ed7fff859a7d15cd3ed1cbd97901 (bal 9548.0)
+2026-11-06 13:56:12 INFO progress: 296 blocks, 17 txs, 0 block failures, 0 tx failures
+2026-11-06 13:56:15 INFO sample hA=297 hB=297 peers 1/1 mempool 0/0 RSS 655396/610456 kB
+2026-11-06 13:57:02 INFO mined 300 blocks (latest h=301, 0 txs, solve 94.0ms, lag 0.5s)
+2026-11-06 13:57:22 INFO tx B->A a87593c9f3e6cfc356876f7cd1ea211d2f43621d9537788c7f5fd606f1c0ad45 (bal 3.0)
+2026-11-06 14:00:24 INFO tx A->B 0d95cd2d7854178f7de873a5e5e769c02dd640546c41e7420dbf327dd126f507 (bal 10748.0)
+2026-11-06 14:01:15 INFO sample hA=317 hB=317 peers 1/1 mempool 0/0 RSS 662404/615024 kB
+2026-11-06 14:02:05 INFO mined 320 blocks (latest h=321, 0 txs, solve 116.2ms, lag 0.5s)
+2026-11-06 14:03:23 INFO tx B->A c6db2b1bc6b16c90a6c8b9cb6336d7c68820b5d425d4b7cdb906bdc879bd5054 (bal 3.0)
+2026-11-06 14:06:15 INFO sample hA=337 hB=337 peers 1/1 mempool 0/0 RSS 662700/621100 kB
+2026-11-06 14:06:23 INFO tx A->B 48a13e03960cfefbb876de82dd43c4347a02930a3b18a93063ced3679393b82c (bal 11898.0)
+2026-11-06 14:07:12 INFO mined 340 blocks (latest h=341, 0 txs, solve 94.4ms, lag 0.5s)
+2026-11-06 14:09:23 INFO tx B->A 7e8d0a70840a62829d0310149d881ccfd1581e84e29842a009ca8a013d89fb64 (bal 3.0)
+2026-11-06 14:11:12 INFO progress: 355 blocks, 22 txs, 0 block failures, 0 tx failures
+2026-11-06 14:11:16 INFO sample hA=357 hB=357 peers 1/1 mempool 0/0 RSS 664968/623440 kB
+2026-11-06 14:12:16 INFO mined 360 blocks (latest h=361, 0 txs, solve 188.0ms, lag 0.5s)
+2026-11-06 14:12:24 INFO tx A->B 1b4869668daeabd08120d0b60eb1484002f8446f147a7fa7ae72f65573613552 (bal 13098.0)
+2026-11-06 14:15:26 INFO tx B->A 46adadf154e48ca0cb792e77c0dc842b1347331dea0a85c68eeedae272a2394b (bal 3.0)
+2026-11-06 14:16:16 INFO sample hA=376 hB=376 peers 1/1 mempool 0/0 RSS 671516/636728 kB
+2026-11-06 14:17:21 INFO mined 380 blocks (latest h=381, 0 txs, solve 205.9ms, lag 0.6s)
+2026-11-06 14:18:25 INFO tx A->B c8669d990142b7ca4762d05df2f968744bbec07bfe6601c1ab3ca297f13eb8b9 (bal 14248.0)
+2026-11-06 14:21:16 INFO sample hA=396 hB=396 peers 1/1 mempool 0/0 RSS 674368/636360 kB
+2026-11-06 14:21:25 INFO tx B->A ee89f53d42c5f47541aaab441eae7f3565bea01c40474dd47930ad613356fc72 (bal 3.0)
+2026-11-06 14:22:28 INFO mined 400 blocks (latest h=401, 0 txs, solve 85.7ms, lag 0.5s)
+2026-11-06 14:24:25 INFO tx A->B b5a6b18679d2ed24ed08f1707aabcf933832c65a6783f44f61b44f0353155749 (bal 15448.0)

@@ -1,0 +1,54 @@
+Oeeoo Coin — Milestone 17 Stream B test log (reorg depth 100 + crash injection)
+Date: 2026-11-06. Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.
+
+== Build ==
+Own build dir build-m17b ONLY (never the shared build/ or build-asan/).
+cmake -S . -B build-m17b -DCMAKE_BUILD_TYPE=Release; cmake --build build-m17b -j2
+NOTE: the CMake link of oeeoo_tests/oeeoo-node currently FAILS in this tree because
+Stream A's node.cpp references LoadMempoolFile/SaveMempoolFile (src/mempool/mempooldump.cpp,
+untracked, not yet in CMakeLists.txt). That is Stream A's in-progress wiring, NOT a Stream B
+break: the coordinator's integration (adding mempooldump.cpp to CMakeLists) closes it.
+For verification I linked scratch binaries from the same objects (no repo files touched):
+  build-m17b/oeeoo_tests_m17b (full suite main + TestMilestone17A + TestMilestone17B)
+  build-m17b/oeeoo-node (node_main.o + mempooldump-m17b.o + liboeeoo_core.a)
+Both scratch binaries live in build-m17b/ only; the repo's CMakeLists.txt and test_main.cpp
+were NOT edited (coordinator wires registration).
+
+== cppcheck ==
+cppcheck --enable=warning,performance,portability --suppress=missingIncludeSystem -Isrc src tests/test_reorg.cpp tests/test_milestone17b.cpp
+Result: 0 findings (53/53 files checked).
+Warning-free compile at -Wall -Wextra for both changed/new files.
+
+== Full suite (scratch binary, incl. Stream A m17a sections) ==
+182 sections = 171 (M16) + 7 (m17a) + 4 (Stream B: 1 reorg + 3 m17b).
+Clean passes (quiet window, no other suite running): runs 2, 4, 7, 8 — ALL CHECKS PASSED, exit 0.
+Runs 3, 5, 6 were polluted by PARALLEL-STREAM collisions (see below); my 4 sections passed in
+every run that reached them, including run 6.
+
+== Reorg depth-100 timing ==
+Standalone driver (all 4 reorg sections incl. depth-100): 0.247 s total.
+
+== Final clean run (run 8) — m17b detail ==
+[test] m17b: SIGKILL during a block burst, restart recovers
+  [m17b] burst kill: 497 submit attempts, last acked height 502 (baseline 6)
+  [m17b] burst kill: restart height 502, tip 68a1a209fedca0c5fc65b591c9aa6425b7ca33e0df4b2b817ce7265a9b5c2756
+[test] m17b: SIGKILL during shutdown, restart recovers
+  [m17b] shutdown kill: died by SIGKILL mid-shutdown
+[test] m17b: disk-full (RLIMIT_FSIZE), restart recovers
+  [m17b] disk-full A: node refused to start under a 4 KiB file limit (1 startup-error log line(s)): oeeoo-node: disk I/O error
+  [m17b] disk-full B: chain.db is 57344 bytes after 5 blocks; file-size limit set to 65536
+  [m17b] disk-full B: 40 submits ok under the limit, in-memory height 45 (node reports 45); no submit failed
+  [m17b] disk-full B: restart height 6 (was 45 in-memory); rolled back 39 block(s)
+  [m17b] disk-full B: 0 log line(s) contain "error" (first: (none))
+  [m17b] disk-full B: OBSERVED — submitblock kept returning success while persistence failed; the failure surfaced only as a height rollback after restart (no RPC error, no store-error log line)
+[test] ALL CHECKS PASSED
+
+== Collision-affected runs (NOT Stream B defects) ==
+Run 3: suite ended early at the fuzz sections (log 97 lines); run 5: exit 139 (SIGSEGV) in
+test_wallet.cpp:400 (fopen of the FIXED shared path /tmp/oeeoo-test-main.wallet returned
+NULL, then fseek(NULL) crashed) while /tmp/oeeoo_tests_178 was built/run the same minute;
+run 6: 2 CHECKs failed in test_milestone14.cpp:366/368 (wallet indices) while another
+oeeoo_tests_178 run was in flight (ps showed it at run start). Cause in all three: the
+pre-existing suite shares fixed /tmp paths (and fixed ports) across concurrent runs, so
+parallel streams collide. My m17b tests use pid-unique ports/data dirs and never collided.
+No fix attempted here (pre-existing suite-wide issue; needs a coordinator decision).

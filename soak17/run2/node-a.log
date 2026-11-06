@@ -1,0 +1,8 @@
+Genesis accepted: 78da43766cb8d7fcb7b10b332d040ee02f5295ec2b450df0b73090ad754dbfb3
+Oeeoo Coin node 0.1.0
+  data dir: /home/hatch/workspace/oeeoo-coin/soak17/data-a
+  height: 0  tip: 78da43766cb8d7fcb7b10b332d040ee02f5295ec2b450df0b73090ad754dbfb3
+  P2P: 64875  RPC: 127.0.0.1:64877  Stratum: off
+  vesting: enabled
+  wallet: /home/hatch/workspace/oeeoo-coin/soak17/data-a/wallet.dat (not created yet — use createwallet RPC)
+  *** WARNING: TESTING MODE — proof-of-work limit is 0x207fffff, not the mainnet limit 0x1d00ffff. This node is NOT on Mainnet. ***

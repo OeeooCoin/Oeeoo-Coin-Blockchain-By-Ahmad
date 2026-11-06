@@ -551,3 +551,86 @@ Real addresses come from real keys in Milestone 8.
   PASSED, ctest 100%, ASan/UBSan clean, cppcheck 0 findings.
   Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite
   3.45.1, cppcheck 2.13.0.
+
+## Milestone 17 (2026-11-06) — Persistence & robustness
+
+- Mempool persistence (Bitcoin's `mempool.dat` model, Oeeoo's own
+  JSON-lines format): `<datadir>/mempool.dat`, tx + fee + time
+  only (never the UTXO set); caps 100,000 entries / 64 MiB,
+  highest fee rate first; save via `<path>.new` + fsync + rename
+  on clean shutdown and on demand (`savemempool` RPC); reload on
+  start re-validates every tx against the current UTXO set and
+  drops expired (>14d) / invalid entries; `importmempool`
+  returns {loaded, dropped_expired, dropped_invalid} (Oeeoo
+  choice, not Core's null); `loaded` flag in `getmempoolinfo`;
+  default persist ON with `--persistmempool=0` /
+  `--no-persistmempool` opt-out (Core-compatible semantics).
+  `savemempool` works even with persistmempool=0 (opt-out
+  disables only the automatic load/save). RPC surface is now
+  38 callable methods + `help`.
+- Reorg depth "100" is Oeeoo's own target, NOT a Bitcoin Core
+  number: 100 equals coinbase maturity, so a 100-deep reorg is
+  the deepest that can strand matured coinbase spends. Test
+  only — no production bug was found; no production fix made.
+- Crash-injection + soak are Oeeoo robustness work, NOT Core
+  parity (no named Core crash-injection test could be verified;
+  the soak is an Oeeoo target, not a verified Core feature).
+- Disk-full surfacing (coordinator decision, per Stream B's
+  recommendation): the node_main loop warns to stderr whenever
+  Node::LastStoreError() is set (once per distinct error) —
+  before M17 the failure was silent at runtime (submitblock
+  kept returning success, rollback visible only after
+  restart). submitblock STILL returns success while
+  persistence fails; the warning is the loudness. Changing
+  that is a semantic decision for a later milestone.
+- Soak acceptance (coordinator decision): run 2 (1 h 44 m, 401
+  blocks, 27 txs, 0 failures, no sanitizer output) is accepted
+  as the M17 soak — inside the 1–2 h window, above the 1 h
+  minimum. Both runs were ended by VM restarts (~every 2 h),
+  not clean shutdowns; a third attempt would very likely die
+  the same way. Across both runs: 3 h 02 m, 695 blocks,
+  35 txs, 0 failures, 0 sanitizer reports. Soak ran on the M16
+  ASan binary (d964bca) — steady-state code is what it
+  validates; mempool save/load is covered by Stream A's
+  restart tests on the final binary.
+- RSS creep under ASan (~0.6–0.9 MB/min/node late in the run)
+  accepted as ASan-quarantine behaviour in M17; a non-ASan
+  long run to distinguish a real leak is a possible M18
+  follow-up, not required.
+- MAJOR finding (verified by the coordinator with grep): the
+  shipped node cannot open an outbound P2P connection — no
+  --addnode, no addnode RPC, no dial loop; Node::ConnectTo is
+  called only from tests. Two stock nodes never peer; DNS
+  seeds only fill AddrMan, nothing dials them. Inbound
+  connections work. NOT fixed in M17 (feature-sized change
+  outside M17's scope); carried as the #1 decision for M18
+  (coordinator recommends adding it to M18's scope).
+- Bugs found and fixed (disclosed in docs/MILESTONE17.md §C.1):
+  (1) mempool dump wrote the txid twice (two different
+  temporaries) — loader dropped every entry; fixed by naming
+  the txid in a local first. (2) Disk-full persistence failure
+  was silent at runtime — fixed with the node_main stderr
+  warning, now asserted by the disk-full test. (3) Latent
+  fseek(NULL) SIGSEGV in tests/test_wallet.cpp after a failed
+  fopen (CHECK does not abort) — fixed with an early return;
+  the only other fopen in the suite already had the guard.
+  (4) Stream B test-design bugs (vesting params in deep
+  verify; deep-verifying test-injected UTXOs) — fixed before
+  delivery. (5) Bench harness double-spend in the 5-tx
+  sensitivity run — harness bug, node correctly rejected it;
+  fixed with a mature-unspent queue. (6) Soak driver deadlock
+  on wallet traffic (waited for B's balance while only A
+  could fund B) — fixed with a fallback sender.
+- Environment: no restore needed in M17 — libsqlite3-dev and
+  cppcheck were present at the start (unlike M9/M15/M16).
+- Verdict: NOT READY (unchanged — genesis unapproved, no
+  independent audit). Next is M18 (fuzzing & security
+  hardening).
+- New docs: docs/MILESTONE17.md; docs/SECURITY_REVIEW.md,
+  docs/OPERATOR.md updated; bench harness src/bench/bench.cpp
+  (oeeoo_bench); profiling in logs/milestone17-profiling.txt;
+  soak evidence in soak17/ + logs/soak17-samples*.log.
+- Final state: 182 test sections (171 + 11 new), ALL CHECKS
+  PASSED, ctest 100%, ASan/UBSan clean, cppcheck 0 findings.
+  Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite
+  3.45.1, cppcheck 2.13.0.

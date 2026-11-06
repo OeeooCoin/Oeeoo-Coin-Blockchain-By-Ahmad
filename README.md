@@ -4,13 +4,13 @@ Independent decentralized Proof-of-Work blockchain, Bitcoin-style.
 C++ implementation, MIT License. Planned repository:
 `OeeooCoin-blockchain-by-Ahmad` (not yet created — see Decision Log).
 
-**Status: Phase 1 + Milestones 1–14 DONE (all 14 milestones, 134 test
+**Status: Phase 1 + Milestones 1–17 DONE (182 test
 sections, ASan/UBSan clean, cppcheck 0 findings, reproducible build
 verified from a clean Git checkout). IMPLEMENTED + COMPILED +
 UNIT-TESTED on this machine, with runnable binaries (oeeoo-node,
 oeeoo-genesis, oeeoo-cli). NOT production-ready. NO mainnet. NO
 genesis block yet. No independent security review or audit has been
-done. Verdict after the Milestone 13 audit: NOT READY (Milestones 14–15
+done. Verdict after the Milestone 13 audit: NOT READY (Milestones 14–17
 do not change it). Launch checklist: docs/MAINNET_LAUNCH.md.
 Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 
@@ -159,6 +159,18 @@ Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 - `docs/MILESTONE16.md` (full report, verdict NOT READY), `docs/DECISION_LOG.md`, `docs/SECURITY_REVIEW.md`, `docs/OPERATOR.md`, `docs/MINING.md` updated
 - `tests/test_milestone16a.cpp` (6 sections) + `tests/test_milestone16b.cpp` (6 sections) + `tests/test_milestone16c.cpp` (4 sections) — **171 sections total**
 - Known caveats (disclosed in `docs/MILESTONE16.md` §C.2): `getblockstats` cannot price a coin whose origin is not in a stored block; sends made before the journal existed are not recoverable; ban keys are not persisted across restarts; the M15 real-TCP test is intermittently flaky in sandboxes (fixed-port bind collision), not a code regression
+
+## What Milestone 17 adds (2026-11-06) — Persistence & robustness
+
+- `src/mempool/mempooldump.*` (NEW) — mempool persistence (Bitcoin's `mempool.dat` model, Oeeoo's own JSON-lines format): `<datadir>/mempool.dat`, tx + fee + time only, caps 100,000 entries / 64 MiB, atomic `.new` + fsync + rename save; reload re-validates every tx against the current UTXO set and drops expired/invalid ones; `src/mempool/mempool.*` — `AddLoadedTransaction()` preserves the stored `addedTime` (no fresh 14 days)
+- `src/network/node.*` + `src/app/node_main.cpp` — load after `LoadFromStore`, save on clean shutdown; `src/app/config.*` — `persistmempool` (default on) + `--persistmempool` / `--no-persistmempool` flags; `src/rpc/rpcserver.*` — `savemempool` (on-demand dump), `importmempool` (returns load counts), `loaded` flag in `getmempoolinfo` — **38 callable methods + `help`**
+- `tests/test_reorg.cpp` — reorg depth **100** (main 100 vs fork 101, undo correctness + mempool re-adding + full store-vs-node UTXO equality verified; the "100" is Oeeoo's own target = coinbase maturity, not a Core number); `tests/test_milestone17b.cpp` (NEW) — SIGKILL mid-block-burst and mid-shutdown recovery, disk-full (`RLIMIT_FSIZE`) recovery (startup refuses loudly; mid-chain limit rolls back 39 blocks, never corrupts)
+- `src/app/node_main.cpp` — **chain-store-error warning**: the main loop warns to stderr as soon as `LastStoreError()` is set (disk-full was silent at runtime before M17); `tests/test_wallet.cpp` — `fopen` NULL guard (a latent `fseek(NULL)` SIGSEGV found when parallel suite runs collided on a shared `/tmp` path)
+- `src/bench/bench.cpp` (NEW, `oeeoo_bench`) — profiling on a 1,000-block synthetic chain: block validation ~1.3 ms avg (~770–800 blocks/s), mempool insertion ~0.58 ms/tx, RPC latency ~1 ms (`getblockcount` p50 ~0.65 ms) — measured, not estimated; full numbers in `logs/milestone17-profiling.txt`
+- Soak: two ASan nodes, run 2 **1 h 44 m** (401 blocks, 27 wallet txs, 0 failures, no ASan/UBSan output) — accepted inside the 1–2 h window; both runs were ended by VM restarts (~every 2 h), not clean shutdowns; RSS rose ~159/128 MB (ASan quarantine, not claimed as a leak)
+- `docs/MILESTONE17.md` (full report, verdict NOT READY), `docs/DECISION_LOG.md`, `docs/SECURITY_REVIEW.md`, `docs/OPERATOR.md` updated
+- `tests/test_milestone17a.cpp` (7 sections) + `tests/test_milestone17b.cpp` (3 sections) + depth-100 reorg section — **182 sections total**
+- Known caveats (disclosed in `docs/MILESTONE17.md` §C): **MAJOR — the node cannot open an outbound P2P connection** (no `--addnode`, no dial loop, `ConnectTo` is test-only; DNS seeds only fill AddrMan) — carried as the #1 decision for M18; `submitblock` still returns success while chain persistence fails (now loud in the log, silent to RPC callers); the test suite is not safe to run in parallel (shared fixed `/tmp` paths)
 
 ## What Phase 1 contains
 

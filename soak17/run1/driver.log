@@ -1,0 +1,66 @@
+2026-11-06 11:24:22 INFO soak driver starting: 7200s, deadline 2026-11-06 13:24:22 PKT
+2026-11-06 11:24:22 INFO A: createwallet: A createwallet -> error {'code': -13, 'message': 'wallet already loaded'}
+2026-11-06 11:24:24 INFO A: unlock: wallet unlocked
+2026-11-06 11:24:27 INFO B: wallet created
+2026-11-06 11:24:31 INFO B: unlock: wallet unlocked
+2026-11-06 11:24:37 INFO miner addr A=7RSd3PxYEwoG2bW5CnxjNT1toskaGyfvVH B=79hWWRZZrfgeg6j2WYjgNZgH5G5wKmJysV
+2026-11-06 11:24:37 INFO sample hA=1 hB=1 peers 1/1 mempool 0/0 RSS 498364/487996 kB
+2026-11-06 11:24:38 INFO sample hA=2 hB=2 peers 1/1 mempool 0/0 RSS 503612/490892 kB
+2026-11-06 11:29:25 INFO mined 20 blocks (latest h=21, 0 txs, solve 33.2ms, lag 0.5s)
+2026-11-06 11:29:38 INFO sample hA=21 hB=21 peers 1/1 mempool 0/0 RSS 559640/533820 kB
+2026-11-06 11:34:26 INFO mined 40 blocks (latest h=41, 0 txs, solve 35.2ms, lag 0.5s)
+2026-11-06 11:34:38 INFO tx skipped: A balance 0.00 not yet mature
+2026-11-06 11:34:38 INFO sample hA=41 hB=41 peers 1/1 mempool 0/0 RSS 579256/539332 kB
+2026-11-06 11:37:38 INFO tx skipped: A balance 0.00 not yet mature
+2026-11-06 11:39:27 INFO mined 60 blocks (latest h=61, 0 txs, solve 28.6ms, lag 0.5s)
+2026-11-06 11:39:37 INFO progress: 60 blocks, 0 txs, 0 block failures, 0 tx failures
+2026-11-06 11:39:38 INFO sample hA=61 hB=61 peers 1/1 mempool 0/0 RSS 596152/548736 kB
+2026-11-06 11:40:38 INFO tx skipped: A balance 0.00 not yet mature
+2026-11-06 11:43:39 INFO tx skipped: A balance 0.00 not yet mature
+2026-11-06 11:44:29 INFO mined 80 blocks (latest h=81, 0 txs, solve 40.7ms, lag 0.5s)
+2026-11-06 11:44:38 INFO sample hA=81 hB=81 peers 1/1 mempool 0/0 RSS 610312/551660 kB
+2026-11-06 11:46:39 INFO tx skipped: A balance 0.00 not yet mature
+2026-11-06 11:49:32 INFO mined 100 blocks (latest h=101, 0 txs, solve 126.7ms, lag 0.6s)
+2026-11-06 11:49:38 INFO sample hA=101 hB=101 peers 1/1 mempool 0/0 RSS 606140/559376 kB
+2026-11-06 11:49:43 INFO tx A->B 43e275479ee202d6f22bedc1b51fc82b7e6aaf92229c095edc8fbf272e5dbaac (bal 100.0)
+2026-11-06 11:52:39 INFO tx skipped: B balance 1.00
+2026-11-06 11:54:33 INFO mined 120 blocks (latest h=121, 0 txs, solve 43.6ms, lag 0.5s)
+2026-11-06 11:54:38 INFO progress: 120 blocks, 1 txs, 0 block failures, 0 tx failures
+2026-11-06 11:54:39 INFO sample hA=121 hB=121 peers 1/1 mempool 0/0 RSS 615248/572644 kB
+2026-11-06 11:55:39 INFO tx skipped: B balance 1.00
+2026-11-06 11:58:40 INFO tx skipped: B balance 1.00
+2026-11-06 11:59:34 INFO mined 140 blocks (latest h=141, 0 txs, solve 84.4ms, lag 0.5s)
+2026-11-06 11:59:39 INFO sample hA=141 hB=141 peers 1/1 mempool 0/0 RSS 615188/583764 kB
+2026-11-06 12:01:40 INFO tx skipped: B balance 1.00
+2026-11-06 12:04:38 INFO mined 160 blocks (latest h=161, 0 txs, solve 114.4ms, lag 0.6s)
+2026-11-06 12:04:39 INFO sample hA=161 hB=161 peers 1/1 mempool 0/0 RSS 626060/597172 kB
+2026-11-06 12:04:40 INFO tx skipped: B balance 1.00
+2026-11-06 12:07:41 INFO tx skipped: B balance 1.00
+2026-11-06 12:08:46 INFO soak driver starting: deadline 2026-11-06 13:24:22 UTC (4535s remaining)
+2026-11-06 12:08:46 INFO A: createwallet: A createwallet -> error {'code': -13, 'message': 'wallet already loaded'}
+2026-11-06 12:08:50 INFO A: unlock: wallet unlocked
+2026-11-06 12:08:50 INFO B: createwallet: B createwallet -> error {'code': -13, 'message': 'wallet already loaded'}
+2026-11-06 12:08:54 INFO B: unlock: wallet unlocked
+2026-11-06 12:09:01 INFO miner addr A=7PAjTd78dWzUyZXj94VM8jb3TXECCF4V6q B=75CQuX8h1Q9vM7ZbeVkq4SfkCqGJhmDNPg
+2026-11-06 12:09:01 INFO sample hA=175 hB=175 peers 1/1 mempool 0/0 RSS 638412/609716 kB
+2026-11-06 12:09:02 INFO sample hA=176 hB=176 peers 1/1 mempool 0/0 RSS 639328/610732 kB
+2026-11-06 12:13:50 INFO mined 20 blocks (latest h=195, 0 txs, solve 85.0ms, lag 0.5s)
+2026-11-06 12:14:02 INFO sample hA=195 hB=195 peers 1/1 mempool 0/0 RSS 638328/611172 kB
+2026-11-06 12:18:53 INFO mined 40 blocks (latest h=215, 0 txs, solve 194.4ms, lag 0.5s)
+2026-11-06 12:19:06 INFO tx A->B dad1dc9824e0bd74f2b43ee794c58cf9f384e7f03cd0e91186755913c9d893c3 (bal 5799.0)
+2026-11-06 12:19:06 INFO sample hA=215 hB=215 peers 1/1 mempool 1/1 RSS 634568/615880 kB
+2026-11-06 12:22:06 INFO tx B->A 7d68b5d6bd62060232303f2fcfa0041ac083ea53b49d6c14c9ee6fa060b96796 (bal 2.0)
+2026-11-06 12:23:56 INFO mined 60 blocks (latest h=235, 0 txs, solve 51.7ms, lag 0.5s)
+2026-11-06 12:24:02 INFO progress: 60 blocks, 2 txs, 0 block failures, 0 tx failures
+2026-11-06 12:24:07 INFO sample hA=235 hB=235 peers 1/1 mempool 0/0 RSS 628692/605264 kB
+2026-11-06 12:25:07 INFO tx A->B 17e45c4d7a1cfe8a6873dfd33b7ca528031fe523917162305273aa794c194a07 (bal 6999.0)
+2026-11-06 12:28:08 INFO tx A->B 84a0fa5a3199f164e5f8dafc8a878b9a2248d850eca2f681b010803acbf337c0 (bal 7598.0)
+2026-11-06 12:29:01 INFO mined 80 blocks (latest h=255, 0 txs, solve 292.0ms, lag 0.5s)
+2026-11-06 12:29:07 INFO sample hA=255 hB=255 peers 1/1 mempool 0/0 RSS 651612/613416 kB
+2026-11-06 12:31:07 INFO tx B->A 31d9665a039aa4c73810fef6fb507a10f9e136750376ebebce2ff57c7c2e4b1e (bal 3.0)
+2026-11-06 12:34:08 INFO tx A->B 1d00cd8e31c9ccf5f78df36d389b8e148d549002186c4eb90c57ab2ad613ce56 (bal 8748.0)
+2026-11-06 12:34:10 INFO mined 100 blocks (latest h=275, 1 txs, solve 194.8ms, lag 0.5s)
+2026-11-06 12:34:10 INFO sample hA=275 hB=275 peers 1/1 mempool 0/0 RSS 651156/624120 kB
+2026-11-06 12:37:08 INFO tx B->A c96068c07b1fa237af8ef3d78af9f501fcdd279e02e8cc30cab04e24bd55aee9 (bal 3.0)
+2026-11-06 12:39:02 INFO progress: 119 blocks, 7 txs, 0 block failures, 0 tx failures
+2026-11-06 12:39:09 INFO sample hA=294 hB=294 peers 1/1 mempool 0/0 RSS 645820/629868 kB

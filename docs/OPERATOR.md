@@ -25,6 +25,21 @@ oeeoo-node --datadir oeeoo-data --genesis-file genesis.json
   in the banner. A node showing that warning is not on mainnet.
 - `--maxpeers` (default 125): maximum peer connections (inbound +
   outbound). `--maxmempool <MB>` (default 300): mempool size cap.
+- `--persistmempool` (default on): the mempool is saved to
+  `<datadir>/mempool.dat` on clean shutdown and reloaded on the
+  next start (every loaded transaction is re-validated against the
+  current UTXO set; expired or invalid entries are dropped).
+  `--persistmempool=0` / `--no-persistmempool` opts out of the
+  automatic save/load. `savemempool` (RPC) dumps the mempool on
+  demand even when persistence is off; `importmempool` loads a
+  mempool file into the live pool; `getmempoolinfo` reports a
+  `loaded` flag (true once the startup load attempt finished).
+- **Peering limitation (Milestone 17 finding): the node accepts
+  inbound P2P connections but cannot dial out** — there is no
+  `--addnode` and no dial loop, and DNS seeds only fill the
+  address book (nothing dials the discovered addresses). A fresh
+  node has no peers until other nodes connect to it. Outbound
+  dialing is the #1 open item for M18.
 - `--no-deep-verify`: skips the full chain replay at startup. **The
   default is to deep-verify**: on every start the node replays the
   chain from the genesis block and compares the resulting UTXO set

@@ -1,0 +1,112 @@
+# Milestone 17 profiling — Stream C
+# Machine: AMD EPYC 9D25, 4 vCPUs, 8 GB RAM, g++ 13.3.0, OpenSSL 3.0.13, SQLite 3.45.1
+# Harness: src/bench/bench.cpp (oeeoo_bench), Release -O2, no sanitizers, own build dir build-m17c
+# Chain: 1,000-block synthetic chain, test bits 0x207fffff (PoW search NOT in the numbers),
+#   in-memory Node, no ChainStore (excludes SQLite I/O); 1 signed P2PKH spend/block from height 101
+#   (coinbase maturity 100, fee 10,000 sats). RPC latency: soak17/rpc-latency-probe.py vs live soak nodes.
+# Draft section for docs/MILESTONE17.md: soak17/profiling-section-draft.md
+# NOTE: bench linked with src/mempool/mempooldump.cpp on the g++ command line — at build time
+#   CMakeLists.txt did not list it yet (Stream A work in progress); see draft section.
+#
+=== oeeoo_bench run 1: 2026-11-06T11:28:26Z ===
+oeeoo_bench: 1000 blocks, 1 spend tx/block (after maturity 100)
+  method: in-memory Node, no ChainStore (excludes SQLite I/O); test bits 0x207fffff; single-threaded; Release build
+  ... height 250, mempool 0, utxo coins (tip 250)
+  ... height 500, mempool 0, utxo coins (tip 500)
+  ... height 750, mempool 0, utxo coins (tip 750)
+  ... height 1000, mempool 0, utxo coins (tip 1000)
+chain: tip height 1000
+genesis BroadcastBlock: 0.0483 ms
+spend txs inserted into mempool: 900
+block validation (BroadcastBlock) n=1000   avg=   1.2990  p50=   1.3799  p95=   1.5625  p99=   2.0690  max=  26.3105  total=  1298.976 ms
+mempool insertion (AddTransaction) n=900    avg=   0.5843  p50=   0.5702  p95=   0.6428  p99=   0.9540  max=   2.4755  total=   525.836 ms
+template assembly (AssembleBlock) n=1000   avg=   0.6218  p50=   0.6746  p95=   0.7895  p99=   0.9879  max=   2.0147  total=   621.782 ms
+throughput: 769.8 blocks/s validated (1.299 ms/block avg)
+exit=0
+=== oeeoo_bench run 2: 2026-11-06T11:28:36Z ===
+oeeoo_bench: 1000 blocks, 1 spend tx/block (after maturity 100)
+  method: in-memory Node, no ChainStore (excludes SQLite I/O); test bits 0x207fffff; single-threaded; Release build
+  ... height 250, mempool 0, utxo coins (tip 250)
+  ... height 500, mempool 0, utxo coins (tip 500)
+  ... height 750, mempool 0, utxo coins (tip 750)
+  ... height 1000, mempool 0, utxo coins (tip 1000)
+chain: tip height 1000
+genesis BroadcastBlock: 0.0450 ms
+spend txs inserted into mempool: 900
+block validation (BroadcastBlock) n=1000   avg=   1.2798  p50=   1.3725  p95=   1.6427  p99=   2.0707  max=   2.1549  total=  1279.844 ms
+mempool insertion (AddTransaction) n=900    avg=   0.5889  p50=   0.5692  p95=   0.7467  p99=   0.9228  max=   1.0445  total=   530.046 ms
+template assembly (AssembleBlock) n=1000   avg=   0.6305  p50=   0.6750  p95=   0.8574  p99=   1.0259  max=   1.4623  total=   630.511 ms
+throughput: 781.3 blocks/s validated (1.280 ms/block avg)
+exit=0
+=== oeeoo_bench run 3: 2026-11-06T11:28:40Z ===
+oeeoo_bench: 1000 blocks, 1 spend tx/block (after maturity 100)
+  method: in-memory Node, no ChainStore (excludes SQLite I/O); test bits 0x207fffff; single-threaded; Release build
+  ... height 250, mempool 0, utxo coins (tip 250)
+  ... height 500, mempool 0, utxo coins (tip 500)
+  ... height 750, mempool 0, utxo coins (tip 750)
+  ... height 1000, mempool 0, utxo coins (tip 1000)
+chain: tip height 1000
+genesis BroadcastBlock: 0.0483 ms
+spend txs inserted into mempool: 900
+block validation (BroadcastBlock) n=1000   avg=   1.2498  p50=   1.3445  p95=   1.5414  p99=   1.7767  max=   4.0086  total=  1249.769 ms
+mempool insertion (AddTransaction) n=900    avg=   0.5766  p50=   0.5689  p95=   0.6059  p99=   0.8570  max=   1.3977  total=   518.984 ms
+template assembly (AssembleBlock) n=1000   avg=   0.6190  p50=   0.6585  p95=   0.7862  p99=   1.0795  max=   2.3973  total=   619.000 ms
+throughput: 800.1 blocks/s validated (1.250 ms/block avg)
+exit=0
+RPC latency vs 127.0.0.1:64877 (soak17/data-a), 100 samples each, 2026-11-06T11:28:51Z
+getblockcount  n=100 avg=0.990 p50=0.653 p95=1.012 p99=31.439 max=31.439 ms
+getblock       n=100 avg=1.144 p50=1.142 p95=1.526 p99=2.137 max=2.137 ms
+bestblockhash used for getblock: 14bd0f3847deb56c2d2abb3aca528b0c2ef9385667fe1e2ec7f9545d85de0268
+RPC latency vs 127.0.0.1:64878 (soak17/data-b), 100 samples each, 2026-11-06T11:28:52Z
+getblockcount  n=100 avg=1.010 p50=0.671 p95=1.309 p99=30.348 max=30.348 ms
+getblock       n=100 avg=1.470 p50=1.421 p95=2.061 p99=9.042 max=9.042 ms
+bestblockhash used for getblock: 14bd0f3847deb56c2d2abb3aca528b0c2ef9385667fe1e2ec7f9545d85de0268
+=== oeeoo_bench sensitivity 5 tx/block: 2026-11-06T11:29:16Z ===
+oeeoo_bench: 1000 blocks, 5 spend tx/block (after maturity 100)
+  method: in-memory Node, no ChainStore (excludes SQLite I/O); test bits 0x207fffff; single-threaded; Release build
+exit=2
+=== oeeoo_bench re-run after harness fix (1 tx/block): 2026-11-06T11:29:39Z ===
+oeeoo_bench: 1000 blocks, 1 spend tx/block (after maturity 100)
+  method: in-memory Node, no ChainStore (excludes SQLite I/O); test bits 0x207fffff; single-threaded; Release build
+  ... height 250, mempool 0, utxo coins (tip 250)
+  ... height 500, mempool 0, utxo coins (tip 500)
+  ... height 750, mempool 0, utxo coins (tip 750)
+  ... height 1000, mempool 0, utxo coins (tip 1000)
+chain: tip height 1000
+genesis BroadcastBlock: 0.0495 ms
+spend txs inserted into mempool: 900
+block validation (BroadcastBlock) n=1000   avg=   1.3019  p50=   1.3618  p95=   1.5222  p99=   3.5607  max=  25.7844  total=  1301.944 ms
+mempool insertion (AddTransaction) n=900    avg=   0.5799  p50=   0.5685  p95=   0.6119  p99=   0.8541  max=   1.6588  total=   521.948 ms
+template assembly (AssembleBlock) n=1000   avg=   0.6570  p50=   0.6634  p95=   0.7726  p99=   1.5452  max=  19.3166  total=   657.042 ms
+throughput: 768.1 blocks/s validated (1.302 ms/block avg)
+exit=0
+=== oeeoo_bench sensitivity 5 tx/block: 2026-11-06T11:29:42Z ===
+oeeoo_bench: 1000 blocks, 5 spend tx/block (after maturity 100)
+  method: in-memory Node, no ChainStore (excludes SQLite I/O); test bits 0x207fffff; single-threaded; Release build
+  ... height 250, mempool 0, utxo coins (tip 250)
+  ... height 500, mempool 0, utxo coins (tip 500)
+  ... height 750, mempool 0, utxo coins (tip 750)
+  ... height 1000, mempool 0, utxo coins (tip 1000)
+chain: tip height 1000
+genesis BroadcastBlock: 0.0624 ms
+spend txs inserted into mempool: 900
+block validation (BroadcastBlock) n=1000   avg=   1.2727  p50=   1.3509  p95=   1.5875  p99=   2.5136  max=   3.5559  total=  1272.703 ms
+mempool insertion (AddTransaction) n=900    avg=   0.5822  p50=   0.5694  p95=   0.6305  p99=   0.9088  max=   1.1682  total=   523.971 ms
+template assembly (AssembleBlock) n=1000   avg=   0.6526  p50=   0.6604  p95=   0.8120  p99=   1.2140  max=  29.0330  total=   652.637 ms
+throughput: 785.7 blocks/s validated (1.273 ms/block avg)
+exit=0
+=== oeeoo_bench re-validation vs committed tree 82759ff (registered CMake target): 2026-11-06T14:28:09Z ===
+oeeoo_bench: 1000 blocks, 1 spend tx/block (after maturity 100)
+  method: in-memory Node, no ChainStore (excludes SQLite I/O); test bits 0x207fffff; single-threaded; Release build
+  ... height 250, mempool 0, utxo coins (tip 250)
+  ... height 500, mempool 0, utxo coins (tip 500)
+  ... height 750, mempool 0, utxo coins (tip 750)
+  ... height 1000, mempool 0, utxo coins (tip 1000)
+chain: tip height 1000
+genesis BroadcastBlock: 0.0693 ms
+spend txs inserted into mempool: 900
+block validation (BroadcastBlock) n=1000   avg=   1.2870  p50=   1.3635  p95=   1.5999  p99=   2.3809  max=   6.3659  total=  1286.962 ms
+mempool insertion (AddTransaction) n=900    avg=   0.5909  p50=   0.5705  p95=   0.6897  p99=   0.9871  max=   1.8596  total=   531.775 ms
+template assembly (AssembleBlock) n=1000   avg=   0.6374  p50=   0.6721  p95=   0.7980  p99=   1.1827  max=   3.2893  total=   637.363 ms
+throughput: 777.0 blocks/s validated (1.287 ms/block avg)
+exit=0
