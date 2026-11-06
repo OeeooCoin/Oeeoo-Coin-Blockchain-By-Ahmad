@@ -50,6 +50,17 @@
 
 The node speaks Stratum v1 on **127.0.0.1:64777** (localhost only).
 
+`mining.authorize` accepts any username and password. This is by
+design, not an oversight: the Stratum server binds **127.0.0.1
+only** (port 64777) and is reachable only from the local machine,
+so there is no remote party to authenticate. Never expose port
+64777 beyond localhost — do not port-forward it, do not bind it to
+a public interface, and do not put the node on a network where
+untrusted local users can reach it, because anyone who can reach
+the port can mine as the node. If Stratum ever listens on a
+non-loopback address, `mining.authorize` must gain real credential
+checking first.
+
 1. Start the node with a miner address — Stratum stays off without one:
    ```
    oeeoo-node --miner-address <your-P2PKH-address> ...

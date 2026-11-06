@@ -83,8 +83,11 @@ Adversaries, in order of exposure:
   missing parents is rejected, not stored).
 - `src/rpc/` — JSON parser (strict, fuzzed), HTTP handling
   (4 MB body cap, 64 KB header cap, 64-level JSON nesting cap),
-  cookie auth (constant-time compare), thread-per-connection
-  (max 32), all 29 methods (incl. `estimatesmartfee`).
+  cookie auth (constant-time compare), worker pool (16 threads)
+  + bounded work queue (64 deep; queue-full → HTTP 500),
+  36 callable methods + `help` (incl. `getchaintips`,
+  `getblockstats`, `getchaintxstats`, `listtransactions`,
+  `gettransaction`, `walletpassphrasechange`).
 - `src/rpc/stratum.*` — line-delimited JSON (64 KB line cap),
   job building, share validation, vardiff.
 - `src/db/` — SQLite store (schema v2, undo table), PRAGMA
@@ -123,10 +126,15 @@ Adversaries, in order of exposure:
   accepted. Dust in consensus validation remains an open decision.
 - **RPC/Stratum are local-only, no TLS.** Exposing them needs
   a reverse proxy with TLS and is out of scope for the node.
-  There is also no per-client RPC rate limit (only the
-  32-connection cap).
-- **No `getchaintips` / `getblockstats`**; pruned history
-  cannot be re-validated (by design — bodies are required).
+  There is no per-client RPC rate limit (Core has none either);
+  the bound is the worker pool (16 threads) + work queue
+  (64 deep, queue-full → HTTP 500).
+- **`getchaintips` / `getblockstats` / `getchaintxstats` now
+  exist** (Milestone 16). `getblockstats` replays a block's
+  ancestry from stored blocks to price fees — a coin whose
+  origin is not in a stored block cannot be priced; pruned
+  history cannot be re-validated (by design — bodies are
+  required).
 - **Fuzzing covers parsers, not the live peer/RPC/Stratum
   state machines.**
 - **Deep verification is now the node default** (Milestone 13).
@@ -139,15 +147,28 @@ Adversaries, in order of exposure:
   is the testing-mode banner. (Milestone 13.)
 - **Inbound peer IPs are now recorded** (Milestone 15:
   `TransportMessage.remoteAddress`, `accept()` records the real
-  IP), so bans on inbound peers survive reconnects. Caveat: bans
-  are keyed by `"ip:port"` and the TCP port is ephemeral — a peer
-  reconnecting from a new ephemeral port gets a fresh key. Whether
-  inbound bans should be keyed by IP alone is an open decision.
+  IP), and bans are now keyed by **IP alone** (Milestone 16:
+  `BanManager::BanKey` strips the ephemeral TCP port), so bans
+  on inbound peers survive reconnects from any port. Ban keys
+  are not persisted across restarts (no load path is wired into
+  the node); if one is ever added it must pass stored keys
+  through `BanManager::BanKey`.
 - **AddrMan now has anti-fill defences** (Milestone 15): per-/16
   netgroup cap 64, 30-day entry expiry, failure counting with
-  removal at 3. **AS-map is NOT implemented** — bucketing is by
-  /16 netgroup only, so a single /16 hosting many distinct peers
-  is still one bucket.
+  removal at 3. **AS-map is NOT implemented** — /16 bucketing is
+  the accepted permanent defence for v0.1.0 (Milestone 16
+  decision); a single /16 hosting many distinct peers is still
+  one bucket.
+- **Wallet history is a sidecar journal** (Milestone 16:
+  `<wallet>.txjournal`, JSON-lines, atomic rewrite, no secrets
+  inside, readable while locked). The wallet file format is
+  untouched. Sends made before the journal existed are not
+  recoverable; receives are rebuilt by rescan.
+- **`getblocktemplate` now reports real per-tx fees (integer
+  satoshis) and real sigops** (Milestone 16:
+  `CountSigOps` — CHECKSIG = 1, bare multisig = pubkey count,
+  20 fallback). `sigoplimit` 20000 is a template POLICY limit
+  only, not consensus, and not Core's 80,000.
 - **DNS seeds can no longer hang startup** (Milestone 15): a 10 s
   deadline on a worker thread; a hanging resolver is cut off.
 - **Compact relay is now bounded** (Milestone 15): per-peer

@@ -57,25 +57,41 @@ oeeoo-node --datadir oeeoo-data --genesis-file genesis.json
   only in the test suite).
 - There is **no TLS** on RPC. On localhost that is the intended
   design; over any network it would expose the cookie.
-- Resource limits: at most 32 concurrent RPC connections; requests
-  are capped at 64 KB of headers and 4 MB of body; JSON nesting is
-  capped at 64 levels (deeper payloads are rejected, not parsed).
-  There is no per-client rate limit beyond the connection cap — do
-  not expose the port.
+- Resource limits: a fixed pool of 16 RPC worker threads fed
+  from a 64-deep work queue (Core's defaults; tune with the
+  `rpcthreads` / `rpcworkqueue` config keys or the
+  `--rpcthreads` / `--rpcworkqueue` flags). When the queue is
+  full a request is answered with HTTP 500 ("RPC work queue is
+  full") and the server keeps running. Requests are capped at
+  64 KB of headers and 4 MB of body; JSON nesting is capped at
+  64 levels (deeper payloads are rejected, not parsed). There is
+  no per-client rate limit — Core has none either; the bound is
+  the pool + queue. Do not expose the port.
 - No RPC method returns a private key, mnemonic, seed, or xprv.
   There is no `dumpprivkey` / `dumpwallet`. The wallet methods
-  return only addresses, balances, and transaction ids — and under
-  `oeeoo-node` v0.1.0 they return error `-13` because no wallet is
-  attached (see `docs/WALLET.md`).
-- The RPC method list (29 methods in v0.1.0, including the new
-  `estimatesmartfee`) is printed by `oeeoo-cli help`.
+  return only addresses, balances, and transaction ids. When a
+  wallet is attached with `--wallet` (see `docs/WALLET.md`),
+  `getbalance` / `listunspent` / `getwalletinfo` /
+  `listtransactions` / `gettransaction` work while locked
+  (watch-only history); `getnewaddress` / `sendtoaddress` refuse
+  while locked, and `walletpassphrasechange` requires the wallet
+  to be unlocked.
+- The RPC method list (36 callable methods plus `help` itself,
+  including the new `getchaintips`, `getblockstats`,
+  `getchaintxstats`, `listtransactions`, `gettransaction`, and
+  `walletpassphrasechange`) is printed by `oeeoo-cli help`.
 
 ## Stratum security
 
 - Stratum binds **127.0.0.1 only** (port 64777) and starts only when
   `--miner-address` is set. `mining.authorize` accepts any credentials
-  — that is safe only because the port is localhost-only. Never expose
-  it. See `docs/MINING.md`.
+  — that is safe only because the port is localhost-only: it is
+  reachable solely from the machine the node runs on, so there is no
+  remote miner to authenticate. Never expose port 64777 beyond
+  localhost. If you run a miner, run it on the same machine as the
+  node and point it at `127.0.0.1:64777`. If Stratum ever listens on a
+  non-loopback address, `mining.authorize` must gain real credential
+  checking first. See `docs/MINING.md`.
 
 ## Backup and restore
 

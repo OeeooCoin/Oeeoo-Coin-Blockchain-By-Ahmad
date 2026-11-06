@@ -472,3 +472,82 @@ Real addresses come from real keys in Milestone 8.
 - Final state: 155 test sections (134 + 21 new), ALL CHECKS PASSED,
   ctest 100%, ASan/UBSan clean, cppcheck 0 findings. Toolchain:
   g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.
+
+## Milestone 16 (2026-11-06) — RPC & mining completeness
+
+- All 7 previously open decisions DECIDED by user delegation
+  2026-11-06 14:55 PKT ("jo behtar hain karo"):
+  (1) walletpassphrasechange → M16. (2) Wallet-tx journal →
+  SIDECAR file (payload v2 rejected — migrating the encrypted
+  wallet format is too risky; sidecar keeps the wallet file
+  untouched). (3) Multi-wallet → FUTURE, post-M19/post-launch.
+  (4) Stratum V2 → DEFER past launch (spec §13.1 requires it
+  eventually; V1 works; Core itself only added experimental V2
+  around v30). (5) Inbound ban key → IP ALONE (strip the port —
+  "ip:port" defeats M15's IP-keyed bans since TCP ports are
+  ephemeral). (6) AS-map → accept /16 bucketing permanently for
+  v0.1.0, AS-map deferred post-launch. (7) Orphan promotion →
+  LEAVE AS IS (block arrival only; accepting unconfirmed inputs
+  into validation is consensus-adjacent and risky).
+- M16 also decided: RPC load control = Core-style thread count +
+  bounded work queue (queue-full → HTTP 500), NO per-client rate
+  limiting (Core has none either); sigops counted for real in
+  getblocktemplate, existing 20000 enforced as RPC/template
+  POLICY limit only (NOT consensus, NOT Core's 80,000);
+  Stratum authorize-any documented as localhost-only by design
+  (binds 127.0.0.1).
+- New methods: getchaintips (ChainState retains stale-branch
+  tips in vIndex — verified before building), getblockstats
+  (fees by replaying the block's ancestry from stored blocks;
+  the node's current UTXO view cannot price older blocks),
+  getchaintxstats (default window 2016), listtransactions /
+  gettransaction (sidecar journal), walletpassphrasechange
+  (wrong old → -14, never distinguished from a corrupt file).
+  RPC surface now 36 callable methods + help.
+- getblocktemplate: fee = real integer satoshis per tx
+  (BlockTemplate.txFees, recorded in AssembleBlock),
+  sigops = real CountSigOps (CHECKSIG 1, bare multisig pubkey
+  count, 20 fallback for non-bare-multisig scripts; no P2SH
+  rule — no P2SH at launch). The "sigops always 0"
+  simplification is gone.
+- Sidecar journal: `<wallet>.txjournal`, JSON-lines, keyed by
+  txid (latest-wins merge), full rewrite via tmp + fsync +
+  rename on every save; missing sidecar = empty journal, not an
+  error; migration: receives rebuilt by ScanUtxo rescan, sends
+  made before the journal existed are NOT recoverable. History
+  works while locked (journal holds no secrets). No
+  mempool-acceptance hook (receives appear once confirmed via
+  rescan, sends immediately). Reorg: blockhash looked up by
+  height on the current main chain.
+- RPC load control: worker pool 16 threads + 64-deep queue
+  (Core defaults), SetMaxThreads/SetWorkQueueSize (+ config
+  keys rpcthreads/rpcworkqueue and CLI flags, wired in
+  node_main.cpp); queue-full → HTTP 500
+  {"code":-32603,"message":"RPC work queue is full"}; clean
+  shutdown joins all workers (incl. a worker blocked on an
+  idle client). Thread-per-connection (max 32) removed.
+- Ban key: BanManager::BanKey is the single choke point — Ban /
+  IsBanned / Unban all normalize through it. "loopback:<name>"
+  stays as-is; non-IPv4 ip:port stays as-is. Peer.address keeps
+  the full "ip:port" for display. Ban keys are NOT persisted
+  across restarts (no load path wired in); a future load path
+  must pass stored keys through BanKey.
+- Bugs found and fixed (disclosed in docs/MILESTONE16.md §C.1):
+  (1) gettransaction dangling pointer — ListTxRecords() returns
+  by value, the code kept a pointer into the temporary; the RPC
+  worker died with std::length_error; fixed with a local copy.
+  (2) WorkerLoop first draft held the queue mutex across
+  HandleConnection — would have serialized all workers and
+  blocked Stop(); fixed in review. (3) Environment:
+  libsqlite3-dev and cppcheck missing AGAIN after a VM
+  replacement; restored from cached .debs via sudo dpkg -i
+  (no download needed); first clean build was killed (SIGTERM)
+  during the environment shift and was re-run from scratch.
+- Verdict: NOT READY (unchanged — genesis unapproved, no
+  independent audit). Next is M17 (persistence & robustness).
+- New doc: docs/MILESTONE16.md; docs/SECURITY_REVIEW.md,
+  docs/OPERATOR.md, docs/MINING.md updated.
+- Final state: 171 test sections (155 + 16 new), ALL CHECKS
+  PASSED, ctest 100%, ASan/UBSan clean, cppcheck 0 findings.
+  Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite
+  3.45.1, cppcheck 2.13.0.

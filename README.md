@@ -148,6 +148,18 @@ Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 - `tests/test_milestone15.cpp` (15 sections) + 3 AddrMan + 3 DNS sections in `tests/test_network.cpp` / `tests/test_dnsseed.cpp` — **155 sections total**
 - Known caveats (disclosed in `docs/MILESTONE15.md` §C.2): orphan promotion needs a *confirmed* parent (mempool-parent arrival cannot promote); TCP bans are keyed by `"ip:port"` so a reconnect from a new ephemeral port gets a fresh key — both are open decisions (§G)
 
+## What Milestone 16 adds (2026-11-06) — RPC & mining completeness
+
+- `src/blockchain/chain.*` — `GetChainTips()` (every tip incl. stale branches, with branch length and status); `src/rpc/rpcserver.*` — `getchaintips` / `getblockstats` (fees by replaying the block's ancestry from stored blocks) / `getchaintxstats` (default window 2016); all three in the `help` list — **36 callable methods + `help`**
+- `src/script/script.*` — `CountSigOps` (CHECKSIG = 1, bare multisig = pubkey count, 20 fallback; no P2SH rule); `src/mining/miner.*` — `BlockTemplate.txFees` (real per-tx satoshis); `getblocktemplate` now reports real `fee` (integer sats) and real `sigops` — the "sigops always 0" simplification is gone; `sigoplimit` 20000 kept as a template POLICY limit only (not consensus, not Core's 80,000)
+- `src/wallet/txjournal.*` (NEW) — the wallet-tx sidecar journal: `<wallet>.txjournal`, JSON-lines, keyed by txid, full rewrite via tmp + fsync + rename; the wallet file format is unchanged (payload v1); `src/wallet/wallet.*` — `WalletTxRecord`, `ScanUtxo` records receives; `src/wallet/nodewallet.*` — sidecar load/save, `ChangePassphrase`
+- `src/rpc/rpcserver.*` — `listtransactions` / `gettransaction` (history works while locked — the journal holds no secrets) and `walletpassphrasechange` (wrong old passphrase → error -14); passphrase never a CLI flag / config value / logged
+- `src/rpc/rpcserver.*` — RPC load control: fixed worker pool (16 threads) + bounded work queue (64 deep, Core defaults); queue-full → HTTP 500; clean shutdown joins all workers; config keys `rpcthreads` / `rpcworkqueue` + CLI flags, wired in `src/app/node_main.cpp`; thread-per-connection (max 32) removed; **no per-client rate limiting** (Core has none either)
+- `src/network/peer.*` — `BanManager::BanKey`: bans keyed by **IP alone** (M15 follow-up fix — the ephemeral TCP port no longer defeats bans); `src/network/addrman.h` — /16 bucketing accepted permanently for v0.1.0, AS-map deferred post-launch; orphan promotion left as is (block arrival only); Stratum `mining.authorize` documented as localhost-only by design (`docs/MINING.md`, `docs/OPERATOR.md`)
+- `docs/MILESTONE16.md` (full report, verdict NOT READY), `docs/DECISION_LOG.md`, `docs/SECURITY_REVIEW.md`, `docs/OPERATOR.md`, `docs/MINING.md` updated
+- `tests/test_milestone16a.cpp` (6 sections) + `tests/test_milestone16b.cpp` (6 sections) + `tests/test_milestone16c.cpp` (4 sections) — **171 sections total**
+- Known caveats (disclosed in `docs/MILESTONE16.md` §C.2): `getblockstats` cannot price a coin whose origin is not in a stored block; sends made before the journal existed are not recoverable; ban keys are not persisted across restarts; the M15 real-TCP test is intermittently flaky in sandboxes (fixed-port bind collision), not a code regression
+
 ## What Phase 1 contains
 
 - `src/consensus/` — consensus constants, integer money type, subsidy
