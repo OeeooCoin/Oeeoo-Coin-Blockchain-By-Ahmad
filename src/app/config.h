@@ -50,6 +50,14 @@ struct AppConfig {
   // (JSON-RPC -32603 "RPC work queue is full") and closed.
   int rpcThreads = 16;
   int rpcWorkQueueSize = 64;
+  // Mempool persistence (Milestone 17, Bitcoin Core-compatible
+  // semantics): default ON — the mempool is saved to
+  // `<dataDir>/mempool.dat` on clean shutdown and reloaded on
+  // start. `persistmempool=0` (config) or `--persistmempool=0` /
+  // `--no-persistmempool` (CLI) disables both the automatic load
+  // and the automatic save; the explicit `savemempool` RPC still
+  // writes on demand.
+  bool persistMempool = true;
   int maxPeers = 125;
   std::size_t maxMempoolBytes = 300ULL * 1024 * 1024;  // 300 MB default
   bool help = false;

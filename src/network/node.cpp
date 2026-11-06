@@ -1392,6 +1392,65 @@ bool Node::LoadFromStore(ChainStore& store, std::string& error,
   return true;
 }
 
+// Mempool persistence (Milestone 17). The load runs against the
+// chain/UTXO set as loaded above, so it must be called after
+// LoadFromStore (and after the genesis block is accepted on a
+// fresh data directory): a transaction is only re-admitted when
+// its inputs are still unspent in the current UTXO set.
+bool Node::LoadMempool(std::string& error) {
+  if (!persistMempool_) {
+    error = "mempool persistence is disabled (persistmempool=0)";
+    return false;
+  }
+  if (mempoolPath_.empty()) {
+    error = "no mempool file configured";
+    return false;
+  }
+  // The load attempt has finished once LoadMempoolFile returns,
+  // whatever its outcome — including a missing file (empty
+  // mempool) and a malformed header (empty mempool + warning).
+  // That is what getmempoolinfo's `loaded` reports.
+  mempoolLoaded_ = true;
+  MempoolLoadStats stats;
+  if (!LoadMempoolFile(mempoolPath_, mempool_, utxo_,
+                       chain_.GetTipHeight() + 1,
+                       chain_.GetMedianTimePast(), Now(), stats, error,
+                       chain_.GetVestingParams())) {
+    lastMempoolLoadStats_ = stats;
+    return false;
+  }
+  lastMempoolLoadStats_ = stats;
+  return true;
+}
+
+bool Node::SaveMempool(std::string& error) {
+  if (!persistMempool_) {
+    error = "mempool persistence is disabled (persistmempool=0)";
+    return false;
+  }
+  if (mempoolPath_.empty()) {
+    error = "no mempool file configured";
+    return false;
+  }
+  return SaveMempoolFile(mempoolPath_, mempool_, error);
+}
+
+bool Node::DumpMempool(std::string& error) {
+  if (mempoolPath_.empty()) {
+    error = "no mempool file configured";
+    return false;
+  }
+  return SaveMempoolFile(mempoolPath_, mempool_, error);
+}
+
+bool Node::ImportMempoolFile(const std::string& path,
+                             MempoolLoadStats& stats, std::string& error) {
+  return LoadMempoolFile(path, mempool_, utxo_,
+                         chain_.GetTipHeight() + 1,
+                         chain_.GetMedianTimePast(), Now(), stats, error,
+                         chain_.GetVestingParams());
+}
+
 bool Node::SendRawToAddress(const std::string& address, const Message& msg) {
   for (const auto& kv : peers_) {
     if (kv.second.address == address) {

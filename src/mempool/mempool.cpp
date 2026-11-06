@@ -11,7 +11,6 @@
 namespace oeeoo {
 
 namespace {
-constexpr uint32_t kMempoolExpirySeconds = 14 * 24 * 60 * 60;  // 14 days
 constexpr Amount kMinRelayFeeSatPerVb = MIN_RELAY_FEE_SAT_VB;  // 1
 constexpr std::size_t kMaxReplacementCount = 100;  // BIP125 rule 5
 constexpr uint32_t kRbfSignalSequence = 0xfffffffe;  // below this = signals
@@ -114,6 +113,26 @@ bool Mempool::AddTransaction(const Transaction& tx, const CoinsView& utxo,
                              int height, uint32_t medianTimePast,
                              uint32_t nowSeconds, std::string& error,
                              const VestingParams& vesting) {
+  return AddTransactionInternal(tx, utxo, height, medianTimePast,
+                                nowSeconds, nowSeconds, error, vesting);
+}
+
+bool Mempool::AddLoadedTransaction(const Transaction& tx,
+                                   const CoinsView& utxo, int height,
+                                   uint32_t medianTimePast,
+                                   uint32_t addedTime, uint32_t nowSeconds,
+                                   std::string& error,
+                                   const VestingParams& vesting) {
+  return AddTransactionInternal(tx, utxo, height, medianTimePast,
+                                nowSeconds, addedTime, error, vesting);
+}
+
+bool Mempool::AddTransactionInternal(const Transaction& tx,
+                                     const CoinsView& utxo, int height,
+                                     uint32_t medianTimePast,
+                                     uint32_t nowSeconds, uint32_t entryTime,
+                                     std::string& error,
+                                     const VestingParams& vesting) {
   if (tx.vin.empty()) {
     error = "coinbase transactions do not enter the mempool";
     return false;
@@ -218,7 +237,7 @@ bool Mempool::AddTransaction(const Transaction& tx, const CoinsView& utxo,
   entry.tx = tx;
   entry.fee = r.fee;
   entry.size = size;
-  entry.addedTime = nowSeconds;
+  entry.addedTime = entryTime;
   entries_.emplace(txid, std::move(entry));
   for (const TxIn& in : tx.vin) {
     spentInputs_.insert(InputKey(in.prevTxHash, in.prevOutIndex));
@@ -266,7 +285,7 @@ bool Mempool::Remove(const Hash256& txid) {
 void Mempool::RemoveExpired(uint32_t nowSeconds) {
   std::vector<Hash256> expired;
   for (const auto& kv : entries_) {
-    if (nowSeconds >= kv.second.addedTime + kMempoolExpirySeconds) {
+    if (nowSeconds >= kv.second.addedTime + kExpirySeconds) {
       expired.push_back(kv.first);
     }
   }

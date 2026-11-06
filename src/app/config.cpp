@@ -3,6 +3,7 @@
 #include "app/config.h"
 
 #include <cctype>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 
@@ -115,6 +116,8 @@ bool SetKey(AppConfig& config, const std::string& key,
       return false;
     }
     config.rpcWorkQueueSize = static_cast<int>(v);
+  } else if (key == "persistmempool") {
+    if (!ParseBool(value, config.persistMempool, error)) return false;
   } else if (key == "maxpeers") {
     uint64_t v = 0;
     if (!ParseUint(value, v) || v > 1000000) {
@@ -251,6 +254,15 @@ bool ParseArgs(int argc, char** argv, AppConfig& config,
       config.deepVerify = true;
     } else if (arg == "--no-deep-verify") {
       config.deepVerify = false;
+    } else if (arg == "--persistmempool") {
+      config.persistMempool = true;
+    } else if (arg == "--no-persistmempool") {
+      config.persistMempool = false;
+    } else if (arg.rfind("--persistmempool=", 0) == 0) {
+      // Core-style `-persistmempool=0` spelling (double-dash
+      // form): an explicit 0/1 value after the '='.
+      const std::string value = arg.substr(strlen("--persistmempool="));
+      if (!ParseBool(value, config.persistMempool, error)) return false;
     } else if (arg == "--rpcthreads") {
       std::string value;
       if (!needValue("--rpcthreads", value)) return false;
@@ -304,6 +316,10 @@ std::string UsageText(const char* program) {
       << "                         unlock with the walletpassphrase RPC)\n"
       << "  --genesis-checkpoint <hex> expected mainnet genesis hash (64 hex)\n"
       << "  --maxmempool <MB>     mempool size cap in MB (default: 300)\n"
+      << "  --persistmempool[=0|1] mempool persistence on/off "
+         "(default: on); --no-persistmempool disables the\n"
+      << "                         automatic save on shutdown and load on "
+         "start (savemempool RPC still works)\n"
       << "  --founder-script <hex> founder 2-of-3 multisig script (vesting)\n"
       << "  --dns-seed <host>     DNS seed hostname (repeatable; none by default)\n"
       << "  --pow-limit-bits <hex> TESTING ONLY: easiest difficulty bits\n"

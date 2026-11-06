@@ -30,6 +30,7 @@
 #include "db/chainstore.h"
 #include "mempool/feeestimator.h"
 #include "mempool/mempool.h"
+#include "mempool/mempooldump.h"
 #include "mempool/orphan.h"
 #include "mining/miner.h"
 #include "network/addrman.h"
@@ -82,6 +83,48 @@ class Node {
   // past the cap).
   void SetMaxPeers(int maxPeers) { maxPeers_ = maxPeers; }
   int MaxPeers() const { return maxPeers_; }
+  // Mempool persistence (Milestone 17, Bitcoin's `mempool.dat`
+  // model). The file path is set by node_main to
+  // `<dataDir>/mempool.dat`; a node without a path has persistence
+  // off. Persisting defaults ON (Core-compatible semantics):
+  // `SetPersistMempool(false)` disables the automatic load on
+  // start and save on shutdown — the `loaded` flag then stays
+  // false and no file is written. The explicit `savemempool` RPC
+  // (DumpMempool) still writes on demand: an operator who asks
+  // for a dump gets one.
+  void SetMempoolPath(const std::string& path) { mempoolPath_ = path; }
+  const std::string& MempoolPath() const { return mempoolPath_; }
+  void SetPersistMempool(bool persist) { persistMempool_ = persist; }
+  bool PersistMempool() const { return persistMempool_; }
+  // Load the mempool file at the configured path (best-effort:
+  // a missing file loads as empty, a corrupt file warns and the
+  // node starts with an empty mempool — see mempooldump.h).
+  // Sets MempoolLoaded() true once the attempt has finished,
+  // including when no file exists. Returns false + `error` when
+  // persistence is disabled, no path is configured, or the file
+  // is unreadable / has a malformed header. The outcome detail
+  // is in LastMempoolLoadStats().
+  bool LoadMempool(std::string& error);
+  // Save the mempool to the configured path (the automatic
+  // shutdown save). A no-op returning false + `error` when
+  // persistence is disabled or no path is configured.
+  bool SaveMempool(std::string& error);
+  // Explicit on-demand dump (the `savemempool` RPC): writes the
+  // file even when persistence is disabled. False + `error` when
+  // no path is configured or the write fails.
+  bool DumpMempool(std::string& error);
+  // Import a mempool file at an explicit path (the
+  // `importmempool` RPC): same load rules as LoadMempool, merged
+  // into the current mempool. Does not touch MempoolLoaded().
+  bool ImportMempoolFile(const std::string& path,
+                         MempoolLoadStats& stats, std::string& error);
+  // True once a startup load attempt has finished (including
+  // when no file existed). False when persistence is disabled
+  // (the load was skipped) or no load has been attempted yet.
+  bool MempoolLoaded() const { return mempoolLoaded_; }
+  MempoolLoadStats LastMempoolLoadStats() const {
+    return lastMempoolLoadStats_;
+  }
   // Mempool size cap in bytes (default 300 MB, spec section 10.4).
   void SetMaxMempoolBytes(std::size_t maxBytes) {
     mempool_.SetMaxBytes(maxBytes);
@@ -231,6 +274,14 @@ class Node {
   std::shared_ptr<ITransport> transport_;
   ChainStore* store_ = nullptr;
   std::string lastStoreError_;
+  // Mempool persistence (Milestone 17). mempoolPath_ is
+  // `<dataDir>/mempool.dat` in the node binary; empty in tests
+  // that never configure persistence. mempoolLoaded_ is set by
+  // LoadMempool once the startup load attempt has finished.
+  std::string mempoolPath_;
+  bool persistMempool_ = true;
+  bool mempoolLoaded_ = false;
+  MempoolLoadStats lastMempoolLoadStats_;
   uint32_t now_ = 0;
   uint64_t nodeNonce_ = 0;
   uint64_t compactNonce_ = 0;

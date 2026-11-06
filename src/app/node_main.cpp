@@ -150,6 +150,27 @@ int main(int argc, char** argv) {
     }
     std::cout << "Genesis accepted: " << HashHex(genesis.GetHash()) << "\n";
   }
+  // Mempool persistence (Milestone 17): load after the chain (and
+  // a fresh genesis, above) is in place, so re-validation sees
+  // the current UTXO set. A failed load warns and the node starts
+  // with an empty mempool — losing the mempool loses no funds.
+  node.SetMempoolPath(config.dataDir + "/mempool.dat");
+  node.SetPersistMempool(config.persistMempool);
+  if (config.persistMempool) {
+    std::string mempoolError;
+    if (!node.LoadMempool(mempoolError)) {
+      std::cerr << "oeeoo-node: warning: mempool load failed: "
+                << mempoolError << "\n";
+    } else {
+      const MempoolLoadStats stats = node.LastMempoolLoadStats();
+      if (stats.loaded > 0 || stats.droppedExpired > 0 ||
+          stats.droppedInvalid > 0) {
+        std::cout << "Mempool: loaded " << stats.loaded
+                  << " transaction(s), dropped " << stats.droppedExpired
+                  << " expired, " << stats.droppedInvalid << " invalid\n";
+      }
+    }
+  }
   // Node wallet (Milestone 14). A relative path resolves against the
   // data directory. An existing file loads LOCKED; a missing file is
   // remembered so the operator can create it with the createwallet
@@ -239,8 +260,21 @@ int main(int argc, char** argv) {
   std::cout << std::flush;
   std::signal(SIGINT, OnSignal);
   std::signal(SIGTERM, OnSignal);
+  // M17: surface chain-store failures loudly. Block acceptance keeps
+  // serving the in-memory chain when persistence fails (the blocks
+  // roll back on restart instead of corrupting), so without this the
+  // failure is silent at runtime — LastStoreError() was the only
+  // record, with no consumer. Warn once per distinct error.
+  std::string lastReportedStoreError;
   while (!g_stop.load() && !rpc.StopRequested()) {
     node.Poll(100);
+    const std::string storeError = node.LastStoreError();
+    if (!storeError.empty() && storeError != lastReportedStoreError) {
+      std::cerr << "oeeoo-node: WARNING: chain store error — accepted "
+                   "blocks may not be durable: "
+                << storeError << "\n";
+      lastReportedStoreError = storeError;
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   std::cout << "Shutting down...\n";
@@ -256,6 +290,17 @@ int main(int argc, char** argv) {
                 << "\n";
     }
     nodeWallet.Lock();
+  }
+  // Mempool persistence (Milestone 17): save on clean shutdown so
+  // the next start reloads the same transactions. A failure warns
+  // instead of failing the shutdown — the chain store above is
+  // the durable state; the mempool is recoverable from peers.
+  if (config.persistMempool) {
+    std::string mempoolError;
+    if (!node.SaveMempool(mempoolError)) {
+      std::cerr << "oeeoo-node: warning: cannot save mempool: "
+                << mempoolError << "\n";
+    }
   }
   store.Close();
   return 0;

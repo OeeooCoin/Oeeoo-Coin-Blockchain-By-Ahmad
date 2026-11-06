@@ -398,6 +398,10 @@ void TestWallet() {
     {
       FILE* f = std::fopen(path.c_str(), "r+b");
       CHECK(f != nullptr);
+      // M17: CHECK does not abort, so a failed fopen would segfault
+      // on the fseek below (found when parallel suite runs collided
+      // on this shared /tmp path). Bail out; the CHECK already failed.
+      if (f == nullptr) return;
       std::fseek(f, 30, SEEK_SET);
       unsigned char byte = 0;
       CHECK(std::fread(&byte, 1, 1, f) == 1);

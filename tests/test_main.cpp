@@ -37,6 +37,8 @@ void TestMilestone15();
 void TestMilestone16A();
 void TestMilestone16B();
 void TestMilestone16C();
+void TestMilestone17A();
+void TestMilestone17B();
 
 int main() {
   TestAmount();
@@ -72,6 +74,8 @@ int main() {
   TestMilestone16A();
   TestMilestone16B();
   TestMilestone16C();
+  TestMilestone17A();
+  TestMilestone17B();
   test::Report();
   return test::Failures() == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

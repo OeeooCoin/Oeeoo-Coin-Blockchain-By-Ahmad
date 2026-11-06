@@ -37,6 +37,7 @@ add_library(oeeoo_core
   src/script/script.cpp
   src/utxo/coins.cpp
   src/mempool/mempool.cpp
+  src/mempool/mempooldump.cpp
   src/mempool/feeestimator.cpp
   src/mempool/orphan.cpp
   src/mining/miner.cpp
@@ -107,9 +108,15 @@ add_executable(oeeoo_tests
   tests/test_milestone16a.cpp
   tests/test_milestone16b.cpp
   tests/test_milestone16c.cpp
+  tests/test_milestone17a.cpp
+  tests/test_milestone17b.cpp
 )
 target_link_libraries(oeeoo_tests PRIVATE oeeoo_core)
 add_test(NAME oeeoo_tests COMMAND oeeoo_tests)
+
+# Benchmark harness (Milestone 17).
+add_executable(oeeoo_bench src/bench/bench.cpp)
+target_link_libraries(oeeoo_bench PRIVATE oeeoo_core)
 
 # Runnable binaries (Milestone 12).
 add_executable(oeeoo-node src/app/node_main.cpp)

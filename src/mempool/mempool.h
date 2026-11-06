@@ -26,6 +26,12 @@ namespace oeeoo {
 
 class Mempool {
  public:
+  // Entries expire after this long (spec section 10.4). Shared by
+  // the live expiry sweep (RemoveExpired) and the persistence
+  // loader (Milestone 17), which drops entries already older than
+  // this instead of re-validating them.
+  static constexpr uint32_t kExpirySeconds = 14 * 24 * 60 * 60;  // 14 days
+
   struct Entry {
     Transaction tx;
     Amount fee = 0;
@@ -50,6 +56,17 @@ class Mempool {
                       int height, uint32_t medianTimePast,
                       uint32_t nowSeconds, std::string& error,
                       const VestingParams& vesting = VestingParams{});
+  // Re-add a transaction previously saved to disk (Milestone 17),
+  // preserving its ORIGINAL `addedTime` for expiry — a reloaded
+  // entry does not get a fresh 14 days. Validates exactly like
+  // AddTransaction (fee, dust, script, conflicts, RBF rules) with
+  // `nowSeconds` as the validation clock; only the entry's
+  // timestamp comes from `addedTime`.
+  bool AddLoadedTransaction(const Transaction& tx, const CoinsView& utxo,
+                            int height, uint32_t medianTimePast,
+                            uint32_t addedTime, uint32_t nowSeconds,
+                            std::string& error,
+                            const VestingParams& vesting = VestingParams{});
 
   // Entries sorted by fee rate (fee per byte), highest first.
   std::vector<Entry> GetByFeeRate() const;
@@ -66,6 +83,15 @@ class Mempool {
   void SetMaxBytes(std::size_t maxBytes) { maxBytes_ = maxBytes; }
 
  private:
+  // Shared admission path. `nowSeconds` is the validation clock
+  // (vesting, sequence locks); `entryTime` is the timestamp the
+  // entry keeps for expiry — equal to `nowSeconds` for a fresh
+  // admission, the stored time for a reloaded transaction.
+  bool AddTransactionInternal(const Transaction& tx, const CoinsView& utxo,
+                              int height, uint32_t medianTimePast,
+                              uint32_t nowSeconds, uint32_t entryTime,
+                              std::string& error,
+                              const VestingParams& vesting);
   // Entries that spend one of `tx`'s inputs.
   std::vector<Hash256> FindConflicts(const Transaction& tx) const;
   // `roots` plus every entry spending their outputs, transitively.

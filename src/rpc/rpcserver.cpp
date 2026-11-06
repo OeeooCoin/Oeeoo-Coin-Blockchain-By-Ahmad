@@ -595,6 +595,8 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
                           "gettxout",
                           "gettxoutsetinfo",
                           "getmempoolinfo",
+                          "savemempool",
+                          "importmempool",
                           "estimatesmartfee",
                           "getrawmempool",
                           "getnetworkinfo",
@@ -797,6 +799,11 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
     j.Set("maxmempool",
           static_cast<int64_t>(node_.MempoolRef().MaxBytes()));
     j.Set("mempoolminfee", 0.00000001);  // 1 sat/vB, minimum relay fee
+    // Milestone 17: true once the startup mempool-load attempt
+    // has finished — including when no mempool.dat existed. False
+    // when persistence is disabled (the load was skipped) or no
+    // load has been attempted yet.
+    j.Set("loaded", node_.MempoolLoaded());
     return j;
   }
 
@@ -832,6 +839,39 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
       obj.Set(HashHex(e.tx.GetTxId()), item);
     }
     return obj;
+  }
+
+  if (method == "savemempool") {
+    // Explicit on-demand dump (Milestone 17): writes the mempool
+    // file even when persistmempool=0 — the operator asked for a
+    // dump. Returns null on success, like Bitcoin Core.
+    std::string error;
+    if (!node_.DumpMempool(error)) {
+      return fail(-32603, error);
+    }
+    return Json();
+  }
+
+  if (method == "importmempool") {
+    // Import a mempool file at an explicit path (Milestone 17):
+    // the same load rules as the startup load (re-validate
+    // against the current UTXO set, drop invalid/expired),
+    // merged into the current mempool. Returns the load counts
+    // (an Oeeoo choice — Core returns null).
+    const Json* p = Param(params, 0, "filename");
+    if (p == nullptr || !p->IsString() || p->AsString().empty()) {
+      return fail(-32602, "importmempool needs a file path");
+    }
+    MempoolLoadStats stats;
+    std::string error;
+    if (!node_.ImportMempoolFile(p->AsString(), stats, error)) {
+      return fail(-32603, error);
+    }
+    Json j = Json::Object();
+    j.Set("loaded", static_cast<int64_t>(stats.loaded));
+    j.Set("dropped_expired", static_cast<int64_t>(stats.droppedExpired));
+    j.Set("dropped_invalid", static_cast<int64_t>(stats.droppedInvalid));
+    return j;
   }
 
   if (method == "getnetworkinfo") {
