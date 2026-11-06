@@ -403,6 +403,13 @@ commit differs only in `release-0.1.0/SOURCE.txt` (the commit-hash
 line). `oeeoo-cli` is unchanged from M14, so its hash matches
 M14's.
 
+Confirmation run from the docs commit `1f063fd`
+(SOURCE_DATE_EPOCH=1793956843): **REPRODUCIBLE — binaries
+byte-identical, archive byte-identical**; all three binary hashes
+identical to the run above; tarball
+`648a71862a73ea7bcd682a14d7548e3d6861b522f1383a93f8c86f1ee82bd3c3`
+(differs from the `ee2c4ca` tarball only via SOURCE.txt).
+
 ## G. Outstanding decisions (carried + new)
 
 Carried from M14 (still open, unchanged):

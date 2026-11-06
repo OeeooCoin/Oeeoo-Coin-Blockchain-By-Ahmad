@@ -701,3 +701,18 @@ release-0.1.0/checksums.txt:
 3f2675dad2c9a8aea9f01d933164715f49af5a03f92538ad458e5d1bb9128ce9  oeeoo-node
 52b29e3893e1f805f2bf82d0441eb4e09c5b3818217dd541207886c06c8130f1  oeeoo-genesis
 a80b3c6f0677814b3ee181f4f5b6bb9bee85f56171d71b964c621a79b8323136  oeeoo-cli
+
+--- REPRODUCIBLE BUILD — CONFIRMATION FROM DOCS COMMIT ---
+$ ./scripts/reproducible-build.sh   (from commit 1f063fd; SOURCE_DATE_EPOCH=1793956843)
+SOURCE_DATE_EPOCH=1793956843
+REPRODUCIBLE: all three binaries are byte-identical across two builds
+REPRODUCIBLE: archive is byte-identical across two builds
+release package: oeeoo-coin-0.1.0.tar.gz
+648a71862a73ea7bcd682a14d7548e3d6861b522f1383a93f8c86f1ee82bd3c3  oeeoo-coin-0.1.0.tar.gz
+release-0.1.0/checksums.txt:
+3f2675dad2c9a8aea9f01d933164715f49af5a03f92538ad458e5d1bb9128ce9  oeeoo-node
+52b29e3893e1f805f2bf82d0441eb4e09c5b3818217dd541207886c06c8130f1  oeeoo-genesis
+a80b3c6f0677814b3ee181f4f5b6bb9bee85f56171d71b964c621a79b8323136  oeeoo-cli
+Note: all three binary hashes are identical to the ee2c4ca run above.
+The tarball hash differs only because release-0.1.0/SOURCE.txt now
+records commit 1f063fd instead of ee2c4ca (docs-only change).
