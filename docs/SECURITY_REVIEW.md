@@ -105,8 +105,14 @@ Adversaries, in order of exposure:
 - **Reorg undo is tested to depth 2** (main chain 3 vs fork
   4). Deeper reorgs use the same code path, but a 100-block
   reorg has not been exercised.
-- **No orphan transaction pool**; a transaction whose parents
-  are unknown is rejected outright.
+- **Orphan transaction pool is now bounded** (Milestone 15:
+  `src/mempool/orphan.*`, Core's `TxOrphanage` model — max 100
+  orphans / 5 MB, 20-minute expiry, per-peer purge on disconnect,
+  never relayed). A transaction whose parents are unknown goes to
+  the pool instead of being rejected outright. Caveat: promotion
+  needs a *confirmed* parent — validation rejects unconfirmed
+  inputs, so the `"tx"`-handler promotion path cannot fire in
+  practice; block arrival is the real trigger.
 - **Peer cap (125) is now enforced** (Milestone 13: `Node::SetMaxPeers`,
   outbound + inbound). Previously unenforced — closed.
 - **Dust is now dynamic and script-aware in the mempool and wallet**
@@ -131,8 +137,25 @@ Adversaries, in order of exposure:
 - **No distinct testnet identity.** Test and mainnet nodes share
   the magic, port, protocol version, and user agent. The only guard
   is the testing-mode banner. (Milestone 13.)
-- **Inbound peer IPs are not recorded**, so bans on inbound peers
-  do not survive a reconnect. (Milestone 13.)
+- **Inbound peer IPs are now recorded** (Milestone 15:
+  `TransportMessage.remoteAddress`, `accept()` records the real
+  IP), so bans on inbound peers survive reconnects. Caveat: bans
+  are keyed by `"ip:port"` and the TCP port is ephemeral — a peer
+  reconnecting from a new ephemeral port gets a fresh key. Whether
+  inbound bans should be keyed by IP alone is an open decision.
+- **AddrMan now has anti-fill defences** (Milestone 15): per-/16
+  netgroup cap 64, 30-day entry expiry, failure counting with
+  removal at 3. **AS-map is NOT implemented** — bucketing is by
+  /16 netgroup only, so a single /16 hosting many distinct peers
+  is still one bucket.
+- **DNS seeds can no longer hang startup** (Milestone 15): a 10 s
+  deadline on a worker thread; a hanging resolver is cut off.
+- **Compact relay is now bounded** (Milestone 15): per-peer
+  in-flight limit 5, getblocktxn depth limit 10, one retry then
+  full-block fallback, stalling peers disconnected after 2 s.
+- **A full node now evicts an inbound peer instead of refusing
+  all new connections** (Milestone 15), with a documented ranking
+  that protects the best peers.
 - **RBF descendant handling is defense-in-depth** (unreachable in
   practice: validation rejects unconfirmed inputs) and the
   100-replacement cap is untested. (Milestone 13.)

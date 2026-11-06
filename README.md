@@ -10,8 +10,8 @@ verified from a clean Git checkout). IMPLEMENTED + COMPILED +
 UNIT-TESTED on this machine, with runnable binaries (oeeoo-node,
 oeeoo-genesis, oeeoo-cli). NOT production-ready. NO mainnet. NO
 genesis block yet. No independent security review or audit has been
-done. Verdict after the Milestone 13 audit: NOT READY (Milestone 14
-does not change it). Launch checklist: docs/MAINNET_LAUNCH.md.
+done. Verdict after the Milestone 13 audit: NOT READY (Milestones 14–15
+do not change it). Launch checklist: docs/MAINNET_LAUNCH.md.
 Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 
 ## Finalized policy (do not change without community process)
@@ -136,6 +136,17 @@ Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 - `src/wallet/wallet.*` — coinbase maturity in the wallet (M8-era gap found by the funded E2E): immature coinbases are excluded from balance/unspent and reported as `immature_balance` in `getwalletinfo`; the funded manual E2E (101 mined blocks, 10-OEEOO send between two wallet addresses) proves it
 - `docs/ROADMAP_BITCOIN_LEVEL.md` (M14–M19), `docs/MILESTONE14.md`, `docs/WALLET.md` (node-wallet section rewritten)
 - `tests/test_milestone14.cpp` (7 sections)
+
+## What Milestone 15 adds (2026-11-06) — P2P hardening & completeness
+
+- `src/network/transport.*` — `TransportMessage.remoteAddress`; `accept()` records the real peer IP (`"ip:port"` via `sockaddr_in` + `inet_ntop`); loopback sets `"loopback:" + address_`
+- `src/network/node.*` — inbound peer IPs stored as `peer.address` with the ban check running *before* registration (bans survive reconnect); peer eviction at the 125-peer cap (documented ranking: protects lowest ping, recent tx/block senders, longest-connected; evicts largest /16 netgroup); compact-relay limits (in-flight 5 per peer, getblocktxn depth 10, one retry then full-block `getdata`, 2 s block-stall disconnect with no misbehavior points); orphan wiring (`ProcessOrphansFor`, per-peer purge on disconnect, 60 s expiry sweep)
+- `src/mempool/orphan.h/.cpp` (NEW) — `OrphanPool` (Core's `TxOrphanage` model): max 100 orphans / 5 MB, 20-minute expiry, never relayed, prevout-indexed so a tx is validated when its parent arrives
+- `src/network/addrman.*` — per-/16 netgroup cap 64, 30-day entry expiry, failure counting (removed at 3); AS-map documented as NOT implemented
+- `src/network/dnsseed.*` — 10 s resolver timeout on a worker thread (hanging resolver no longer blocks startup)
+- `docs/MILESTONE15.md` (full report, verdict NOT READY), `docs/DECISION_LOG.md`, `docs/SECURITY_REVIEW.md` (gaps closed)
+- `tests/test_milestone15.cpp` (15 sections) + 3 AddrMan + 3 DNS sections in `tests/test_network.cpp` / `tests/test_dnsseed.cpp` — **155 sections total**
+- Known caveats (disclosed in `docs/MILESTONE15.md` §C.2): orphan promotion needs a *confirmed* parent (mempool-parent arrival cannot promote); TCP bans are keyed by `"ip:port"` so a reconnect from a new ephemeral port gets a fresh key — both are open decisions (§G)
 
 ## What Phase 1 contains
 

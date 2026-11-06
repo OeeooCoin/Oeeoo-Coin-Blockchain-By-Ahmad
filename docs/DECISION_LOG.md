@@ -397,3 +397,78 @@ Real addresses come from real keys in Milestone 8.
 - Final state: 134 test sections (127 + 7 new), ALL CHECKS PASSED,
   ctest 100%, ASan/UBSan clean, cppcheck 0 findings. Toolchain:
   g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.
+
+## Milestone 15 (2026-11-06) — P2P hardening & completeness
+
+- Inbound peer IPs recorded: TransportMessage gains remoteAddress;
+  TcpTransport accept() records "ip:port" (sockaddr_in + inet_ntop);
+  LoopbackTransport sets "loopback:" + address_. Node::OnBytes stores
+  it as peer.address and ban-checks BEFORE registering, so inbound
+  bans survive reconnects. (Caveat: TCP bans are keyed by "ip:port"
+  and the port is ephemeral — a reconnect from a new ephemeral port
+  gets a fresh key. Open decision: key inbound bans by IP alone?)
+- AddrMan defences: per-/16 netgroup cap kMaxPerNetgroup = 64
+  (Oeeoo's own choice, ~6% of the 1,000-entry table — NOT a Core
+  constant); entry expiry kAddrExpirySeconds = 30 days (Core's
+  horizon); failure counting kMaxFailures = 3 (Oeeoo's choice),
+  entry removed at 3, reset on success. AS-map documented as NOT
+  implemented (needs an external data file + operator decision).
+- DNS seeds: resolver timeout kDnsSeedTimeoutMs = 10000 (Oeeoo's own
+  choice, NOT a Core constant) on a worker thread via std::thread +
+  std::promise (not std::async, whose future destructor would block);
+  timeout error contains "timed out"; late results discarded.
+- Orphan pool (NEW src/mempool/orphan.*): Core's TxOrphanage model —
+  max 100 orphans (Core), 20-minute expiry (Core), byte cap 5 MB
+  (Oeeoo's choice: 100 x 50 KB), per-tx limit reuses MAX_BLOCK_SIZE,
+  never relayed, prevout-indexed, per-peer purge on disconnect,
+  evicts oldest (txid tie-break) when full. RemoveExpired uses 64-bit
+  arithmetic (deliberate deviation from the mempool's 32-bit pattern).
+- Compact relay: in-flight limit 5 per peer (Oeeoo's own choice,
+  Misbehave +20 at the cap); getblocktxn depth limit 10 (matches
+  Core's depth); one retry then full-block getdata (received txs are
+  saved back into the pending entry so the retry can reconstruct);
+  block-stall disconnect after 2 s (Core's default) with NO
+  misbehavior points and NO 64 s backoff (documented deviation: the
+  backoff only matters if the node kept requesting from the same
+  peer, which it does not after a disconnect).
+- Peer eviction at the 125-peer cap (inbound only; ConnectTo still
+  refuses): protects lowest known ping, tx/block senders in the last
+  60 s, longest-connected peer; among the rest evicts the largest /16
+  netgroup, tie-break most-recently-connected, then highest peerId.
+  Ranking documented in a code comment in node.cpp.
+- Orphan wiring: "tx" handler sends missing-input failures to the
+  pool (no misbehavior, no relay); ProcessOrphansFor (capped at 100
+  per call) runs after a mempool add, in BroadcastTx, and after block
+  adoption (AcceptBlockDirect / adopted reorg path only).
+  DisconnectPeer purges the peer's orphans; the 60 s Poll sweep also
+  runs orphans_.RemoveExpired and addrman_.RemoveExpired. ConnectTo
+  failure records an AddrMan failure; verack completion records a
+  success.
+- Behavioural finding (disclosed, not a bug): orphan promotion needs
+  a CONFIRMED parent — validation rejects unconfirmed inputs, so a
+  parent that merely enters the mempool can never promote its orphan;
+  only block arrival can. The "tx"-handler ProcessOrphansFor call
+  site is defense-in-depth that cannot fire in practice. (In Core the
+  mempool accepts unconfirmed inputs, so the tx-arrival path works
+  there — an Oeeoo/Core behavioural difference, not a spec violation.)
+- Bugs found and fixed (disclosed in docs/MILESTONE15.md §C.1):
+  (1) M13 AddrMan test filled the table from a single /16 — the new
+  cap correctly stopped it at 64; the test now spreads across 32
+  netgroups. (2) Uninitialized Hash256 awaitingBlock in peer.h held
+  indeterminate bytes and the stall sweep disconnected every peer on
+  its first Poll (21 test failures) — fixed with Hash256
+  awaitingBlock{};. (3) Two test-side issues in Stream C's standalone
+  driver (byte-cap tie-break, fixture sizes). (4) Environment:
+  libsqlite3-dev and cppcheck were missing on this VM; apt-get update
+  hung >10 min; restored via direct .deb downloads.
+- GitHub repo status (user, 2026-11-06): the repo now EXISTS and is
+  verified empty — https://github.com/OeeooCoin/Oeeoo-Coin-Blockchain-By-Ahmad
+  — code push ONLY after ALL milestones (M19) complete, per the
+  user's decision.
+- Verdict: NOT READY (unchanged — genesis unapproved, no independent
+  audit). M15 closes the P2P hardening scope; next is M16 (wallet
+  transactions).
+- New doc: docs/MILESTONE15.md; docs/SECURITY_REVIEW.md gaps updated.
+- Final state: 155 test sections (134 + 21 new), ALL CHECKS PASSED,
+  ctest 100%, ASan/UBSan clean, cppcheck 0 findings. Toolchain:
+  g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0.
