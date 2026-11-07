@@ -201,9 +201,10 @@ M18, so this is the expected result, and it is itself a check: a
 clean-room checkout reproduces M18's binaries exactly. The tarball
 differs from M18's only via SOURCE_DATE_EPOCH/SOURCE.txt.
 
-Tagged-commit run (local tag `v0.1.0`, commit `<INTEGRATION-COMMIT>`):
+Tagged-commit run (local tag `v0.1.0`, commit `9252086`,
+SOURCE_DATE_EPOCH=1794060652; log `logs/m19-repro-build-tagged.log`):
 also REPRODUCIBLE for both binaries and archive; binary hashes
-identical to the run above; tarball `<TAGGED-TARBALL-HASH>` (differs
+identical to the run above; tarball `44338cd0ec22aaa7b8ae0f275249e3bf7ce7da5956ad906db0ab90058ca33424` (differs
 only via SOURCE.txt naming the tagged commit). Same-machine,
 two-directory reproducibility only; cross-environment
 reproducibility is NOT claimed. **No release was published; the tag

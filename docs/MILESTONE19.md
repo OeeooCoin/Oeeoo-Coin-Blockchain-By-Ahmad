@@ -307,11 +307,13 @@ expected result, and it is itself a check: a clean-room checkout
 reproduces M18's binaries exactly. The tarball differs only via
 SOURCE_DATE_EPOCH/SOURCE.txt.
 
-Tagged-commit run (from local tag `v0.1.0`, commit <INTEGRATION-COMMIT>):
+Tagged-commit run (from local tag `v0.1.0`, commit `9252086`,
+SOURCE_DATE_EPOCH=1794060652; log `logs/m19-repro-build-tagged.log`):
 **REPRODUCIBLE — binaries AND archive byte-identical.** Binary hashes
 identical to the run above; tarball
-`<TAGGED-TARBALL-HASH>` (differs from the clean-room tarball only via
-SOURCE.txt naming the tagged commit).
+`44338cd0ec22aaa7b8ae0f275249e3bf7ce7da5956ad906db0ab90058ca33424`
+(differs from the clean-room tarball only via SOURCE.txt naming the
+tagged commit).
 
 ### F.3 Soak (Stream B, M18 final ASan binary, real P2P dialing)
 Leg 2 ~1 h 56 m, 440 blocks, ~30 wallet txs, 0 block/tx failures,
@@ -479,12 +481,12 @@ code does. M19 prepares; it does not launch.
 
 ## Commits (local git repo, on top of M18's `d0a73f3`)
 
-- `<INTEGRATION-COMMIT>` — M19 docs, verify page §29–30, test log
+- `9252086` — M19 docs, verify page §29–30, test log
   (integration commit).
-- `<CONFIRMATION-COMMIT>` — M19 reproducible-build confirmation from
+- This commit — M19 reproducible-build confirmation from
   the tagged commit (RELEASE.md + this report §F.2 updated with the
   tagged-commit tarball hash).
-- Local tag `v0.1.0` on `<INTEGRATION-COMMIT>` (local-only; no remote
+- Local tag `v0.1.0` on `9252086` (local-only; no remote
   configured; nothing pushed, nothing published).
 - Working tree clean at the end (only untracked build dirs,
   `founder-key-generator/`, and soak scratch files, all out of git).
