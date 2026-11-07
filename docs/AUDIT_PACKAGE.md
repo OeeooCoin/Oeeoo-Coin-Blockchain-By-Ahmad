@@ -1,11 +1,12 @@
-# Oeeoo Coin — Audit Package (Milestone 11)
+# Oeeoo Coin — Audit Package (v0.1.0 — Milestone 19)
 
 What an independent auditor receives, and how to use it.
 
 ## Contents
 
 - **Source code** — `~/workspace/oeeoo-coin/` (this repository),
-  or the matching `oeeoo-coin-milestone11.zip`.
+  or the matching `oeeoo-coin-milestone19.zip` (v0.1.0, local
+  tag `v0.1.0`; code unchanged since Milestone 18).
 - **Specification** — `docs/MASTER_SPECIFICATION.md` (26 sections,
   the final spec; the rename from EarthCoin to Oeeoo Coin is
   recorded in Appendix A).
@@ -13,12 +14,14 @@ What an independent auditor receives, and how to use it.
   spec left open (ports, schema choice, coin type 65535
   provisional, Stratum byte order, RPC method list, ...),
   each marked as an engineering decision, NOT a spec fact.
-- **Milestone reports** — `docs/MILESTONE2.md` … `MILESTONE18.md`:
+- **Milestone reports** — `docs/MILESTONE2.md` … `MILESTONE19.md`:
   what was built, the decisions, and a "Bugs found and fixed
   (disclosed)" section in each. Read these before the code —
   they record where the authors already found their own
   mistakes. Milestone 18 re-runs the full M13 audit
-  (`soak18/M18C-AUDIT-DRAFT.md`); verdict NOT READY.
+  (`soak18/M18C-AUDIT-DRAFT.md`); Milestone 19 re-verifies
+  everything clean-room and gives the launch-readiness verdict:
+  NOT READY (genesis unapproved + no independent audit).
 - **Security review** — `docs/SECURITY_REVIEW.md`: threat
   model, invariants, attack surfaces, known gaps, and the
   auditor checklist.
@@ -74,8 +77,10 @@ ctest --test-dir build-fuzz -R '^fuzz_'   # expect: 7/7 passed
 ## After the audit
 
 - The auditor's findings go into a new milestone report
-  (Milestone 12 is mainnet prep, not the audit itself).
+  (an audit-fix round after M19 — Milestones 1–19 are already
+  complete, including mainnet prep (M12) and launch readiness
+  (M19)).
 - Every finding is fixed, re-tested, and re-logged with the
-  same disclosure discipline as Milestones 2–11.
+  same disclosure discipline as Milestones 2–19.
 - Only after the audit's findings are closed does the project
-  move to mainnet preparation (Milestone 12).
+  move to launch (genesis approval + mainnet).
