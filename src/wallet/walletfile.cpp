@@ -6,6 +6,10 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <cstdio>
 #include <cstring>
 
@@ -34,10 +38,52 @@ bool ReadFile(const std::string& path, std::vector<unsigned char>& data) {
   return ok;
 }
 
+// OOC-003 (Milestone 20): the wallet file holds the encrypted
+// mnemonic, so it must be owner-only (0600) however it is created.
+// open() with mode 0600 is umask-proof for a NEW file (a umask can
+// only clear bits, and 0600 has no group/other bits to begin with),
+// but it does NOT change the mode of a PRE-EXISTING file — so
+// fchmod() explicitly afterwards, then verify with fstat() and fail
+// (leaving any previous contents intact) rather than write secrets
+// into a file with wider permissions. The mode is fixed BEFORE any
+// byte is written, and the old contents are truncated only after
+// the mode is verified, so sensitive data never sits in a
+// world-readable file, even briefly.
+// Platform scope: POSIX only. Windows ACLs are out of scope — this
+// project targets POSIX here; do not add Windows-only code.
+bool OpenPrivateFile(const std::string& path, FILE*& fileOut) {
+  fileOut = nullptr;
+  // No O_TRUNC here on purpose: truncate only after the mode is
+  // verified (below), so a chmod failure leaves the old file intact
+  // instead of destroying it.
+  const int fd = ::open(path.c_str(), O_WRONLY | O_CREAT, 0600);
+  if (fd < 0) return false;
+  if (::fchmod(fd, 0600) != 0) {
+    ::close(fd);
+    return false;
+  }
+  struct stat st {};
+  if (::fstat(fd, &st) != 0 || (st.st_mode & 0777) != 0600) {
+    ::close(fd);
+    return false;
+  }
+  if (::ftruncate(fd, 0) != 0) {
+    ::close(fd);
+    return false;
+  }
+  FILE* f = ::fdopen(fd, "wb");
+  if (f == nullptr) {
+    ::close(fd);
+    return false;
+  }
+  fileOut = f;
+  return true;
+}
+
 bool WriteFile(const std::string& path,
                const std::vector<unsigned char>& data) {
-  FILE* f = std::fopen(path.c_str(), "wb");
-  if (f == nullptr) return false;
+  FILE* f = nullptr;
+  if (!OpenPrivateFile(path, f)) return false;
   const bool ok =
       std::fwrite(data.data(), 1, data.size(), f) == data.size();
   if (std::fclose(f) != 0) return false;

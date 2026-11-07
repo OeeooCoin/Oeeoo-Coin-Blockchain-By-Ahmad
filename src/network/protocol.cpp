@@ -11,6 +11,33 @@
 namespace oeeoo {
 
 namespace {
+// Active network identity (Milestone 20). Process-wide, mainnet
+// by default; node_main selects it once at startup. Tests switch
+// it only around the code under test and restore mainnet after.
+NetworkId g_activeNetwork = NetworkId::kMainnet;
+}  // namespace
+
+const NetworkIdentity& NetworkIdentityFor(NetworkId id) {
+  return id == NetworkId::kTestnet ? kTestnetIdentity : kMainnetIdentity;
+}
+
+void SelectNetwork(NetworkId id) { g_activeNetwork = id; }
+
+NetworkId ActiveNetwork() { return g_activeNetwork; }
+
+const NetworkIdentity& ActiveNetworkIdentity() {
+  return NetworkIdentityFor(g_activeNetwork);
+}
+
+std::array<unsigned char, 4> ActiveNetworkMagic() {
+  return ActiveNetworkIdentity().magic;
+}
+
+std::string ActiveUserAgent() {
+  return ActiveNetworkIdentity().userAgent;
+}
+
+namespace {
 // Bounds-checked reader over a payload.
 struct Reader {
   const unsigned char* data;
@@ -84,7 +111,11 @@ void AppendStr(std::vector<unsigned char>& out, const std::string& s) {
 std::vector<unsigned char> SerializeMessage(const Message& msg) {
   std::vector<unsigned char> out;
   out.reserve(kMessageHeaderSize + msg.payload.size());
-  out.insert(out.end(), kNetworkMagic.begin(), kNetworkMagic.end());
+  // Milestone 20: the wire magic is the ACTIVE network's magic,
+  // so a testnet process frames every message with the testnet
+  // magic and a mainnet process with the mainnet magic.
+  const std::array<unsigned char, 4> magic = ActiveNetworkMagic();
+  out.insert(out.end(), magic.begin(), magic.end());
   std::string cmd = msg.command.substr(0, 12);
   out.insert(out.end(), cmd.begin(), cmd.end());
   out.resize(out.size() + (12 - cmd.size()), 0);
@@ -100,7 +131,12 @@ bool ParseMessage(const std::vector<unsigned char>& bytes, std::size_t offset,
   bytesConsumed = 0;
   if (bytes.size() - offset < kMessageHeaderSize) return false;
   const unsigned char* h = bytes.data() + offset;
-  if (std::memcmp(h, kNetworkMagic.data(), 4) != 0) return false;
+  // Milestone 20: the magic check is against the ACTIVE
+  // network's magic — bytes framed for the other network are
+  // rejected here, before any dispatch. (Node::OnBytes repeats
+  // this check against the active magic, too.)
+  const std::array<unsigned char, 4> magic = ActiveNetworkMagic();
+  if (std::memcmp(h, magic.data(), 4) != 0) return false;
   std::string command(reinterpret_cast<const char*>(h + 4), 12);
   const std::size_t nul = command.find('\0');
   if (nul != std::string::npos) command.resize(nul);

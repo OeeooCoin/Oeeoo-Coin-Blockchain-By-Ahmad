@@ -40,6 +40,29 @@ Transaction MakeTx(uint8_t tag) {
   return tx;
 }
 
+// A non-coinbase spend: same shape as MakeTx but spending a
+// non-null outpoint, so a block can carry exactly one coinbase
+// (M20, OOC-001: CheckBasic requires exactly one coinbase at
+// vtx[0]; two MakeTx would be two coinbases).
+Transaction MakeSpendTx(uint8_t tag) {
+  Transaction tx;
+  tx.version = 1;
+  TxIn in;
+  in.prevTxHash.fill(tag);
+  in.prevOutIndex = 0;
+  in.scriptSig = {0x04, 0xff, 0xff, 0x00, 0x1d, 0x01, tag};
+  in.sequence = 0xffffffff;
+  tx.vin.push_back(in);
+  TxOut out;
+  out.value = 50 * COIN;
+  out.scriptPubKey = {0x76, 0xa9, 0x14, 0x11, 0x11, 0x11, 0x11, 0x11,
+                      0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+                      0x11, 0x11, 0x11, 0x11, 0x88, 0xac};
+  tx.vout.push_back(out);
+  tx.lockTime = 0;
+  return tx;
+}
+
 // Build a block on `prev` at `time` with `bits`, mine a nonce that
 // satisfies proof of work (easy at kTestBits: a few tries at most).
 Block MineBlock(const Hash256& prev, uint32_t time, uint32_t bits,
@@ -81,7 +104,7 @@ void TestChain() {
   test::BeginSection("block structure: serialize round-trip + CheckBasic");
   {
     Block block = MineBlock(Hash256{}, kGenesisTime, kTestBits,
-                            {MakeTx(1), MakeTx(2)});
+                            {MakeTx(1), MakeSpendTx(2)});
     std::vector<unsigned char> bytes = block.Serialize();
     Block decoded;
     CHECK(Block::Deserialize(bytes, decoded));

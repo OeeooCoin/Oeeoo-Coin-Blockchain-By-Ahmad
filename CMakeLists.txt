@@ -117,6 +117,10 @@ add_executable(oeeoo_tests
   tests/test_milestone18a.cpp
   tests/test_milestone18b.cpp
   tests/test_milestone18c.cpp
+  tests/test_milestone20a.cpp
+  tests/test_milestone20b.cpp
+  tests/test_milestone20c.cpp
+  tests/test_milestone20d.cpp
 )
 target_link_libraries(oeeoo_tests PRIVATE oeeoo_core)
 add_test(NAME oeeoo_tests COMMAND oeeoo_tests)

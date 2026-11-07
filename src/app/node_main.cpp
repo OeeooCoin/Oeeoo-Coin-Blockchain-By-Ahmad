@@ -16,6 +16,7 @@
 #include "consensus/vesting.h"
 #include "db/chainstore.h"
 #include "network/node.h"
+#include "network/protocol.h"
 #include "network/transport.h"
 #include "rpc/rpcserver.h"
 #include "rpc/rpcutil.h"
@@ -78,6 +79,15 @@ int main(int argc, char** argv) {
     std::cout << "oeeoo-node 0.1.0\n";
     return 0;
   }
+  // Milestone 20: select the network identity ONCE, before any
+  // P2P framing happens. Default is mainnet; --testnet /
+  // `network=testnet` selects the test-network identity (testnet
+  // magic, testnet default ports, "(testnet)" user agent). From
+  // here on SerializeMessage / ParseMessage frame and check with
+  // the selected network's magic, so this process can never
+  // handshake with a node on the other network.
+  SelectNetwork(config.testnet ? NetworkId::kTestnet
+                               : NetworkId::kMainnet);
   std::error_code ec;
   std::filesystem::create_directories(config.dataDir, ec);
   if (ec) {
@@ -214,13 +224,18 @@ int main(int argc, char** argv) {
   }
   auto transport = std::make_shared<TcpTransport>();
   node.SetTransport(transport);
-  if (!node.Listen(config.port)) {
-    std::cerr << "oeeoo-node: cannot listen on P2P port " << config.port
+  // Milestone 20: listen on the EFFECTIVE P2P port — the explicit
+  // --port, else the selected network's default (64775 mainnet,
+  // 64779 testnet).
+  const uint16_t p2pPort = config.EffectivePort();
+  if (!node.Listen(p2pPort)) {
+    std::cerr << "oeeoo-node: cannot listen on P2P port " << p2pPort
               << "\n";
     return 1;
   }
   std::mutex nodeMutex;
-  RpcServer rpc(node, config.rpcPort, config.dataDir, &nodeMutex);
+  RpcServer rpc(node, config.EffectiveRpcPort(), config.dataDir,
+                &nodeMutex);
   if (walletConfigured) rpc.AttachNodeWallet(&nodeWallet);
   // M16: RPC load control (Core-style thread count + bounded work
   // queue). Defaults are 16 threads / 64 queued when unconfigured.
@@ -230,7 +245,7 @@ int main(int argc, char** argv) {
     std::cerr << "oeeoo-node: RPC failed to start: " << error << "\n";
     return 1;
   }
-  StratumServer stratum(node, config.stratumPort, &nodeMutex);
+  StratumServer stratum(node, config.EffectiveStratumPort(), &nodeMutex);
   bool stratumOn = false;
   if (!config.minerAddress.empty()) {
     stratum.SetMinerAddress(config.minerAddress);
@@ -240,13 +255,28 @@ int main(int argc, char** argv) {
     }
     stratumOn = true;
   }
+  // M20 close-out fix: ActiveNetworkMagic() returns the magic BY
+  // VALUE, so calling it twice for .begin()/.end() takes iterators
+  // from two DIFFERENT temporaries — undefined behaviour. The
+  // normal build printed the magic doubled (e2d804d6e2d804d6) and
+  // the ASan build aborted at startup with a stack-buffer-overflow
+  // (READ of size 20), which broke every real-node spawn in the
+  // ASan suite (m17b cascade). Capture it once in a local.
+  const std::array<unsigned char, 4> bannerMagic = ActiveNetworkMagic();
   std::cout << "Oeeoo Coin node 0.1.0\n"
+            << "  network: "
+            << ActiveNetworkIdentity().name << " (magic "
+            << BytesToHexStr(std::vector<unsigned char>(
+                   bannerMagic.begin(), bannerMagic.end()))
+            << ", user agent " << ActiveUserAgent() << ")\n"
             << "  data dir: " << config.dataDir << "\n"
             << "  height: " << node.TipHeight()
             << "  tip: " << HashHex(node.TipHash()) << "\n"
-            << "  P2P: " << config.port << "  RPC: 127.0.0.1:"
-            << config.rpcPort << "  Stratum: "
-            << (stratumOn ? std::to_string(config.stratumPort) : "off")
+            << "  P2P: " << config.EffectivePort()
+            << "  RPC: 127.0.0.1:" << config.EffectiveRpcPort()
+            << "  Stratum: "
+            << (stratumOn ? std::to_string(config.EffectiveStratumPort())
+                           : "off")
             << "\n"
             << "  vesting: " << (vesting.enabled ? "enabled" : "disabled")
             << "\n"
@@ -268,6 +298,15 @@ int main(int argc, char** argv) {
               << std::hex << config.powLimitBits << std::dec
               << ", not the mainnet limit 0x1d00ffff. This node is "
                  "NOT on Mainnet. ***\n";
+  }
+  if (config.testnet) {
+    // Milestone 20: say so loudly — a testnet node is NOT on
+    // Mainnet and can never peer with a mainnet node (different
+    // magic). The PoW limit is a separate setting; testnet
+    // identity alone does not change consensus.
+    std::cout << "  *** TESTNET — test-network identity; this node is "
+                 "NOT on Mainnet and can never peer with a mainnet "
+                 "node. ***\n";
   }
   std::cout << std::flush;
   std::signal(SIGINT, OnSignal);

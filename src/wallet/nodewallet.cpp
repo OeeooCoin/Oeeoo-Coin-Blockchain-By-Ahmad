@@ -2,6 +2,8 @@
 // Oeeoo Coin — the node wallet implementation (Milestone 14).
 #include "wallet/nodewallet.h"
 
+#include <sys/stat.h>
+
 #include <algorithm>
 #include <ctime>
 #include <filesystem>
@@ -17,6 +19,12 @@ namespace {
 // Save through a temporary file + rename, so a crash mid-save
 // cannot leave a half-written wallet file. The format is identical
 // to SaveWalletFile; only the write path is atomic.
+// OOC-003 (Milestone 20): the tmp file is written by
+// SaveWalletFile, which now creates it owner-only (0600, verified
+// with fstat before writing); the rename carries that inode — and
+// its mode — onto the final path, so a pre-existing wider-permission
+// file is replaced by a 0600 one. The final mode is verified here
+// anyway rather than assumed.
 bool SaveWalletFileAtomic(const std::string& path,
                           const WalletFileData& data,
                           const std::string& passphrase,
@@ -28,6 +36,12 @@ bool SaveWalletFileAtomic(const std::string& path,
   if (ec) {
     error = "cannot replace wallet file: " + ec.message();
     std::filesystem::remove(tmpPath, ec);
+    return false;
+  }
+  struct stat st {};
+  if (::stat(path.c_str(), &st) != 0 ||
+      (st.st_mode & 0777) != 0600) {
+    error = "wallet file permissions are not 0600 after save";
     return false;
   }
   return true;

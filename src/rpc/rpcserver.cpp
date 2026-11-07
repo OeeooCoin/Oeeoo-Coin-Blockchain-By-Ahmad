@@ -21,6 +21,7 @@
 #include "consensus/subsidy.h"
 #include "crypto/address.h"
 #include "mining/miner.h"
+#include "network/protocol.h"
 #include "rpc/rpcutil.h"
 #include "script/script.h"
 
@@ -910,7 +911,8 @@ Json RpcServer::CallMethod(const std::string& method, const Json& params,
   if (method == "getnetworkinfo") {
     Json j = Json::Object();
     j.Set("version", "0.1.0");
-    j.Set("subversion", "/OeeooCoin:0.1.0/");
+    j.Set("subversion", ActiveUserAgent());  // M20: follows the
+    // selected network (testnet advertises the testnet marker)
     j.Set("protocolversion", 70015);
     j.Set("localservices", "0000000000000001");
     j.Set("timeoffset", 0);

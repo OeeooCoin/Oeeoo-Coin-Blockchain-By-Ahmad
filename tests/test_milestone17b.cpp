@@ -763,6 +763,20 @@ void TestMilestone17B() {
                   "failure surfaced as a height rollback after "
                   "restart AND as a \"chain store error\" warning in "
                   "the node's log during the run (M17 fix)\n");
+    } else if (submitFailed) {
+      // M20: the limit DID bite — a submit was rejected upfront
+      // ("failed to persist accepted block") and the height stayed
+      // at the durable height, so no rollback was needed. That
+      // rejection (not a rollback) is the M20 durable-acceptance
+      // behaviour; the failure still surfaced as a "chain store
+      // error" warning in the limited run's log.
+      CHECK(loudBeforeRestart > 0);
+      std::printf("  [m17b] disk-full B: OBSERVED (M20) — the limit "
+                  "bit: a submit was rejected on persistence failure "
+                  "and the height stayed at the durable height %d; "
+                  "no rollback was needed (M20 durable-acceptance "
+                  "semantics)\n",
+                  memHeight);
     } else {
       std::printf("  [m17b] disk-full B: NOTE — the limit never bit "
                   "(all %d in-memory blocks were persisted); disk-full "

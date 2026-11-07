@@ -2,6 +2,9 @@
 // Oeeoo Coin — wallet transaction journal implementation (Milestone 16).
 #include "wallet/txjournal.h"
 
+#include <fcntl.h>
+#include <sys/stat.h>
+
 #include <cstdio>
 #include <filesystem>
 
@@ -71,6 +74,45 @@ Json RecordToJson(const WalletTxRecord& r) {
   j.Set("address", r.address);
   j.Set("label", r.label);
   return j;
+}
+
+// OOC-003 (Milestone 20), same fix as the wallet file: the journal
+// holds transaction history (txids, addresses, amounts, labels) —
+// no secrets, but privacy-sensitive — so it gets the same
+// owner-only (0600) treatment. open() with mode 0600 is umask-proof
+// for a new file, but does not change a pre-existing file's mode,
+// so fchmod() explicitly, verify with fstat(), and fail (leaving
+// any previous contents intact) rather than write into a file with
+// wider permissions. The mode is fixed BEFORE any byte is written,
+// and the old contents are truncated only after the mode is
+// verified. Platform scope: POSIX only (see walletfile.cpp).
+bool OpenPrivateFile(const std::string& path, FILE*& fileOut) {
+  fileOut = nullptr;
+  // No O_TRUNC here on purpose: truncate only after the mode is
+  // verified (below), so a chmod failure leaves the old file intact
+  // instead of destroying it.
+  const int fd = ::open(path.c_str(), O_WRONLY | O_CREAT, 0600);
+  if (fd < 0) return false;
+  if (::fchmod(fd, 0600) != 0) {
+    ::close(fd);
+    return false;
+  }
+  struct stat st {};
+  if (::fstat(fd, &st) != 0 || (st.st_mode & 0777) != 0600) {
+    ::close(fd);
+    return false;
+  }
+  if (::ftruncate(fd, 0) != 0) {
+    ::close(fd);
+    return false;
+  }
+  FILE* f = ::fdopen(fd, "wb");
+  if (f == nullptr) {
+    ::close(fd);
+    return false;
+  }
+  fileOut = f;
+  return true;
 }
 }  // namespace
 
@@ -154,8 +196,8 @@ bool SaveTxJournal(const std::string& path,
                    const std::vector<WalletTxRecord>& records,
                    std::string& error) {
   const std::string tmpPath = path + ".tmp";
-  FILE* f = std::fopen(tmpPath.c_str(), "wb");
-  if (f == nullptr) {
+  FILE* f = nullptr;
+  if (!OpenPrivateFile(tmpPath, f)) {
     error = "cannot write journal file";
     return false;
   }
@@ -183,6 +225,14 @@ bool SaveTxJournal(const std::string& path,
   if (ec) {
     error = "cannot replace journal file: " + ec.message();
     std::filesystem::remove(tmpPath, ec);
+    return false;
+  }
+  // The rename carries the tmp file's inode (and its verified 0600
+  // mode) onto the final path — verify anyway rather than assume it.
+  struct stat st {};
+  if (::stat(path.c_str(), &st) != 0 ||
+      (st.st_mode & 0777) != 0600) {
+    error = "journal file permissions are not 0600 after save";
     return false;
   }
   return true;

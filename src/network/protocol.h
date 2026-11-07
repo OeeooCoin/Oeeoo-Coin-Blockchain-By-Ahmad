@@ -9,6 +9,15 @@
 // Maximum message: 2 MB. Every received message is checked for magic,
 // length and checksum before dispatch. Unknown commands are ignored
 // (a peer is not punished for a command we do not know yet).
+//
+// Network identity (Milestone 20, audit OOC-SA-001 §3.3): mainnet
+// and the test network have DISTINCT identities (magic, default
+// ports, user agent) so a node on one network can never handshake
+// with a node on the other — the magic check drops cross-network
+// bytes. Protocol version is the SAME on both networks (70015);
+// the magic mismatch is what separates them. The active identity
+// is process-wide and defaults to mainnet; node_main selects it
+// once at startup from --testnet / `network=testnet`.
 #pragma once
 
 #include <array>
@@ -23,8 +32,70 @@ namespace oeeoo {
 
 // Oeeoo Coin mainnet network magic (SHA-256 of
 // "Oeeoo Coin Mainnet Network Magic", first 4 bytes, hash order).
-constexpr std::array<unsigned char, 4> kNetworkMagic = {0xe2, 0xd8, 0x04, 0xd6};
+constexpr std::array<unsigned char, 4> kMainnetMagic = {0xe2, 0xd8, 0x04,
+                                                        0xd6};
+// Historical name for the mainnet magic. Kept so existing code
+// keeps compiling; new code must use ActiveNetworkMagic(), which
+// follows the selected network. (M20: Node::OnBytes now compares
+// against ActiveNetworkMagic().)
+constexpr std::array<unsigned char, 4> kNetworkMagic = kMainnetMagic;
+// Oeeoo Coin test-network magic (Milestone 20): first 4 bytes of
+// SHA-256 of "Oeeoo Coin Testnet Network Magic", hash order — the
+// SAME derivation as mainnet (verified: the mainnet string hashes
+// to e2 d8 04 d6). Computed with python3 hashlib (see
+// tests/test_milestone20d.cpp): d9 73 08 c2.
+constexpr std::array<unsigned char, 4> kTestnetMagic = {0xd9, 0x73, 0x08,
+                                                        0xc2};
 constexpr uint16_t kMainnetPort = 64775;
+constexpr uint16_t kMainnetRpcPort = 64776;
+constexpr uint16_t kMainnetStratumPort = 64777;
+// Test-network default ports: the mainnet triple shifted by +4
+// (64779/64780/64781), so a mainnet node and a testnet node can
+// run side by side on one host with no listener colliding on any
+// of P2P, RPC, or Stratum. None of 64779–64781 collides with the
+// mainnet ports 64775–64777. An operator-set port always wins
+// over these defaults (AppConfig::Effective*()).
+constexpr uint16_t kTestnetPort = 64779;
+constexpr uint16_t kTestnetRpcPort = 64780;
+constexpr uint16_t kTestnetStratumPort = 64781;
+// User agents. The testnet marker "(testnet)" is what a peer (and
+// the operator reading a log) sees in the version handshake.
+constexpr const char* kMainnetUserAgent = "/OeeooCoin:0.1.0/";
+constexpr const char* kTestnetUserAgent = "/OeeooCoin:0.1.0(testnet)/";
+
+// One network's full wire identity. Protocol version is NOT part
+// of it: kProtocolVersion (70015, below) is the same on both
+// networks by design — the magic mismatch separates them.
+struct NetworkIdentity {
+  std::array<unsigned char, 4> magic;
+  uint16_t p2pPort;      // default P2P listen port
+  uint16_t rpcPort;      // default JSON-RPC port (127.0.0.1 only)
+  uint16_t stratumPort;  // default Stratum port (127.0.0.1 only)
+  const char* userAgent;
+  const char* name;  // "mainnet" / "testnet"
+};
+
+constexpr NetworkIdentity kMainnetIdentity = {
+    kMainnetMagic, kMainnetPort, kMainnetRpcPort, kMainnetStratumPort,
+    kMainnetUserAgent, "mainnet"};
+constexpr NetworkIdentity kTestnetIdentity = {
+    kTestnetMagic, kTestnetPort, kTestnetRpcPort, kTestnetStratumPort,
+    kTestnetUserAgent, "testnet"};
+
+enum class NetworkId { kMainnet, kTestnet };
+
+// Identity for a network id (no selection involved).
+const NetworkIdentity& NetworkIdentityFor(NetworkId id);
+// Select the process-wide active network (default: mainnet).
+// node_main calls this once at startup from --testnet /
+// `network=testnet`. SerializeMessage / ParseMessage use the
+// active magic, so one process speaks exactly one network.
+void SelectNetwork(NetworkId id);
+NetworkId ActiveNetwork();
+const NetworkIdentity& ActiveNetworkIdentity();
+// Magic / user agent of the active network.
+std::array<unsigned char, 4> ActiveNetworkMagic();
+std::string ActiveUserAgent();
 constexpr std::size_t kMaxMessageLength = 2 * 1024 * 1024;
 constexpr std::size_t kMessageHeaderSize = 24;
 constexpr int32_t kProtocolVersion = 70015;

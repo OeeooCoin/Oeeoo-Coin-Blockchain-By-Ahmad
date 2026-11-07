@@ -105,6 +105,21 @@ bool Block::CheckBasic(std::string& error) const {
     error = "block has no transactions";
     return false;
   }
+  // OOC-001 (M20): exactly one coinbase transaction, and it must be
+  // vtx[0]. A second coinbase anywhere else would mint coins beyond
+  // subsidy + fees (ConnectBlockTransactions used to mint every
+  // IsCoinbase tx's outputs), breaking the 21M cap. This holds for
+  // the genesis block too: its coinbase is vtx[0].
+  if (!IsCoinbase(vtx[0])) {
+    error = "first transaction is not a coinbase";
+    return false;
+  }
+  for (std::size_t i = 1; i < vtx.size(); ++i) {
+    if (IsCoinbase(vtx[i])) {
+      error = "block contains more than one coinbase transaction";
+      return false;
+    }
+  }
   for (const Transaction& tx : vtx) {
     if (!tx.CheckBasic()) {
       error = "invalid transaction in block";

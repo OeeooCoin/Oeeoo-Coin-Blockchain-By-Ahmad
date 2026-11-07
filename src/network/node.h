@@ -52,10 +52,14 @@ class Node {
   void SetTransport(std::shared_ptr<ITransport> transport) {
     transport_ = std::move(transport);
   }
-  // Attach a persistent store (not owned). Accepted blocks are then
-  // written to it atomically. A store failure does NOT un-accept a
-  // block — see LastStoreError(); on restart the node reloads from
-  // the store's last good state and re-syncs the rest from peers.
+  // Attach a persistent store (not owned). Accepted blocks are
+  // written to it atomically BEFORE the node commits them
+  // in-memory (M20, OOC-002): a store failure REJECTS the block
+  // (BroadcastBlock / AcceptBlock return false + an error, the
+  // in-memory height does not advance) instead of accepting it
+  // and recording the failure in LastStoreError() only. On
+  // restart the node reloads from the store's last good state
+  // and re-syncs the rest from peers.
   void AttachStore(ChainStore* store) { store_ = store; }
   // Founder vesting parameters (Milestone 9). Must be set before
   // the genesis block is accepted; disabled by default.

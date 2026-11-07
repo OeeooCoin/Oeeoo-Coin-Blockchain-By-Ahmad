@@ -7,7 +7,30 @@
 #include <fstream>
 #include <sstream>
 
+#include "network/protocol.h"
+
 namespace oeeoo {
+
+uint16_t AppConfig::EffectivePort() const {
+  if (portExplicit) return port;
+  return NetworkIdentityFor(testnet ? NetworkId::kTestnet
+                                    : NetworkId::kMainnet)
+      .p2pPort;
+}
+
+uint16_t AppConfig::EffectiveRpcPort() const {
+  if (rpcPortExplicit) return rpcPort;
+  return NetworkIdentityFor(testnet ? NetworkId::kTestnet
+                                    : NetworkId::kMainnet)
+      .rpcPort;
+}
+
+uint16_t AppConfig::EffectiveStratumPort() const {
+  if (stratumPortExplicit) return stratumPort;
+  return NetworkIdentityFor(testnet ? NetworkId::kTestnet
+                                    : NetworkId::kMainnet)
+      .stratumPort;
+}
 
 namespace {
 std::string Trim(const std::string& s) {
@@ -65,12 +88,29 @@ bool SetKey(AppConfig& config, const std::string& key,
             const std::string& value, std::string& error) {
   if (key == "datadir") {
     config.dataDir = value;
+  } else if (key == "network") {
+    // Milestone 20: `network=testnet` selects the test-network
+    // identity; `network=mainnet` (or an absent key) is mainnet.
+    // Anything else is rejected loudly — silently falling back
+    // to mainnet would hide a typo that puts a test node on
+    // Mainnet (or vice versa).
+    if (value == "mainnet") {
+      config.testnet = false;
+    } else if (value == "testnet") {
+      config.testnet = true;
+    } else {
+      error = "invalid network (expected mainnet/testnet): " + value;
+      return false;
+    }
   } else if (key == "port") {
     if (!ParsePort(value, config.port, error)) return false;
+    config.portExplicit = true;
   } else if (key == "rpcport") {
     if (!ParsePort(value, config.rpcPort, error)) return false;
+    config.rpcPortExplicit = true;
   } else if (key == "stratumport") {
     if (!ParsePort(value, config.stratumPort, error)) return false;
+    config.stratumPortExplicit = true;
   } else if (key == "mineraddress") {
     config.minerAddress = value;
   } else if (key == "genesisfile") {
@@ -203,18 +243,37 @@ bool ParseArgs(int argc, char** argv, AppConfig& config,
       config.version = true;
     } else if (arg == "--datadir") {
       if (!needValue("--datadir", config.dataDir)) return false;
+    } else if (arg == "--testnet") {
+      // Milestone 20: select the test-network identity
+      // (testnet magic, default ports 64779/64780/64781,
+      // "(testnet)" user agent). Default (no flag) is mainnet.
+      config.testnet = true;
+    } else if (arg == "--network") {
+      std::string value;
+      if (!needValue("--network", value)) return false;
+      if (value == "mainnet") {
+        config.testnet = false;
+      } else if (value == "testnet") {
+        config.testnet = true;
+      } else {
+        error = "invalid --network (expected mainnet/testnet): " + value;
+        return false;
+      }
     } else if (arg == "--port") {
       std::string value;
       if (!needValue("--port", value)) return false;
       if (!ParsePort(value, config.port, error)) return false;
+      config.portExplicit = true;
     } else if (arg == "--rpcport") {
       std::string value;
       if (!needValue("--rpcport", value)) return false;
       if (!ParsePort(value, config.rpcPort, error)) return false;
+      config.rpcPortExplicit = true;
     } else if (arg == "--stratumport") {
       std::string value;
       if (!needValue("--stratumport", value)) return false;
       if (!ParsePort(value, config.stratumPort, error)) return false;
+      config.stratumPortExplicit = true;
     } else if (arg == "--miner-address") {
       if (!needValue("--miner-address", config.minerAddress)) return false;
     } else if (arg == "--genesis-file") {
@@ -314,12 +373,24 @@ std::string UsageText(const char* program) {
       << "\n"
       << "  --config <path>       config file (oeeoo.conf format)\n"
       << "  --datadir <path>      data directory (default: oeeoo-data)\n"
-      << "  --port <n>            P2P port (default: 64775)\n"
-      << "  --rpcport <n>         JSON-RPC port, 127.0.0.1 only (default: 64776)\n"
+      << "  --testnet             test-network identity: testnet magic\n"
+      << "                         (d9 73 08 c2), default ports 64779 "
+         "(P2P) / 64780 (RPC) /\n"
+      << "                         64781 (Stratum), user agent "
+         "\"/OeeooCoin:0.1.0(testnet)/\".\n"
+      << "                         Default (no flag) is mainnet; a "
+         "testnet node can never\n"
+      << "                         peer with a mainnet node.\n"
+      << "  --network <name>      mainnet (default) or testnet; same "
+         "as --testnet, and the\n"
+      << "                         CLI form of the `network` config key\n"
+      << "  --port <n>            P2P port (default: 64775 mainnet, "
+         "64779 testnet)\n"
+      << "  --rpcport <n>         JSON-RPC port, 127.0.0.1 only (default: 64776 mainnet, 64780 testnet)\n"
       << "  --rpcthreads <n>      RPC worker threads (default: 16)\n"
       << "  --rpcworkqueue <n>    RPC work-queue depth; queue-full -> HTTP 500\n"
       << "                         (default: 64)\n"
-      << "  --stratumport <n>     Stratum port, 127.0.0.1 only (default: 64777)\n"
+      << "  --stratumport <n>     Stratum port, 127.0.0.1 only (default: 64777 mainnet, 64781 testnet)\n"
       << "  --miner-address <a>   P2PKH address for Stratum coinbase (enables Stratum)\n"
       << "  --genesis-file <path> genesis file from oeeoo-genesis (fresh chain only)\n"
       << "  --wallet <path>       wallet file for the node wallet (loads LOCKED;\n"

@@ -149,12 +149,26 @@ bool ConnectBlockTransactions(const Block& block, CoinsView& utxo,
   if (height == 0 && !ValidateGenesisCoinbase(block, vesting, error)) {
     return false;
   }
-  for (const Transaction& tx : block.vtx) {
+  for (std::size_t txIndex = 0; txIndex < block.vtx.size(); ++txIndex) {
+    const Transaction& tx = block.vtx[txIndex];
     if (IsCoinbase(tx)) {
-      // Coinbase: not validated here (Milestone 5). Its outputs enter
-      // the UTXO set as coinbase coins. The founder-spend rule still
-      // applies (a coinbase paying the founder script is a vault
-      // deposit; on a funded chain it always passes).
+      // OOC-001 (M20): only vtx[0] may be a coinbase. A second
+      // coinbase is a HARD REJECTION — never a mint, never silently
+      // skipped. (Before M20 this branch minted EVERY coinbase tx's
+      // outputs with only a CheckFounderSpend check, so a miner
+      // could add a second coinbase and mint beyond subsidy + fees.)
+      if (txIndex != 0) {
+        error = "coinbase transaction at index " +
+                std::to_string(txIndex) +
+                ": only the first transaction may be a coinbase";
+        return false;
+      }
+      // Coinbase: validated by CheckBlockReward (subsidy + fees
+      // cap) before this function runs on every acceptance path.
+      // Its outputs enter the UTXO set as coinbase coins. The
+      // founder-spend rule still applies (a coinbase paying the
+      // founder script is a vault deposit; on a funded chain it
+      // always passes).
       if (!CheckFounderSpend(working, tx, vesting, blockTime, error)) {
         return false;
       }
@@ -171,6 +185,13 @@ bool ConnectBlockTransactions(const Block& block, CoinsView& utxo,
         }
       }
       continue;
+    }
+    // OOC-001 (M20): belt-and-braces — vtx[0] must be the coinbase.
+    // A block whose first transaction is not a coinbase is invalid
+    // even if that transaction would validate on its own.
+    if (txIndex == 0) {
+      error = "first transaction is not a coinbase";
+      return false;
     }
     TxValidationResult r =
         ValidateTransaction(tx, working, height, medianTimePast);

@@ -16,6 +16,31 @@ struct AppConfig {
   uint16_t port = 64775;         // P2P
   uint16_t rpcPort = 64776;      // JSON-RPC (127.0.0.1 only)
   uint16_t stratumPort = 64777;  // Stratum v1 (127.0.0.1 only)
+  // Test-network selection (Milestone 20, audit OOC-SA-001 §3.3).
+  // `--testnet` / `--network testnet` (CLI) or `network=testnet`
+  // (config file). Default false = mainnet. When true, the node
+  // uses the distinct test-network identity (testnet magic,
+  // default ports 64779/64780/64781, "(testnet)" user agent) and
+  // can never peer with a mainnet node. This is a network
+  // identity only: it does NOT change consensus (the PoW limit
+  // still comes from --pow-limit-bits as before), and it is NOT
+  // a public testnet — direct mainnet launch stands.
+  bool testnet = false;
+  // True when the operator set the port explicitly (config file
+  // or CLI). Effective*() returns the explicit port when set and
+  // the selected network's default otherwise, so --testnet shifts
+  // the defaults but never overrides an explicit port, and the
+  // order of keys/flags does not matter.
+  bool portExplicit = false;
+  bool rpcPortExplicit = false;
+  bool stratumPortExplicit = false;
+  // Resolved listen ports: explicit value, else the selected
+  // network's default (mainnet 64775/64776/64777, testnet
+  // 64779/64780/64781). node_main listens on these, never on the
+  // raw `port` / `rpcPort` / `stratumPort` members.
+  uint16_t EffectivePort() const;
+  uint16_t EffectiveRpcPort() const;
+  uint16_t EffectiveStratumPort() const;
   std::string minerAddress;      // empty = Stratum disabled
   std::string genesisFile;       // empty = an existing chain is required
   // Wallet file for the node wallet (Milestone 14). Empty = no

@@ -46,9 +46,11 @@ struct BlockHeader {
 
 // Full block: header + transactions (Milestone 3).
 // Serialization: 80-byte header, CompactSize tx count, then each
-// transaction in order. Coinbase rules (first tx must be a coinbase,
-// reward checks) are Milestone 5 — CheckBasic here covers structure
-// only: size, Merkle root, duplicate txids, per-tx basic validity.
+// transaction in order. Coinbase rules (exactly one coinbase, and it
+// must be the first tx; reward checks) are enforced by CheckBasic
+// (M20, OOC-001) and by CheckBlockReward / ConnectBlockTransactions:
+// size, Merkle root, duplicate txids, per-tx basic validity, plus
+// the exactly-one-coinbase-at-index-0 rule.
 struct Block {
   BlockHeader header;
   std::vector<Transaction> vtx;

@@ -92,6 +92,20 @@ bool CheckBlockReward(const Block& block, int height, Amount fees,
     error = "block has no transactions";
     return false;
   }
+  // OOC-001 (M20): exactly one coinbase, at vtx[0]. ValidateCoinbase
+  // below only checks vtx[0]; without this scan a second coinbase
+  // elsewhere in the block would escape the reward check entirely
+  // and mint beyond subsidy + fees.
+  if (!IsCoinbase(block.vtx[0])) {
+    error = "first transaction is not a coinbase";
+    return false;
+  }
+  for (std::size_t i = 1; i < block.vtx.size(); ++i) {
+    if (IsCoinbase(block.vtx[i])) {
+      error = "block contains more than one coinbase transaction";
+      return false;
+    }
+  }
   // Checked addition: subsidy + fees can never exceed the maximum
   // money supply (fees are bounded by the UTXO value spent in the
   // block), and the check makes that explicit instead of relying on
@@ -115,6 +129,17 @@ bool ComputeBlockFees(const Block& block, const CoinsView& utxo, int height,
   totalFees = 0;
   CoinsView working = utxo;
   for (const Transaction& tx : block.vtx) {
+    // OOC-001 (M20): this skip is safe ONLY because every acceptance
+    // path rejects a second coinbase before any mint can happen
+    // (Block::CheckBasic, CheckBlockReward, and
+    // ConnectBlockTransactions all enforce exactly one coinbase at
+    // vtx[0]). A coinbase has no inputs, so it can never contribute
+    // a fee, and skipping it here cannot hide minted value: the mint
+    // happens in ConnectBlockTransactions, which rejects any
+    // coinbase past index 0. This function runs BEFORE
+    // CheckBlockReward in AcceptBlockDirect / VerifyChainFromStore,
+    // so it must never mint or validate value itself — and it does
+    // not: it only sums the fees of validated non-coinbase txs.
     if (IsCoinbase(tx)) continue;  // coinbase: no fee
     TxValidationResult r =
         ValidateTransaction(tx, working, height, medianTimePast);

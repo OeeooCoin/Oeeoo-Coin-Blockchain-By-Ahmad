@@ -221,16 +221,24 @@ void TestValidation() {
     Block block;
     block.header.nVersion = 1;
     block.header.nTime = kCoinTime + 600;
-    block.vtx = {tx1, tx2};
+    // M20 (OOC-001): a valid block carries exactly one coinbase at
+    // vtx[0]; the connection logic below is exercised with a real
+    // block shape. The coinbase value is 0 here — Connect does not
+    // check the reward amount (CheckBlockReward does) — so the
+    // fees below are exactly tx1's 1 OEEOO + tx2's 1 OEEOO.
+    Transaction coinbase = CreateCoinbase(
+        1, CreateP2PKHScriptPubKey(PubKeyHash160(g_alice.pubkey)), 0);
+    block.vtx = {coinbase, tx1, tx2};
     block.header.hashMerkleRoot = block.ComputeMerkleRoot();
     Amount fees = 0;
     std::string error;
     CHECK(ConnectBlockTransactions(block, utxo, 1, kCoinTime,
                                    kCoinTime + 600, fees, error));
     CHECK(fees == 2 * COIN);  // 1 + 1 OEEOO
-    CHECK(utxo.Size() == 2);  // kPrev2 coin + tx2 change
+    CHECK(utxo.Size() == 3);  // kPrev2 coin + tx2 change + coinbase
     CHECK(!utxo.HasCoin({kPrev, 0}));
     CHECK(utxo.HasCoin({tx2.GetTxId(), 0}));
+    CHECK(utxo.HasCoin({coinbase.GetTxId(), 0}));
 
     // Block with a same-block double spend (two txs spending the live
     // kPrev2 coin) must fail and change nothing.
@@ -239,7 +247,11 @@ void TestValidation() {
     Block badBlock;
     badBlock.header.nVersion = 1;
     badBlock.header.nTime = kCoinTime + 1200;
-    badBlock.vtx = {txA, txB};
+    // Same M20 shape: a coinbase at vtx[0] so the failure below is
+    // the double spend, not a missing coinbase.
+    Transaction badCoinbase = CreateCoinbase(
+        2, CreateP2PKHScriptPubKey(PubKeyHash160(g_alice.pubkey)), 0);
+    badBlock.vtx = {badCoinbase, txA, txB};
     badBlock.header.hashMerkleRoot = badBlock.ComputeMerkleRoot();
     const std::size_t sizeBefore = utxo.Size();
     CHECK(!ConnectBlockTransactions(badBlock, utxo, 2, kCoinTime + 600,

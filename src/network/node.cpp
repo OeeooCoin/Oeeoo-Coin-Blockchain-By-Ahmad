@@ -46,7 +46,11 @@ constexpr uint32_t kBlockStallTimeoutSeconds = 2;
 // and the re-query only fires while the node is already isolated
 // (zero known addresses), so a stall cannot cost live peers.
 constexpr uint32_t kSeedRequeryIntervalSeconds = 600;
-const char* kUserAgent = "/OeeooCoin:0.1.0/";
+
+// (M20: no file-local user-agent constant — SendVersion uses
+// ActiveUserAgent(), so the handshake advertises the active
+// network's agent: "/OeeooCoin:0.1.0/" on mainnet,
+// "/OeeooCoin:0.1.0(testnet)/" on testnet.)
 
 // Steady-clock milliseconds (monotonic — the wall clock can jump).
 // Used for ping round-trips, never for consensus or expiry.
@@ -116,7 +120,8 @@ std::size_t Node::QueryDnsSeeds(std::string& error) {
   for (const std::string& seed : dnsSeeds_) {
     std::vector<AddrEntry> addrs;
     std::string seedError;
-    if (!ResolveSeed(seed, kMainnetPort, addrs, seedError)) {
+    if (!ResolveSeed(seed, ActiveNetworkIdentity().p2pPort, addrs,
+                     seedError)) {
       if (!failures.empty()) failures += "; ";
       failures += seedError;
       continue;
@@ -411,7 +416,7 @@ void Node::SendVersion(const std::string& peerId) {
   VersionPayload v;
   v.timestamp = Now();
   v.nonce = nodeNonce_;
-  v.userAgent = kUserAgent;
+  v.userAgent = ActiveUserAgent();
   v.startHeight = chain_.GetTipHeight();
   v.relay = true;
   SendMessage(peerId, {"version", SerializeVersion(v)});
@@ -482,10 +487,13 @@ void Node::OnBytes(const std::string& peerId,
   Peer& peer = it->second;
   peer.recvBuffer.insert(peer.recvBuffer.end(), bytes.begin(), bytes.end());
   std::size_t offset = 0;
+  // M20: the magic pre-check follows the ACTIVE network (a testnet
+  // node rejects mainnet bytes here, not just in ParseMessage).
+  const std::array<unsigned char, 4> activeMagic = ActiveNetworkMagic();
   while (offset < peer.recvBuffer.size()) {
     // Peek for corruption before waiting for more bytes.
     if (peer.recvBuffer.size() - offset < kMessageHeaderSize) break;
-    if (std::memcmp(peer.recvBuffer.data() + offset, kNetworkMagic.data(),
+    if (std::memcmp(peer.recvBuffer.data() + offset, activeMagic.data(),
                     4) != 0) {
       Misbehave(peerId, 50);  // bad magic: not our network
       // Misbehave can ban + disconnect the peer (score >= 100),
@@ -901,6 +909,19 @@ void Node::OnMessage(const std::string& peerId, const Message& msg) {
       Misbehave(peerId, 10);
       return;
     }
+    // M20 (Worker A finding): a coinbase-shaped transaction
+    // relayed as a "tx" fails ValidateTransaction with "missing
+    // input" (zero-hash prev) and would otherwise be admitted to
+    // the orphan pool below, where it can never validate — its
+    // parent txid 0x00..00 never arrives. Coinbase transactions
+    // only ever arrive inside blocks, never as relayed
+    // transactions, so reject here, before the orphan branch: no
+    // orphan add, no relay. Misbehavior +10, like any other
+    // invalid relayed transaction.
+    if (IsCoinbase(tx)) {
+      Misbehave(peerId, 10);
+      return;
+    }
     const Hash256 txid = tx.GetTxId();
     if (mempool_.Contains(txid)) return;
     TxValidationResult r = ValidateTransaction(
@@ -1182,6 +1203,35 @@ bool Node::AcceptBlock(const Block& block, std::string& error, bool& punish) {
 
 bool Node::AcceptBlockDirect(const Block& block, int height,
                              std::string& error, bool& punish) {
+  // M20 (OOC-002) — DURABLE ACCEPTANCE SEMANTICS. A block is only
+  // accepted (in-memory chain / UTXO / mempool / undo updated, and
+  // `true` returned to the caller) AFTER it has been persisted to
+  // the store. Order: (1) validate everything against working
+  // copies; (2) validate the header + compute cumulative work on a
+  // TRIAL COPY of the chain index (see below); (3) persist with
+  // ChainStore::ApplyBlock (one atomic SQLite transaction); (4)
+  // only then commit to the real index and the in-memory state.
+  // A persistence failure returns FALSE + `error` ("failed to
+  // persist accepted block: ...") with `punish == false` (a local
+  // I/O failure is not the sender's fault) and changes NO
+  // in-memory state — the node's height stays at the durable
+  // height, and a restart recovers exactly the durable chain.
+  // The trial copy exists because ChainState::AddBlock is the only
+  // exact header validator (PoW, expected bits, Median-Time-Past,
+  // future-timestamp rule) and it also computes the cumulative
+  // work ApplyBlock needs — and there is no ChainState API to
+  // remove a block again, so validating on the real index first
+  // and rolling back on a persist failure is not possible. The
+  // trial is a full copy of the index (O(chain) per acceptance);
+  // that cost is accepted for exactness — a future header-only
+  // check method on ChainState could replace it. The real
+  // AddBlock in step (4) re-validates with the same `now` and the
+  // same chain state, so it can only fail if another thread
+  // accepted a competing block in between (RPC/Stratum callers
+  // are serialized by nodeMutex, the P2P Poll loop is
+  // single-threaded; a race through the other path is
+  // pre-existing, not introduced here) — that case best-effort
+  // undoes the persist (DisconnectBlock) and still returns false.
   // Validate everything against working copies BEFORE mutating the
   // chain or the UTXO set, so a rejection changes nothing.
   Amount fees = 0;
@@ -1211,8 +1261,50 @@ bool Node::AcceptBlockDirect(const Block& block, int height,
     punish = true;
     return false;
   }
-  if (!chain_.AddBlock(block, Now(), error)) {
+  // Header validation + work on a trial copy of the chain index
+  // (exact: this IS ChainState::AddBlock, on a copy). The trial's
+  // cumulative work is what the store needs; the real index is
+  // still untouched, so a failure here changes nothing.
+  ChainState trial = chain_;
+  const uint32_t now = Now();
+  std::string indexError;
+  if (!trial.AddBlock(block, now, indexError)) {
+    error = indexError;
+    punish = (indexError != "parent block not found");
+    return false;
+  }
+  // Persist BEFORE committing any in-memory state. On failure the
+  // node reports failure and keeps serving the durable chain.
+  if (store_ != nullptr) {
+    Target work;
+    if (!trial.GetChainWork(block.GetHash(), work)) {
+      // Unreachable: trial.AddBlock just succeeded, so the block
+      // is in the trial index. Fail closed rather than persisting
+      // with a wrong work value.
+      error = "cannot read chain work for persistence";
+      punish = false;
+      return false;
+    }
+    std::string storeError;
+    if (!store_->ApplyBlock(block, work, undo, storeError)) {
+      lastStoreError_ = storeError;
+      error = "failed to persist accepted block: " + storeError;
+      punish = false;
+      return false;
+    }
+  }
+  // The block is durable (or there is no store): commit the header
+  // to the real index. This re-validates with the same inputs, so
+  // it can only fail on a concurrent competing acceptance — undo
+  // the persist best-effort in that case and still report failure.
+  if (!chain_.AddBlock(block, now, error)) {
     punish = (error != "parent block not found");
+    if (store_ != nullptr) {
+      std::string undoError;
+      if (!store_->DisconnectBlock(block.GetHash(), undoError)) {
+        lastStoreError_ = undoError;
+      }
+    }
     return false;
   }
   utxo_ = std::move(working);
@@ -1230,18 +1322,6 @@ bool Node::AcceptBlockDirect(const Block& block, int height,
     mempool_.Remove(block.vtx[i].GetTxId());
   }
   feeEstimator_.RecordBlock(height, confirmed);
-  // Persist atomically when a store is attached.
-  if (store_ != nullptr) {
-    Target work;
-    if (!chain_.GetChainWork(block.GetHash(), work)) {
-      lastStoreError_ = "cannot read chain work for persistence";
-    } else {
-      std::string storeError;
-      if (!store_->ApplyBlock(block, work, undo, storeError)) {
-        lastStoreError_ = storeError;
-      }
-    }
-  }
   // The block's transactions are now confirmed parents: orphans
   // waiting on any of them may validate now.
   for (std::size_t i = 1; i < block.vtx.size(); ++i) {
@@ -1305,7 +1385,9 @@ bool Node::AcceptBlockReorg(const Block& block, int height,
     std::reverse(sideBlocks.begin(), sideBlocks.end());
     sideBlocks.push_back(block);
   }
-  (void)height;
+  // (M20: `height` is now used — step 5 passes it to
+  // PutBlockAtHeight for the inactive side branch — so the old
+  // `(void)height;` suppression is gone.)
   // 2. Main-chain blocks to disconnect (newest first).
   std::vector<Block> mainBlocks;
   for (int h = chain_.GetTipHeight(); h > forkHeight; --h) {
@@ -1324,6 +1406,11 @@ bool Node::AcceptBlockReorg(const Block& block, int height,
   //    list of the last 11 ancestor times (fork point's ancestors,
   //    then the earlier side blocks).
   CoinsView working = utxo_;
+  // M20 (OOC-002): the main blocks' undo records, parallel to
+  // mainBlocks, so a failed reorg persist can restore the store
+  // to the pre-reorg tip (the store's own undo rows are deleted
+  // by DisconnectBlock, so they cannot be re-fetched afterwards).
+  std::vector<BlockUndo> mainUndos;
   for (const Block& mainBlock : mainBlocks) {
     BlockUndo undo;
     if (!GetUndoForBlock(mainBlock.GetHash(), undo, error)) {
@@ -1334,6 +1421,7 @@ bool Node::AcceptBlockReorg(const Block& block, int height,
       punish = false;
       return false;
     }
+    mainUndos.push_back(undo);
   }
   std::vector<uint32_t> recentTimes;  // most recent first, max 11
   for (int h = forkHeight; h >= 0 && (int)recentTimes.size() < 11; --h) {
@@ -1384,26 +1472,153 @@ bool Node::AcceptBlockReorg(const Block& block, int height,
     recentTimes.insert(recentTimes.begin(), sideBlock.header.nTime);
     if (recentTimes.size() > 11) recentTimes.pop_back();
   }
-  // 4. The header chain decides: only adopt the working UTXO set if
-  //    the new block becomes the tip (more cumulative work).
-  if (!chain_.AddBlock(block, Now(), error)) {
+  // 4. M20 (OOC-002) — the reorg had the SAME flaw as the direct
+  //    path (it committed the reorg in memory first, then persisted
+  //    it, swallowing failures in LastStoreError_): a persistence
+  //    failure could leave the node serving a reorged chain the
+  //    store had never seen. Fixed the same way — persist BEFORE
+  //    committing any in-memory state. Header validation + work
+  //    come from a trial copy of the chain index (exact: this IS
+  //    ChainState::AddBlock, on a copy; the side branch's ancestors
+  //    are already indexed from when they arrived, so only the new
+  //    block is added by the trial). `becomesTip` is read off the
+  //    trial tip instead of duplicating the greatest-work rule.
+  //    The store persist is sequential, one atomic SQLite
+  //    transaction per block (ChainStore has no multi-block
+  //    transaction API, and nested transactions are an error), so
+  //    a failure CAN land mid-reorg — see the restore below.
+  ChainState trial = chain_;
+  const uint32_t now = Now();
+  if (!trial.AddBlock(block, now, error)) {
     punish = (error != "parent block not found");
+    return false;
+  }
+  const bool becomesTip = (trial.GetTipHash() == block.GetHash());
+  Target blockWork;
+  if (!trial.GetChainWork(block.GetHash(), blockWork)) {
+    // Unreachable: trial.AddBlock just succeeded.
+    error = "cannot read chain work for persistence";
+    punish = false;
+    return false;
+  }
+  // Trackers for the store persist below (both empty when the
+  // store is untouched, e.g. a failure on the very first store
+  // operation, or no store attached).
+  std::vector<Block> disconnectedMain;  // newest-first, as disconnected
+  std::vector<Block> appliedSide;       // oldest-first, as applied
+  // Best-effort restore of the store to the pre-reorg tip:
+  // disconnect every side block applied so far (newest first —
+  // DisconnectBlock requires the tip), then re-apply every main
+  // block disconnected so far (oldest first). The main re-apply
+  // is only attempted when ALL applied side blocks came off —
+  // otherwise the store UTXO set would mix both branches.
+  // Returns false when the store could not be restored; the store
+  // is then left at an intermediate but VALID chain state (the
+  // fork point, or partway through the main re-apply — each step
+  // is one atomic transaction, so it is never corrupt), and the
+  // node keeps serving the old in-memory tip until a restart
+  // loads the durable state. Under a sustained I/O failure
+  // (e.g. disk full) the restore itself fails the same way the
+  // persist did — that is the honest limit of a per-block store
+  // API with no multi-block transaction.
+  auto restoreStore = [&]() -> bool {
+    for (auto it = appliedSide.rbegin(); it != appliedSide.rend(); ++it) {
+      std::string restoreError;
+      if (!store_->DisconnectBlock(it->GetHash(), restoreError)) {
+        lastStoreError_ = restoreError;
+        return false;
+      }
+    }
+    for (int k = static_cast<int>(disconnectedMain.size()) - 1; k >= 0;
+         --k) {
+      Target work;
+      // Main blocks are still indexed (the real chain was never
+      // touched), and mainUndos[k] parallels mainBlocks[k] ==
+      // disconnectedMain[k].
+      if (!chain_.GetChainWork(disconnectedMain[k].GetHash(), work)) {
+        return false;
+      }
+      std::string restoreError;
+      if (!store_->ApplyBlock(disconnectedMain[k], work, mainUndos[k],
+                              restoreError)) {
+        lastStoreError_ = restoreError;
+        return false;
+      }
+    }
+    return true;
+  };
+  // 5. Persist BEFORE committing any in-memory state.
+  if (store_ != nullptr) {
+    if (!becomesTip) {
+      // Inactive side branch: only the block row is stored (no
+      // UTXO / tip change). A failure rejects the block outright
+      // instead of indexing a side branch the store never saw.
+      std::string storeError;
+      if (!store_->PutBlockAtHeight(block, blockWork, height,
+                                    storeError)) {
+        lastStoreError_ = storeError;
+        error = "failed to persist accepted block: " + storeError;
+        punish = false;
+        return false;
+      }
+    } else {
+      // Active reorg: disconnect the old tip blocks in the store
+      // (tip-first), then apply the side branch (oldest first).
+      // Any failure restores the store best-effort (above) and
+      // rejects the reorg with NO in-memory change.
+      std::string storeError;
+      bool storeOk = true;
+      for (const Block& mainBlock : mainBlocks) {
+        if (!store_->DisconnectBlock(mainBlock.GetHash(), storeError)) {
+          storeOk = false;
+          break;
+        }
+        disconnectedMain.push_back(mainBlock);
+      }
+      if (storeOk) {
+        for (std::size_t i = 0; i < sideBlocks.size(); ++i) {
+          Target work;
+          // Every side block is indexed in the trial (ancestors
+          // from the real chain, the new block from trial.AddBlock).
+          if (!trial.GetChainWork(sideBlocks[i].GetHash(), work)) {
+            storeError = "cannot read chain work for persistence";
+            storeOk = false;
+            break;
+          }
+          if (!store_->ApplyBlock(sideBlocks[i], work, sideUndos[i],
+                                  storeError)) {
+            storeOk = false;
+            break;
+          }
+          appliedSide.push_back(sideBlocks[i]);
+        }
+      }
+      if (!storeOk) {
+        lastStoreError_ = storeError;
+        restoreStore();
+        error = "failed to persist reorg: " + storeError;
+        punish = false;
+        return false;
+      }
+    }
+  }
+  // 6. The reorg is durable (or there is no store): commit the
+  //    header to the real index. As in the direct path, this
+  //    re-validates with the same inputs, so it can only fail on
+  //    a concurrent competing acceptance — restore the store
+  //    best-effort in that case and still report failure.
+  if (!chain_.AddBlock(block, now, error)) {
+    punish = (error != "parent block not found");
+    if (store_ != nullptr && becomesTip) restoreStore();
     return false;
   }
   knownBlocks_[block.GetHash()] = block;
   knownHeaders_[block.GetHash()] = block.header;
   if (chain_.GetTipHash() != block.GetHash()) {
     // Inactive side branch: stored in the index, but the active
-    // chain (and its UTXO set) is unchanged.
-    if (store_ != nullptr) {
-      Target work;
-      if (chain_.GetChainWork(block.GetHash(), work)) {
-        std::string storeError;
-        if (!store_->PutBlockAtHeight(block, work, height, storeError)) {
-          lastStoreError_ = storeError;
-        }
-      }
-    }
+    // chain (and its UTXO set) is unchanged. (Persisted above,
+    // before AddBlock — step 5 — so the index and the store agree
+    // about this block.)
     return true;
   }
   // The reorg happened: adopt the working UTXO set.
@@ -1441,34 +1656,9 @@ bool Node::AcceptBlockReorg(const Block& block, int height,
                               chain_.GetVestingParams());
     }
   }
-  // Persist the reorg: disconnect the old tip blocks (tip-first),
-  // then apply the side branch (oldest first).
-  if (store_ != nullptr) {
-    bool storeOk = true;
-    for (const Block& mainBlock : mainBlocks) {
-      std::string storeError;
-      if (!store_->DisconnectBlock(mainBlock.GetHash(), storeError)) {
-        lastStoreError_ = storeError;
-        storeOk = false;
-        break;
-      }
-    }
-    if (storeOk) {
-      for (std::size_t i = 0; i < sideBlocks.size(); ++i) {
-        Target work;
-        if (!chain_.GetChainWork(sideBlocks[i].GetHash(), work)) {
-          lastStoreError_ = "cannot read chain work for persistence";
-          break;
-        }
-        std::string storeError;
-        if (!store_->ApplyBlock(sideBlocks[i], work, sideUndos[i],
-                                storeError)) {
-          lastStoreError_ = storeError;
-          break;
-        }
-      }
-    }
-  }
+  // (M20, OOC-002: the reorg was already persisted in step 5,
+  // before any in-memory state changed. There is no persist step
+  // here any more — the store already holds the new tip.)
   // Adopted path only: the side branch's transactions are now
   // confirmed parents, so orphans waiting on any of them may
   // validate now. (The inactive-side-branch path returns earlier
