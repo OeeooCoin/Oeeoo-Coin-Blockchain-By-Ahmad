@@ -71,8 +71,12 @@ Adversaries, in order of exposure:
 
 - `src/network/` — message framing, header parsing, inventory,
   compact blocks, peer scoring, address handling. Fuzzed at the
-  parser level (Milestone 11); the live peer state machine is
-  not fuzzed yet.
+  parser level (Milestone 11) and now coverage-guided
+  (Milestone 18: 7 libFuzzer harnesses, 34-seed corpus) plus
+  live P2P fuzzing of the peer state machine (mutated
+  version/block/tx/addr/cmpctblock, raw byte streams,
+  framing attacks) — which found and fixed the OnBytes
+  use-after-free (M18B-R5).
 - `src/transactions/`, `src/script/` — transaction validation,
   script interpreter (resource limits enforced: op count,
   stack size, push size). OP_RETURN is rejected at launch.
@@ -85,9 +89,12 @@ Adversaries, in order of exposure:
   (4 MB body cap, 64 KB header cap, 64-level JSON nesting cap),
   cookie auth (constant-time compare), worker pool (16 threads)
   + bounded work queue (64 deep; queue-full → HTTP 500),
-  36 callable methods + `help` (incl. `getchaintips`,
+  39 callable methods + `help` (incl. `getchaintips`,
   `getblockstats`, `getchaintxstats`, `listtransactions`,
-  `gettransaction`, `walletpassphrasechange`).
+  `gettransaction`, `walletpassphrasechange`, `addnode`).
+  A malformed `Content-Length` header could crash the whole
+  node before auth (Milestone 18, M18B-R1) — now a strict
+  digits-only parse with a 400 response.
 - `src/rpc/stratum.*` — line-delimited JSON (64 KB line cap),
   job building, share validation, vardiff.
 - `src/db/` — SQLite store (schema v2, undo table), PRAGMA
@@ -136,8 +143,21 @@ Adversaries, in order of exposure:
   origin is not in a stored block cannot be priced; pruned
   history cannot be re-validated (by design — bodies are
   required).
-- **Fuzzing covers parsers, not the live peer/RPC/Stratum
-  state machines.**
+- **Fuzzing now covers parsers AND the live peer/RPC/Stratum
+  state machines** (Milestone 18): 7 coverage-guided libFuzzer
+  harnesses (tx, block, script, JSON, P2P framing, compact
+  blocks, wallet file; 34-seed corpus, fixed seeds, CI-time)
+  + live fuzzing harnesses (mutated P2P messages / raw byte
+  streams / JSON-RPC / Stratum `mining.submit` into real
+  nodes, deterministic, ASan/UBSan). Five bugs were found and
+  fixed by the fuzzing (M18B-R1–R5, all non-consensus):
+  unauthenticated RPC crash via `Content-Length` (R1),
+  wallet-loader heap overflow (R2), unbounded Stratum session
+  buffer (R3), `IntFromString` unguarded `stod` (R4, latent),
+  `OnBytes` use-after-free after a peer ban (R5). Differential
+  tests cross-check the node against an independent Python
+  reference (subsidy, difficulty, vesting, Merkle, Base58Check)
+  plus two-node agreement and block-acceptance equivalence.
 - **Deep verification is now the node default** (Milestone 13).
   A light load trusts the stored UTXO table (it checks only for
   duplicate coins and value ranges); a tampered UTXO is caught
@@ -196,13 +216,25 @@ Adversaries, in order of exposure:
   100,000 entries / 64 MiB, atomic `.new` + rename save;
   every loaded tx is re-validated against the current UTXO
   set, expired/invalid entries are dropped).
-- **MAJOR — the node cannot open an outbound P2P connection**
-  (Milestone 17 finding, verified by grep): no `--addnode`,
-  no `addnode` RPC, no dial loop; `Node::ConnectTo` is called
-  only from tests. Two stock nodes never peer. DNS seeds only
-  fill AddrMan — nothing dials them. Inbound connections work
-  (Listen + accept). A fresh node gets no peers until others
-  dial it. Carried as the #1 decision for M18.
+- **Outbound dialing now works (Milestone 18 — the M17 MAJOR
+  finding, FIXED):** dial loop in `Node::Poll` (AddrMan
+  addresses, respects bans and the 125-peer cap), outbound cap
+  10 enforced (finding A1 closed — DECISION_LOG F17's second
+  half was NOT IMPLEMENTED in HEAD), `--addnode` CLI flag +
+  config key, `addnode` RPC (add/remove/onetry), DNS-seed
+  results actually dialed. Two stock nodes now peer via
+  outbound dial (E2E-tested). The node can join the network.
+- **Audit re-run (Milestone 18, `soak18/M18C-AUDIT-DRAFT.md`):**
+  the full 18-section M13 brief re-run against M14–M17
+  changes; verdict NOT READY (unchanged). One new
+  decision-vs-code gap found (A1, 10 outbound — fixed in the
+  same milestone); spec §20 item 14 (0.0001 fee figure) still
+  has no reconciliation note (A3); fallback peer list still
+  NOT IMPLEMENTED (A4); RBF 100-replacement cap still
+  untested (A6); stale peer entries linger after a connection
+  dies (A7 — peer-timeout follow-up); the leg-1 soak kill
+  (~21:31 UTC, SIGTERM-like, not a crash, not a VM restart)
+  remains unidentified (A8).
 
 ## Auditor checklist
 

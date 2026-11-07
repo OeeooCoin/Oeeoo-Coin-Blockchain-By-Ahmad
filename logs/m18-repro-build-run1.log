@@ -1,0 +1,5 @@
+SOURCE_DATE_EPOCH=1794009307
+REPRODUCIBLE: all three binaries are byte-identical across two builds
+REPRODUCIBLE: archive is byte-identical across two builds
+release package: oeeoo-coin-0.1.0.tar.gz
+c86a127d6961ba7bbd442edf1a59d778cf0e657c453eac7299a744f94939ea74  oeeoo-coin-0.1.0.tar.gz

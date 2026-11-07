@@ -13,11 +13,12 @@ What an independent auditor receives, and how to use it.
   spec left open (ports, schema choice, coin type 65535
   provisional, Stratum byte order, RPC method list, ...),
   each marked as an engineering decision, NOT a spec fact.
-- **Milestone reports** — `docs/MILESTONE2.md` … `MILESTONE11.md`:
+- **Milestone reports** — `docs/MILESTONE2.md` … `MILESTONE18.md`:
   what was built, the decisions, and a "Bugs found and fixed
   (disclosed)" section in each. Read these before the code —
   they record where the authors already found their own
-  mistakes.
+  mistakes. Milestone 18 re-runs the full M13 audit
+  (`soak18/M18C-AUDIT-DRAFT.md`); verdict NOT READY.
 - **Security review** — `docs/SECURITY_REVIEW.md`: threat
   model, invariants, attack surfaces, known gaps, and the
   auditor checklist.
@@ -33,16 +34,27 @@ What an independent auditor receives, and how to use it.
 cd oeeoo-coin
 rm -rf build && cmake -S . -B build && cmake --build build
 ctest --test-dir build --output-on-failure
-./build/oeeoo_tests   # expect: ALL CHECKS PASSED (93 sections)
+./build/oeeoo_tests   # expect: ALL CHECKS PASSED (205 sections)
 ```
 
-Static analysis (as run in Milestone 11):
+Static analysis (as run in Milestones 13–18):
 
 ```sh
 sudo apt-get install -y cppcheck
 cppcheck --enable=warning,performance,portability --std=c++17 \
-  --suppress=missingIncludeSystem -I src src/
-# expect: 0 errors, 0 warnings, 2 benign style notes (see MILESTONE11.md)
+  --suppress=missingIncludeSystem -I src src/ tests/
+# expect: 0 findings
+```
+
+Coverage-guided fuzzing (Milestone 18, needs Clang 18 with
+libFuzzer — see `tests/fuzz/README.md`):
+
+```sh
+cmake -S . -B build-fuzz -DOEEOO_BUILD_FUZZERS=ON \
+  -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_CXX_FLAGS="-fsanitize=fuzzer,address,undefined"
+cmake --build build-fuzz -j4
+ctest --test-dir build-fuzz -R '^fuzz_'   # expect: 7/7 passed
 ```
 
 ## What the auditor should NOT trust
