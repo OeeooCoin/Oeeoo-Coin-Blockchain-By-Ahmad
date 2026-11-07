@@ -14,7 +14,7 @@ What an independent auditor receives, and how to use it.
   spec left open (ports, schema choice, coin type 65535
   provisional, Stratum byte order, RPC method list, ...),
   each marked as an engineering decision, NOT a spec fact.
-- **Milestone reports** — `docs/MILESTONE2.md` … `MILESTONE19.md`:
+- **Milestone reports** — `docs/MILESTONE2.md` … `MILESTONE20.md`:
   what was built, the decisions, and a "Bugs found and fixed
   (disclosed)" section in each. Read these before the code —
   they record where the authors already found their own
@@ -22,6 +22,10 @@ What an independent auditor receives, and how to use it.
   (`soak18/M18C-AUDIT-DRAFT.md`); Milestone 19 re-verifies
   everything clean-room and gives the launch-readiness verdict:
   NOT READY (genesis unapproved + no independent audit).
+  Milestone 20 fixes the first independent audit's findings
+  (report OOC-SA-001, 2026-11-07: OOC-001 multiple coinbase,
+  OOC-002 persistence semantics, OOC-003 wallet permissions)
+  with regression tests and a live two-node demonstration.
 - **Security review** — `docs/SECURITY_REVIEW.md`: threat
   model, invariants, attack surfaces, known gaps, and the
   auditor checklist.

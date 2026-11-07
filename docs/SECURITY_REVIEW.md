@@ -4,8 +4,11 @@
 threat model, invariants, and known gaps, written so an external
 auditor can start from a true picture instead of discovering it.
 Nothing here should be read as "the code is safe". The
-independent audit (Milestone 12 / launch prep) is still required
-before any mainnet.
+independent audit (Milestone 12 / launch prep) has now happened
+once (report OOC-SA-001, 2026-11-07; its findings are fixed in
+Milestone 20) — but the auditor has not confirmed the fixes, and
+a second cryptographic/consensus audit is still required before
+any mainnet.
 
 ## Threat model
 
@@ -106,8 +109,18 @@ Adversaries, in order of exposure:
 
 ## Known gaps (honest list)
 
-- **No independent audit yet.** This document is self-review.
-  (Milestone 13 was a self-audit, not an independent audit.)
+- **Independent audit report OOC-SA-001 received (2026-11-07).**
+  The first external audit found three findings — OOC-001
+  CRITICAL (multiple coinbase), OOC-002 HIGH (submitblock
+  success despite persistence failure), OOC-003 MEDIUM (wallet
+  file permissions) — all FIXED in Milestone 20 with regression
+  tests and a live two-node demonstration (§F.3 of
+  `docs/MILESTONE20.md`). What is still missing: the auditor's
+  confirmation that the fixes close the findings, and the
+  separate external cryptographic/consensus audit the report's
+  §7 says remains necessary. This document is still self-review;
+  OOC-SA-001 was a source-level review (no live-network attack,
+  no mainnet deployment).
 - **Reorg across pre-v2 blocks fails closed** (no undo
   records for blocks stored under schema v1). It refuses
   rather than corrupting state, but a node with an old store
@@ -163,9 +176,15 @@ Adversaries, in order of exposure:
   duplicate coins and value ranges); a tampered UTXO is caught
   only by the deep replay. `--no-deep-verify` opts out — an
   operator who uses it accepts that trust model.
-- **No distinct testnet identity.** Test and mainnet nodes share
-  the magic, port, protocol version, and user agent. The only guard
-  is the testing-mode banner. (Milestone 13.)
+- **Test and mainnet now have distinct identities (Milestone
+  20).** Testnet magic `d9 73 08 c2`, default ports
+  64779/64780/64781, user agent `"/OeeooCoin:0.1.0(testnet)/"`;
+  mainnet identity unchanged (magic `e2 d8 04 d6`, ports
+  64775/64776/64777). Selected with `--testnet` / `--network
+  testnet` / `network=testnet`; default is mainnet. A node on
+  one network can never handshake with a node on the other (the
+  magic check drops cross-network bytes). This closes the M13
+  gap (open REQUIRES DECISION B2, user-approved 2026-11-07).
 - **Inbound peer IPs are now recorded** (Milestone 15:
   `TransportMessage.remoteAddress`, `accept()` records the real
   IP), and bans are now keyed by **IP alone** (Milestone 16:
@@ -208,9 +227,13 @@ Adversaries, in order of exposure:
   back in the test) — rollback, never corruption. The node
   now also warns to stderr as soon as the chain store fails
   (`chain store error — accepted blocks may not be durable`),
-  once per distinct error. `submitblock` still returns
-  success while persistence fails — the failure is loud in
-  the log but silent to RPC callers.
+  once per distinct error. **Milestone 20 CLOSED the
+  `submitblock` gap (OOC-002):** a failed persist is now
+  REJECTED upfront (persist-before-commit in both acceptance
+  paths) — `submitblock` returns an error and no in-memory
+  state changes. The M17 tests re-run green under the new
+  semantics (the disk-full observation now reads OBSERVED
+  (M20)).
 - **Mempool persistence is bounded and re-validated**
   (Milestone 17: `<datadir>/mempool.dat`, JSON-lines, caps
   100,000 entries / 64 MiB, atomic `.new` + rename save;
@@ -248,6 +271,27 @@ Adversaries, in order of exposure:
   verdict NOT READY (unchanged). Full report `docs/MILESTONE19.md`;
   release notes `docs/RELEASE_NOTES.md`; local tag `v0.1.0`
   (local-only).
+
+- **Milestone 20 (2026-11-07, audit remediation — OOC-SA-001):**
+  the first independent audit's three findings are FIXED —
+  **OOC-001** (multiple coinbase / unauthorized inflation:
+  exactly one coinbase at `vtx[0]`, enforced at three layers —
+  `CheckBasic`, `CheckBlockReward`, `ConnectBlockTransactions`
+  — on every acceptance path, with a live two-node demonstration
+  that a malicious multi-coinbase block is rejected and its
+  sender banned); **OOC-002** (durable-acceptance semantics:
+  persist-before-commit, `submitblock` returns an error on
+  persistence failure); **OOC-003** (wallet files 0600 on
+  creation, atomic save, and tx journal). Network identity
+  separated (testnet magic `d9 73 08 c2`, ports 64779/64780/64781
+  — mainnet unchanged). 230 sections, ALL CHECKS PASSED; ctest
+  100%; ASan/UBSan clean; cppcheck 0 findings (102/102 files).
+  Close-out found and fixed one bug in the first coordinator's
+  code (node_main banner double-temporary UB: normal build
+  printed the magic doubled, ASan build aborted at startup).
+  Verdict NOT READY (unchanged — genesis unapproved; auditor
+  confirmation + second crypto/consensus audit pending). Full
+  report `docs/MILESTONE20.md`.
 
 ## Auditor checklist
 

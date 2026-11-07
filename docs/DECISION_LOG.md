@@ -807,3 +807,105 @@ Real addresses come from real keys in Milestone 8.
   (M18, unchanged). Toolchain: g++ 13.3, CMake 3.28, OpenSSL
   3.0.13, SQLite 3.45.1, cppcheck 2.13.0, Clang 18.1.3 (fuzzers
   only).
+
+## Milestone 20 (2026-11-07) — Audit remediation (OOC-SA-001)
+
+- Audit report OOC-SA-001 received 2026-11-07 (user pasted it;
+  "Crypto Coin Blockchain Security Auditor"). Verdict: NOT READY
+  FOR MAINNET. Three findings, all independently verified against
+  the code by the parent agent before M20 started, and all FIXED
+  in M20: OOC-001 CRITICAL (multiple coinbase / unauthorized
+  inflation — CheckBasic had no coinbase-count/first rule,
+  CheckBlockReward validated only vtx[0], ConnectBlockTransactions
+  minted EVERY IsCoinbase tx's outputs); OOC-002 HIGH
+  (submitblock returned success while persistence failed —
+  already documented in M17); OOC-003 MEDIUM (wallet file
+  permissions not 0600 — fopen("wb") with no chmod).
+- OOC-001 fix: exactly one coinbase, at vtx[0], enforced at
+  three layers (Block::CheckBasic, CheckBlockReward,
+  ConnectBlockTransactions — a second coinbase is a HARD
+  REJECTION, never a mint) on every acceptance path (normal,
+  reorg, full-chain/deep verification, genesis). Live two-node
+  demonstration: a malicious peer's valid-PoW, valid-Merkle
+  multi-coinbase block is rejected and its sender banned
+  (docs/MILESTONE20.md §F.3). This is the auditor's release
+  condition for OOC-001 — demonstrated, logged.
+- OOC-002 fix: DURABLE ACCEPTANCE SEMANTICS — persist BEFORE
+  committing any in-memory state, in both acceptance paths.
+  Header validation + work come from a trial copy of the chain
+  index (ChainState::AddBlock on a copy — no API exists to remove
+  a block again, so validate-then-roll-back is not possible);
+  ApplyBlock runs first (one atomic SQLite transaction); only
+  then does the real index + UTXO + mempool + undo commit. A
+  persistence failure returns false + "failed to persist
+  accepted block: ..." with punish == false, changing NO
+  in-memory state. The reorg path has a best-effort restore
+  (disconnect applied side blocks, re-apply disconnected main
+  blocks from saved undos); honest limit: under a sustained I/O
+  failure the restore itself fails and the store is left at an
+  intermediate but VALID chain state. Trial-copy cost: O(chain)
+  per acceptance, accepted for exactness. submitblock now returns
+  an error on persistence failure. This CLOSES open item C7.
+- OOC-003 fix: wallet files are created owner-only (0600) —
+  open(O_WRONLY|O_CREAT, 0600) + fchmod(0600) + fstat verify +
+  truncate-after-verify, mode fixed BEFORE any byte is written;
+  atomic tmp+rename save verifies the final mode 0600; the tx
+  journal gets the same treatment (privacy-sensitive). POSIX
+  only; Windows ACLs out of scope.
+- Network identity separation — APPROVED by the user 2026-11-07
+  ~21:28 PKT ("Haan, M20 mein alag kar do"). Testnet gets its
+  own magic (d9 73 08 c2 = first 4 bytes of SHA-256("Oeeoo Coin
+  Testnet Network Magic"), same derivation as mainnet — verified
+  with python3 hashlib), default ports 64779/64780/64781, user
+  agent "/OeeooCoin:0.1.0(testnet)/". Mainnet identity UNCHANGED
+  (magic e2 d8 04 d6, ports 64775/64776/64777, agent
+  "/OeeooCoin:0.1.0/"). Selection: --testnet / --network testnet
+  (CLI) or network=testnet (config file); default is mainnet;
+  explicit ports always win; invalid values rejected loudly.
+  This CLOSES open REQUIRES DECISION item B2. It is a network
+  identity only — NOT a public testnet, consensus unchanged.
+- Relayed coinbase guard (found during M20): a coinbase-shaped
+  tx relayed as "tx" used to land in the orphan pool (it can
+  never validate there); now rejected outright (+10
+  misbehavior), before the orphan branch.
+- Close-out fixes (found by the close-out coordinator's
+  file-by-file diff review + re-verification, NOT by the first
+  coordinator): (1) node_main banner double-temporary UB —
+  ActiveNetworkMagic() returns by value, and the banner took
+  .begin()/.end() from two different temporaries: normal build
+  printed the magic doubled (e2d804d6e2d804d6), ASan build
+  aborted at startup (stack-buffer-overflow, READ of size 20),
+  which broke every real-node spawn in the first ASan run
+  (m17b/m18a cascade). Fixed by capturing the magic once in a
+  local. (2) m17b disk-full observation stale under M20
+  semantics — new OBSERVED (M20) branch (a submit rejected
+  upfront, height at the durable height, no rollback needed).
+- Audit report's §7 note recorded as a NEW open item (A8): a
+  separate external cryptographic and consensus audit remains
+  necessary before launch. The audit blocker (A2) is PARTLY
+  cleared (report received, findings fixed) but NOT closed —
+  the auditor has not confirmed the fixes.
+- Version → **stays 0.1.0**. No version string changed; local
+  tag v0.1.0 stays on M19's 9252086 (not moved, no new tag).
+- Verdict → **NOT READY** (unchanged — genesis unapproved, the
+  M13 §18 rule decides it alone; audit confirmation + second
+  audit still pending). Evidence table in docs/MILESTONE20.md
+  §H (E1 + E2 decide it; E3–E8 support the code but do not
+  change it).
+- Final state: 230 test sections (205 prior + 25 new: m20a 8,
+  m20b 7, m20c 5, m20d 5), ALL CHECKS PASSED, ctest 100%
+  (281.93 s), ASan/UBSan clean (re-run after the banner fix —
+  the first ASan run was killed by close-out after the §C.1
+  diagnosis and is superseded), cppcheck 0 findings (102/102
+  files), reproducible build verified (see docs/MILESTONE20.md
+  §F.2). Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13,
+  SQLite 3.45.1, cppcheck 2.13.0, Clang 18.1.3 (fuzzers only).
+- Environment: VM replaced twice during close-out (builds
+  SIGTERMed, re-run via setsid nohup); a user XMRig miner
+  (student-mining plan) ran on the VM through close-out (4
+  threads, ~1.8 GB RSS, not touched) and slowed every run.
+- Untracked `audit-outreach-draft.md` (repo root, Roman-Urdu
+  audit outreach note) assessed in docs/MILESTONE20.md §G.5:
+  price ranges unverified estimates; audit-package link/expiry
+  correct; OSTIF route plausible; "no audit yet" premise now
+  stale for OOC-SA-001. Left untracked, NOT committed.

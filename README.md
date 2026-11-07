@@ -1,17 +1,22 @@
 # Oeeoo Coin (OEEOO)
 
 Independent decentralized Proof-of-Work blockchain, Bitcoin-style.
-C++ implementation, MIT License. Planned repository:
-`OeeooCoin-blockchain-by-Ahmad` (not yet created — see Decision Log).
+C++ implementation, MIT License. Repository:
+`OeeooCoin-blockchain-by-Ahmad` (created by the user 2026-11-06,
+verified empty; code NOT yet pushed — push only on the user's
+go-ahead).
 
-**Status: Phase 1 + Milestones 1–19 DONE (205 test
+**Status: Phase 1 + Milestones 1–20 DONE (230 test
 sections, ASan/UBSan clean, cppcheck 0 findings, reproducible build
-verified from a clean Git checkout, local tag `v0.1.0`). IMPLEMENTED +
+verified, local tag `v0.1.0`). IMPLEMENTED +
 COMPILED + UNIT-TESTED on this machine, with runnable binaries (oeeoo-node,
 oeeoo-genesis, oeeoo-cli). NOT production-ready. NO mainnet. NO
-genesis block yet. No independent security review or audit has been
-done. Verdict after the Milestone 13 audit: NOT READY (Milestones 14–18
-do not change it; the Milestone 18 audit re-run confirms it). Launch checklist: docs/MAINNET_LAUNCH.md.
+genesis block yet. Independent audit report OOC-SA-001 received
+2026-11-07 (findings OOC-001/002/003 fixed in Milestone 20);
+auditor confirmation + a second cryptographic/consensus audit
+still pending. Verdict after the Milestone 13 audit: NOT READY (Milestones 14–20
+do not change it; the Milestone 20 report updates the audit
+evidence in §H). Launch checklist: docs/MAINNET_LAUNCH.md.
 Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 
 ## Finalized policy (do not change without community process)
@@ -192,6 +197,17 @@ Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 - `docs/MILESTONE19.md` (full report), `docs/RELEASE_NOTES.md`, `docs/DECISION_LOG.md`, `docs/SECURITY_REVIEW.md`, `docs/MAINNET_LAUNCH.md`, `docs/RELEASE.md`, README.md updated; verify page §29–30
 - Environment honesty: the VM was replaced three times during Stream A and once during Stream B (killing the soak ~3 min before its deadline and Stream B's agent); interrupted runs were restarted, never claimed complete; nothing claimed beyond what was actually fresh (fresh directory/checkout/build dirs — NOT a fresh VM)
 
+## What Milestone 20 adds (2026-11-07) — Audit remediation (OOC-SA-001)
+
+- **Independent audit report OOC-SA-001 received** (user pasted it, 2026-11-07; verdict NOT READY FOR MAINNET). Its three findings were independently verified against the code before M20 started — all three real — and all three are **FIXED** here: **OOC-001 CRITICAL** (multiple coinbase / unauthorized inflation — a miner could add a second coinbase and mint beyond subsidy+fees, breaking the 21M cap); **OOC-002 HIGH** (`submitblock` returned success while persistence failed — already documented in M17); **OOC-003 MEDIUM** (wallet file permissions not 0600).
+- **OOC-001 fix:** exactly one coinbase, at `vtx[0]`, enforced at three layers (`Block::CheckBasic`, `CheckBlockReward`, `ConnectBlockTransactions` — a second coinbase is a hard rejection, never a mint) on every acceptance path (normal, reorg, full-chain/deep verification, genesis). **Live two-node demonstration:** a malicious peer's valid-PoW, valid-Merkle multi-coinbase block is rejected and its sender banned (honest bans=1, peers=0, tip=0) — the auditor's release condition, demonstrated and logged (`docs/MILESTONE20.md` §F.3).
+- **OOC-002 fix:** durable-acceptance semantics — persist BEFORE committing any in-memory state, in both acceptance paths (header validation + work on a trial copy of the chain index; `ApplyBlock` first; only then the real index + UTXO + mempool commit). A failed persist returns an error (`failed to persist accepted block: ...`, punish=false) and changes no in-memory state. Reorg path has a best-effort restore (honest limit documented: under sustained I/O failure the store is left at an intermediate but valid state). `submitblock` now returns an error on persistence failure. **Closes open item C7.**
+- **OOC-003 fix:** wallet files created owner-only (0600) — `open(O_WRONLY|O_CREAT, 0600)` + `fchmod` + `fstat` verify + truncate-after-verify, mode fixed before any byte is written; atomic tmp+rename save verifies the final mode 0600; the tx journal gets the same treatment. POSIX only.
+- **Network identity separation (user-approved 2026-11-07 ~21:28 PKT):** testnet gets its own magic (`d9 73 08 c2`, SHA-256 derivation, same as mainnet), default ports 64779/64780/64781, user agent `"/OeeooCoin:0.1.0(testnet)/"`; **mainnet identity UNCHANGED** (magic `e2 d8 04 d6`, ports 64775/64776/64777). `--testnet` / `--network testnet` / `network=testnet`; default is mainnet; explicit ports always win; invalid values rejected loudly. **Closes open REQUIRES DECISION item B2.** Not a public testnet; consensus unchanged.
+- **Close-out fixes (found by the close-out coordinator's diff review, not by the first coordinator):** (1) node_main banner double-temporary UB — `ActiveNetworkMagic()` returns by value and the banner took `.begin()`/`.end()` from two different temporaries: normal build printed the magic doubled, ASan build aborted at startup (stack-buffer-overflow), breaking every real-node spawn in the first ASan run; fixed by capturing the magic once in a local. (2) m17b disk-full observation stale under M20 semantics — new OBSERVED (M20) branch.
+- **Full suite: 230 sections, ALL CHECKS PASSED** (205 prior + 25 new: m20a 8, m20b 7, m20c 5, m20d 5); ctest 100% (281.93 s); ASan/UBSan clean; cppcheck 0 findings (102/102 files); reproducible build verified. **Verdict: NOT READY** (unchanged — genesis unapproved; auditor confirmation + second crypto/consensus audit still pending). **Version stays 0.1.0.**
+- `docs/MILESTONE20.md` (full report), `docs/DECISION_LOG.md`, `docs/SECURITY_REVIEW.md`, `docs/AUDIT_PACKAGE.md`, README.md updated; verify page §31–32
+
 ## What Phase 1 contains
 
 - `src/consensus/` — consensus constants, integer money type, subsidy
@@ -230,9 +246,12 @@ for Termux / Android notes.
 
 ## What is NOT done yet
 
-Genesis block (hash/nonce/timestamp not finalized), independent
-security audit, GitHub repository, DNS seed domains, release signing,
-and the mainnet launch itself. Milestones 1–13 (transactions/UTXO,
-script, mempool, P2P, database, wallet, mining, RPC, founder
-vesting, Stratum, audit prep, mainnet prep, M13 gap closures) are
-DONE — see `docs/MILESTONE13.md`.
+Genesis block (hash/nonce/timestamp not finalized), auditor
+confirmation that the OOC-001/002/003 fixes close the findings,
+a second external cryptographic/consensus audit (OOC-SA-001 §7),
+GitHub code push (repo exists, empty; push only on the user's
+go-ahead), DNS seed domains, release signing, and the mainnet
+launch itself. Milestones 1–20 (transactions/UTXO, script,
+mempool, P2P, database, wallet, mining, RPC, founder vesting,
+Stratum, audit prep, mainnet prep, M13 gap closures, M14–M19,
+audit remediation) are DONE — see `docs/MILESTONE20.md`.
