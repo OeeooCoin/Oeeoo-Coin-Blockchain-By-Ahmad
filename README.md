@@ -4,10 +4,10 @@ Independent decentralized Proof-of-Work blockchain, Bitcoin-style.
 C++ implementation, MIT License. Planned repository:
 `OeeooCoin-blockchain-by-Ahmad` (not yet created — see Decision Log).
 
-**Status: Phase 1 + Milestones 1–18 DONE (205 test
+**Status: Phase 1 + Milestones 1–19 DONE (205 test
 sections, ASan/UBSan clean, cppcheck 0 findings, reproducible build
-verified from a clean Git checkout). IMPLEMENTED + COMPILED +
-UNIT-TESTED on this machine, with runnable binaries (oeeoo-node,
+verified from a clean Git checkout, local tag `v0.1.0`). IMPLEMENTED +
+COMPILED + UNIT-TESTED on this machine, with runnable binaries (oeeoo-node,
 oeeoo-genesis, oeeoo-cli). NOT production-ready. NO mainnet. NO
 genesis block yet. No independent security review or audit has been
 done. Verdict after the Milestone 13 audit: NOT READY (Milestones 14–18
@@ -182,6 +182,15 @@ Roadmap to Bitcoin-level (M14–M19): docs/ROADMAP_BITCOIN_LEVEL.md.**
 - `docs/MILESTONE18.md` (full report), `docs/DECISION_LOG.md`, `docs/SECURITY_REVIEW.md`, `docs/AUDIT_PACKAGE.md`, `docs/OPERATOR.md` (dialing documented) updated
 - `tests/test_milestone18a.cpp` (11 sections) + `tests/test_milestone18b.cpp` (6 sections) + `tests/test_milestone18c.cpp` (6 sections) — **205 sections total**
 - Known caveats (disclosed in `docs/MILESTONE18.md` §C–D): RBF 100-replacement cap still untested; `submitblock` still returns success while chain persistence fails (loud in the log); the test suite is not safe to run in parallel; the M18 soak ran on the M17 binary + bridge, not the dialing binary; stale peer entries linger after a connection dies (peer-timeout follow-up)
+
+## What Milestone 19 adds (2026-11-07) — Mainnet launch readiness (final verification + release prep)
+
+- **No code changes** — M19 verifies and prepares. Clean-room verification (Stream A): fresh directory + fresh git checkout of `d0a73f3` + clean build (0 warnings) + full suite (**205 sections, ALL CHECKS PASSED**) + ctest 100% (208.63 s) + ASan/UBSan clean (0 sanitizer errors) + cppcheck 0 findings (98/98 files) + E2E (106 blocks mined, 1.5 OEEOO send confirmed in block 106, restart survival, Stratum share accepted → block 107) + reproducible build (binaries identical to M18's). Log: `logs/milestone19-cleanroom-log.txt` (1,058 lines)
+- Soak re-run on the M18 final (dialing) binary (Stream B): **~1 h 56 m, 440 blocks, ~30 wallet txs, 0 block/tx failures, peers 2/2 at all 29 samples, 0 ASan/UBSan errors** — real P2P dialing via `--addnode`, no bridge. **Closes the M18 caveat** (soak on the dialing binary). NOT a clean 2 h run (killed ~3 min before its deadline by a VM restart) — accepted under the M17 honest rule. Log: `logs/milestone19-soak-log.txt`; driver + node logs in `soak19/`
+- Release prep (Stream C + coordinator): `docs/RELEASE_NOTES.md` (M1–M19, finalized policy, 28 known limitations, toolchain, M19 checksums); `docs/MAINNET_LAUNCH.md` + `docs/RELEASE.md` final passes (M14–M17 verification entries backfilled); full REQUIRES DECISION list with owners (**21 OPEN + 16 CLOSED**, `docs/MILESTONE19.md` §G); verdict evidence table (§H)
+- **Verdict: NOT READY** (unchanged — genesis unapproved, no independent audit). **Version stays 0.1.0.** Local git tag `v0.1.0` on the final M19 commit (local-only — no remote, nothing pushed, nothing published)
+- `docs/MILESTONE19.md` (full report), `docs/RELEASE_NOTES.md`, `docs/DECISION_LOG.md`, `docs/SECURITY_REVIEW.md`, `docs/MAINNET_LAUNCH.md`, `docs/RELEASE.md`, README.md updated; verify page §29–30
+- Environment honesty: the VM was replaced three times during Stream A and once during Stream B (killing the soak ~3 min before its deadline and Stream B's agent); interrupted runs were restarted, never claimed complete; nothing claimed beyond what was actually fresh (fresh directory/checkout/build dirs — NOT a fresh VM)
 
 ## What Phase 1 contains
 

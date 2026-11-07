@@ -236,6 +236,19 @@ Adversaries, in order of exposure:
   (~21:31 UTC, SIGTERM-like, not a crash, not a VM restart)
   remains unidentified (A8).
 
+- **Milestone 19 (2026-11-07, final verification + release prep):**
+  clean-room verification from a fresh checkout of `d0a73f3` — clean
+  build 0 warnings, 205 sections ALL CHECKS PASSED, ctest 100%,
+  ASan/UBSan clean, cppcheck 0 findings, E2E (106 blocks, 1.5 OEEOO
+  send confirmed, restart survival, Stratum share → block 107),
+  reproducible build (binaries identical to M18's); soak re-run on
+  the M18 final ASan binary with real P2P dialing (~1 h 56 m, 440
+  blocks, ~30 txs, 0 failures, 0 sanitizer errors) — **the
+  soak-on-the-dialing-binary caveat is CLOSED**; no node bugs found;
+  verdict NOT READY (unchanged). Full report `docs/MILESTONE19.md`;
+  release notes `docs/RELEASE_NOTES.md`; local tag `v0.1.0`
+  (local-only).
+
 ## Auditor checklist
 
 1. Reproduce the build from a clean checkout

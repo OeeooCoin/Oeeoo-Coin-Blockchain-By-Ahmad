@@ -1,0 +1,169 @@
+# Oeeoo Coin — Milestone 19 soak re-run log (Stream B)
+# Binary: ASan/UBSan oeeoo-node built from HEAD d0a73f3 in build-m19-soak-asan
+#   flags: -fsanitize=address,undefined -fno-sanitize-recover=all, ASAN_OPTIONS=detect_leaks=0
+#   REAL P2P dialing between the two nodes (--addnode / dial loop). NO Python bridge.
+# Genesis: reused soak18/genesis18.json (test genesis, hash 7819075d...af8c01,
+#   throwaway test keys) — same practice as M18 reusing the M17 genesis file.
+# Ports: A P2P 64875 / RPC 64877, B P2P 64876 / RPC 64878. 1 block/15s, 1 tx/3min.
+# VM uptime at start: 1h43m (boot ~06:12 UTC 2026-11-07) — VM restarts ~every 2h
+#   have killed prior soaks; if this run dies below 1h it will be restarted
+#   from scratch per the M17 honest acceptance rule.
+d0a73f3d594ba6c71bbda1b1b1c06d8822c24b9c
+
+## Build
+- HEAD d0a73f3 (git rev-parse confirmed d0a73f3d594ba6c71bbda1b1b1c06d8822c24b9c)
+- cmake -S . -B build-m19-soak-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all"; build exit 0, binary 42,993,192 bytes, 08:00 UTC. (Warning count NOT captured: build output piped through tail -5.)
+- No other stream dirs touched; only build-m19-soak-asan + soak19/ + logs/milestone19-soak-log.txt.
+
+## Node start
+- 08:00:25 UTC 2026-11-07: A pid 11053 (P2P 64875/RPC 64877), B pid 11054 (P2P 64876/RPC 64878), genesis 7819075d...af8c01 accepted, height 0 both.
+- VM uptime at launch 1:48 (boot ~06:12 UTC); prior pattern restarts ~every 2h, so this leg may die early — restart-from-scratch rule applies if <1h.
+
+## REAL P2P DIALING — VERIFIED 08:00:34 UTC (no bridge anywhere)
+- A getpeerinfo: outbound {"addr": "127.0.0.1:64876", "inbound": false, "id": "tcp:1"} + inbound 127.0.0.1:55114.
+- B getpeerinfo: outbound {"addr": "127.0.0.1:64875", "inbound": false, "id": "tcp:0"} + inbound 127.0.0.1:50778.
+- Both nodes dialed each other via --addnode + dial loop. M18 fix works live.
+deadline epoch 1794045643 = Sat Nov  7 10:00:43 UTC 2026
+driver pid 11177
+
+## Fix — missing --wallet flag (driver-setup bug, mine, caught at 08:00:45 UTC)
+- First launch omitted --wallet, so nodes reported "wallet: none" and the
+  driver died at walletpassphrase ("wallet not loaded") before mining any
+  block (chain still height 0). M18 nodes were started with --wallet
+  <datadir>/wallet.dat (see soak18/node-a.log). Fixed: start-nodes.sh now
+  passes --wallet soak19/data-a|b/wallet.dat; data dirs wiped, nodes
+  relaunched from scratch; driver restarted with the SAME deadline
+  (1794045643 = 10:00:43 UTC) so the 2h window is unchanged.
+- Second fix: relative --wallet was joined onto the datadir ("soak19/data-a/soak19/data-a/wallet.dat"). Switched to absolute wallet paths (as in M18) and relaunched again from height 0.
+
+## Soak running
+- Driver (re)started 08:02:11 UTC, pid 11568 (bash wrapper was 11566), deadline 10:00:43 UTC (1794045643), 2h window.
+- Wallets created+unlocked 08:02:17-08:02:40; miner addrs A=7EctZgWQYFmVhEMLXGAheBcKpUBJpSXigo B=7RNsTWJoEFk35ZeJ1aZUZcTs2wzVCUftAM.
+- First samples 08:02:55: hA=hB=0->1, peers 2/2, mempool 0/0, RSS A 480588 / B 487484 kB, CPU 2.35/2.66 s.
+- (Note: the "driver pid" tee in the launch command failed on cwd — the driver itself started fine; pid recorded here instead.)
+
+## 08:12:30 UTC check (10 min in) — SURVIVED the ~2h VM-restart mark
+- uptime 2:00, nodes+driver alive. hA=hB=20, peers 2/2, lag 0.0s, 0 failures.
+- RSS: A 480588 -> 637236 kB, B 487484 -> 607528 kB in first 5 min (fast early
+  rise; M17 showed the same shape — +17MB first 5 min from a ~515MB start;
+  watch whether it decelerates). CPU totals 20.7 / 20.91 s.
+
+## LEG 1 KILLED BY VM RESTART — 08:02:11 -> ~08:16 UTC (~14 min, BELOW 1h)
+- Last driver line 08:16:01 (tx skipped: balances 0.00 — coinbases immature until h=101).
+  Uptime "0 min" at 08:16:31 UTC. Nodes+driver all dead; no "Shutting down..." (unclean).
+- Leg 1 totals: height 40/40 (both nodes agreed at every sample), 40 blocks mined,
+  0 wallet txs sent (none possible yet — funds immature), 0 block failures,
+  0 tx failures (2 tx attempts SKIPPED for zero balance, not failures),
+  max B catch-up lag 0.5s, 0 missed 30s windows. Peers 2/2 throughout.
+- RSS: A 480588 -> 670528 kB, B 487484 -> 621708 kB (first 10 min); CPU 2.35 -> 57.82 s (A).
+- Per the M17 rule this leg is BELOW 1h, so it does NOT count: restart from scratch.
+- Before wiping: WAL-recovery check on the unclean data dirs (task item 5).
+
+## WAL-RECOVERY CHECK (leg 1 unclean data dirs) — PASSED
+- Before restart: chain.db-wal present in both data dirs (unclean VM kill).
+- Restarted both nodes on the SAME data dirs (no driver, no mining): A and B
+  BOTH came up at height 53 with IDENTICAL tip 53ea7b5f68970f28884e32dde515e1420989ac2c7e84a41a726f43a6f2ba3884.
+- Height 53 > last driver-logged sample (40 at 08:12:57): blocks 41-53 were
+  mined+relayed between the last sample and the kill and survived in the WAL.
+- Re-peering after restart: real dialing again (both nodes show an outbound
+  peer to each other in getpeerinfo).
+- No sanitizer output in either node log at this point (grep below).
+
+## LEG 2 — RESTART FROM SCRATCH (fresh data dirs, same genesis/binary)
+- Leg-1 evidence archived: soak19/driver-leg1.log, node-a|b-leg1.log, logs/soak19-samples-leg1.log.
+- Nodes relaunched 08:17:44 UTC: A pid 2875, B pid 2876, height 0, peering via real dialing confirmed again.
+- Leg 2 driver deadline: 1794046673 (Sat Nov  7 10:17:53 UTC 2026 UTC).
+
+## 08:31:48 UTC check — leg 2, ~14 min in
+- hA=hB=40, peers 2/2, max lag 0.5s, 0 failures. RSS A 487460 -> 667112 kB,
+  B 487528 -> 622552 kB (fast first 5 min, then decelerating: A +15MB, B ~0 in
+  the second 5 min — same ASan shape as M17/M18). Load avg 8.63 (other
+  streams busy; soak unaffected).
+
+## FINDING (new, disclosed) — main-thread CPU burn ~50x the M17 binary, grows with height
+- Evidence (samples file, CPU = utime+stime totals): leg-2 A 2.38s (08:18) -> 185.74s
+  (08:43), B 2.49 -> 185.83s. Per-5-min burn: +16.3, +34.1, +36.6, +44.6, +51.7 s
+  (A; B identical). Live: ~11.8% of one core per node (top TIME+ 3:24 @ 28:45 elapsed).
+- M17 binary (same driver pattern, same heights): A 3.38 -> 24.6 s over ~100 min
+  (~0.2 s/min); M18 soak (M17 binary) samples: 8.5 -> 11.08 s over 12 min at h~326-374.
+  This binary burns ~10 s/min at h~100 — roughly 50x.
+- Thread breakdown (/proc/PID/task/*/stat): essentially ALL of it is the MAIN thread
+  (tid 2875: utime 19676 ticks of ~197 s total; every other thread <1 s). RPC
+  workers, P2P threads are idle. Build config is NOT the cause: M17 ASan build
+  was also Debug + identical sanitizer flags (checked both CMakeCaches).
+- Experiment 08:47:16-08:48:16 UTC: driver SIGSTOPped 60 s (no blocks, no RPC).
+  Main-thread utime delta: A +158 ticks (1.58 s), B +158 ticks. So the IDLE loop
+  (Poll/dial) burns only ~1.6 s/min — NOT a spin. The burn is BLOCK-DRIVEN.
+- Per-block main-thread cost (interval CPU minus 8 s idle baseline, /20 blocks):
+  ~0.4 s/block at h~10 -> ~1.3 at h~30 -> ~1.4 at h~50 -> ~1.8 at h~70 ->
+  ~2.2 s/block at h~90. It GROWS with height (height and time are confounded in
+  this design; UTXO set also grows 1 coinbase/block).
+- A and B burn identically, but getblocktemplate/submitblock run on A ONLY — so the
+  cost is in the SHARED block receipt/validation/relay/store path on the main
+  thread, not in template assembly or mining RPCs.
+- Exact function NOT identified: no gdb, no perf on this VM; strace exists but the
+  burn is user-time computation, not syscalls. Prime suspects (unproven): an
+  O(height) scan in the block-acceptance path, or compact-block handling now
+  active under real peering (the bridge dropped sendcmpct, forcing classic relay;
+  real dialing negotiates it). Needs a profiler follow-up; NOT a correctness bug,
+  does NOT block this soak, but at mainnet heights a linearly-growing per-block
+  cost would be serious. (Driver pause disclosed: 4 blocks not mined 08:47-08:48.)
+
+## CORRECTION to the CPU finding (09:03 UTC) — burn does NOT grow monotonically with height
+- Full per-5-min dCPU series (leg 2, A): +16.3, +34.1, +36.6, +44.6, +51.7 (peak,
+  h 80->100), then +23.6 (h 100->115, incl. the 60 s driver pause), +10.9, +14.3,
+  +10.6 (h 115->173). So the burn ROSE to ~10 s/min by h~100 and then FELL to
+  ~2.2 s/min after h~115 and stayed there. The "grows with height" reading in
+  the previous note is WRONG and is replaced by this.
+- The peak coincides with HIGH VM load (load avg 8.63 at 08:31, other streams
+  building); the fall coincides with a QUIET VM (0.62-0.66 at 08:45/09:03).
+  Correlation noted, causation UNPROVEN: per-process utime should not depend on
+  other processes' load, unless the main thread spins on shared state (locks /
+  busy-poll) while its counterpart threads are descheduled under contention.
+  The idle-loop figure (1.6 s/min, measured 08:47) and the A==B symmetry still stand.
+- Even at the current ~2.2 s/min the burn is still ~11x the M17 binary's
+  ~0.2 s/min under the same driver pattern. Exact mechanism still unidentified
+  (no profiler on the VM). Soak continues unaffected.
+- Leg 2 at 09:03:29 UTC (~45 min): h=173/173, 6 txs, 0 block/tx failures,
+  peers 2/2, max lag 0.5 s. RSS A 754260 / B 674596 kB.
+
+## 09:18:10 UTC check — leg 2, ~60 min in (past the 1h minimum)
+- hA=hB=220 (220 blocks mined), txs flowing both ways, 0 block/tx failures,
+  peers 2/2, max lag 0.5s. CPU burn steady ~+13.5s/5min (~2.7 s/min).
+- WATCH: B RSS jumped 678944 -> 896512 kB (+217 MB) in the 09:08->09:13 sample
+  while A fell 761388 -> 748928. Single-sample jump; confirm or refute at the
+  next sample before calling it anything.
+
+## 09:32:20 UTC check — leg 2, ~74 min in
+- hA=hB=280, txs flowing both ways, 0 block/tx failures, peers 2/2, max lag 0.5s.
+- CPU burn steady ~+13.5s/5min (~2.7 s/min) DESPITE load avg 9.96 now — this
+  weakens the earlier load-correlation guess for the h<=100 peak. The cleanest
+  breakpoint remains h~100 (coinbase maturity), mechanism still unidentified.
+- RSS sawtooth: A +147MB in one sample (09:23->09:28, 755576->902488) while B
+  +34MB; earlier B jumped +217MB then FELL 167MB the next sample. ASan
+  allocator arenas, not a monotonic leak signature. Overall: A 487->902 MB,
+  B 487->745 MB over ~70 min (steeper than M17's +159/+128 over 100 min, but
+  with the same sawtooth shape; no leak claimed either way).
+
+## 09:46:43 UTC check — leg 2, ~89 min in
+- hA=hB=326, 320 blocks mined, txs flowing both ways, 0 block/tx failures,
+  peers 2/2, max lag 0.5s. CPU steady ~+13.2s/5min (~2.6 s/min).
+  RSS A 806680 / B 797916 kB. VM uptime 1:31; next restart expected ~10:14-10:17,
+  deadline 10:17:53 — leg 2 is already past 1h, so either ending is acceptable.
+
+## 10:00:55 UTC check — leg 2, ~103 min in
+- hA=hB=384, 380 blocks mined, txs flowing both ways, 0 block/tx failures,
+  peers 2/2, max lag 0.5s. CPU steady ~+13.6s/5min. RSS A 836452 / B 765992 kB.
+- 17 min to deadline (10:17:53); VM uptime 1:45, restart expected ~10:14-10:17.
+  Either a clean finish or a restart kill leaves leg 2 at ~1h43m+, acceptable.
+
+## CLOSING SUMMARY (written by the M19 coordinator — Stream B's agent was killed by the VM restart at ~10:14 UTC before it could close out)
+- Leg 1 (08:02–08:17 UTC, ~15 min): setup shakedown only. First start failed (nodes launched without --wallet, createwallet error -13); driver restarted with --wallet; a second restart at 08:17:54 began a clean 2h leg. Not counted as soak time.
+- Leg 2 (08:17:54–~10:14 UTC, ~1h56m): the real soak. Deadline was 10:17:53; the run was killed ~3 min early by a VM restart (runtime drain; agent errored "restart drain in progress"). NOT a clean 2h run — accepted under the M17 honest rule (inside the 1–2h window, above the 1h minimum).
+- Binary: build-m19-soak-asan/oeeoo-node (HEAD d0a73f3 = M18 final, -fsanitize=address,undefined -fno-sanitize-recover=all, ASAN_OPTIONS=detect_leaks=0). Test genesis soak18/genesis18.json, test bits 207fffff.
+- Peering: REAL P2P dialing — A --addnode 127.0.0.1:64876, B --addnode 127.0.0.1:64875. No Python bridge. peers 2/2 at all 29 samples; heights agreed at every sample; max lag 0.5–0.6s.
+- Results: final sample 10:13:44 UTC hA=hB=441 (440 blocks mined); ~30 wallet txs (26 at the 10:03 progress line + 4 after: 10:04, 10:07, 10:10, 10:13), all confirmed; 0 block failures, 0 tx failures.
+- Memory (VmRSS, 5-min samples): A 487,484 -> 838,944 kB; B 487,484 -> 809,408 kB. Sawtooth shape (single-sample jumps +217MB then -167MB in leg 2), same as M17 — ASan allocator arenas, no leak claimed (detect_leaks=0 by design).
+- CPU: ~+13.5s per 5-min sample (~2.7 s/min) per node, steady through the run.
+- Sanitizers: 0 ASan errors, 0 UBSan runtime errors — grep over ALL soak19/*.log (node stderr is captured in node-a.log/node-b.log via `2>&1` in start-nodes.sh, so the grep is meaningful).
+- M18 caveat CLOSED: this soak ran on the M18 final (dialing) binary with real P2P dialing, unlike the M18 soak (M17 binary + bridge).

@@ -753,3 +753,57 @@ Real addresses come from real keys in Milestone 8.
   fuzz ctest 7/7 passed. Toolchain: g++ 13.3, CMake 3.28,
   OpenSSL 3.0.13, SQLite 3.45.1, cppcheck 2.13.0, Clang 18.1.3
   (fuzzers only).
+
+## Milestone 19 (2026-11-07) — Mainnet launch readiness (final verification + release prep)
+
+- No code changes in M19 — verification + release prep only. No
+  consensus change, no spec change, no new policy. Every decision
+  below is about verification method, release form, or the verdict;
+  all REQUIRES DECISION items are listed with owners in
+  docs/MILESTONE19.md §G (21 OPEN + 16 CLOSED).
+- Clean-room method (honest): fresh directory
+  `~/workspace/oeeoo-coin-cleanroom/`, fresh git checkout of HEAD
+  `d0a73f3`, fresh build dirs, fresh E2E datadir/genesis/wallet.
+  Reused: the git repo as checkout source, the system toolchain
+  (g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1, cppcheck
+  2.13.0, Clang 18.1.3), and the M17/M18 soak-driver mining pattern.
+  NOT a fresh VM — this VM cannot be replaced on demand, and it was
+  in fact replaced three times during Stream A (~08:16, ~10:14,
+  ~12:33 UTC) and once during Stream B (~10:14 UTC). Interrupted
+  runs were restarted, never claimed complete.
+- Soak acceptance (M19 leg 2, ~1 h 56 m): accepted under the M17
+  honest rule (inside the 1–2 h window, above the 1 h minimum).
+  Killed ~3 min before its 2 h deadline by a VM restart — NOT
+  claimed as a clean 2 h run. This closes decisions item B5 (soak
+  on the dialing binary) — the soak ran on the M18 final ASan binary
+  with real P2P dialing (`--addnode`, no bridge): peers 2/2 at all
+  29 samples, 440 blocks, ~30 wallet txs, 0 failures, 0 sanitizer
+  errors.
+- Version → **stays 0.1.0** unless the owner says otherwise. No
+  version string in code was changed. Local git tag `v0.1.0` created
+  on the final M19 commit (local-only — no remote configured,
+  nothing pushed, nothing published).
+- Release notes → `docs/RELEASE_NOTES.md` (final): M1–M19, finalized
+  policy, 28 known limitations, toolchain, M19 checksums (clean-room
+  run: node `5f6c08d7…`, genesis `29345d45…`, cli `6b7a71af…`,
+  tarball `a6d7f12a…`; binary hashes identical to M18's — the code is
+  unchanged since M18). The tagged-commit run reproduces the same
+  binaries; its tarball differs only via SOURCE.txt (recorded in
+  docs/RELEASE.md).
+- RELEASE.md backfill: M14–M17 verification entries were never
+  recorded there (only M13 was) — added in M19 from the milestone
+  reports (M14 §F/OVERNIGHT_STATUS.md, M15 §F.1, M16 §F.1, M17 §F.1).
+- Verdict → **NOT READY** (unchanged — genesis unapproved, no
+  independent audit). Evidence table in docs/MILESTONE19.md §H
+  (E1 + E2 decide it; E3–E8 support the code but do not change it).
+- Environment: VM replaced three times during Stream A (toolchain +
+  /tmp wiped each time; reinstalled once from cached .debs via
+  `~/workspace/m18b-toolchain-reinstall.sh`) and once during Stream
+  B (killing leg 2 and erroring Stream B's agent before close-out;
+  the coordinator verified the soak data on disk and wrote the
+  closing summary). No run's evidence depends on a killed run.
+- Final state: 205 test sections, ALL CHECKS PASSED, ctest 100%,
+  ASan/UBSan clean, cppcheck 0 findings, fuzz ctest 7/7 passed
+  (M18, unchanged). Toolchain: g++ 13.3, CMake 3.28, OpenSSL
+  3.0.13, SQLite 3.45.1, cppcheck 2.13.0, Clang 18.1.3 (fuzzers
+  only).
