@@ -1109,3 +1109,14 @@ c86a127d6961ba7bbd442edf1a59d778cf0e657c453eac7299a744f94939ea74  oeeoo-coin-0.1
 repro exit: 0
 
 === END ===
+
+=== Confirmation: reproducible build from the docs commit ===
+(run after the docs commit 900b8f0; log logs/m18-repro-build-run2.log)
+SOURCE_DATE_EPOCH=1794014250
+REPRODUCIBLE: all three binaries are byte-identical across two builds
+REPRODUCIBLE: archive is byte-identical across two builds
+release package: oeeoo-coin-0.1.0.tar.gz
+7ef3e9a0c5381c709ab39a2d10b58af5a90dfd0fa8d8b2d9ccb6d60f2922284a  oeeoo-coin-0.1.0.tar.gz
+repro confirmation exit: 0
+(binary hashes identical to run 1; tarball differs only by SOURCE.txt naming the docs commit)
+=== END (confirmation) ===

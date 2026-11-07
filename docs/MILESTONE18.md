@@ -667,9 +667,14 @@ log `logs/m18-repro-build-run1.log`):
 - tarball `oeeoo-coin-0.1.0.tar.gz`
   `c86a127d6961ba7bbd442edf1a59d778cf0e657c453eac7299a744f94939ea74`
 
-A confirmation run from the docs commit follows the same
-pattern as M17 (see the test log); its tarball checksum is
-recorded there.
+A confirmation run from the docs commit `900b8f0`
+(SOURCE_DATE_EPOCH=1794014250; log
+`logs/m18-repro-build-run2.log`) is also REPRODUCIBLE for
+both binaries and archive. The three binary hashes are
+identical to run 1 (docs do not change the binaries); the
+tarball differs only because `SOURCE.txt` now names the
+docs commit: tarball
+`7ef3e9a0c5381c709ab39a2d10b58af5a90dfd0fa8d8b2d9ccb6d60f2922284a`.
 
 ## G. Outstanding decisions (carried + new)
 
