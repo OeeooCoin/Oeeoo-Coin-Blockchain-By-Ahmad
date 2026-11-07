@@ -632,8 +632,27 @@ above.
 
 ### F.2 Reproducible-build checksums
 
-**PENDING — to be run from the final commit and filled in
-before commit.**
+Run from the docs commit `8102890` (after the code + docs
+commits, before the confirmation commit):
+`./scripts/reproducible-build.sh` → **REPRODUCIBLE — all three
+binaries byte-identical across two builds; archive byte-identical
+across two builds** (log `logs/milestone20-repro-build-log.txt`,
+`REPRO_EXIT:0`).
+
+- `oeeoo-node`: `3f27ef2fba81636d3feeea43e74a9424f6090a4124a3aabb032c980e4292f49e`
+- `oeeoo-genesis`: `93399de794c7e07f45d6595923c68f0b0fb1c400ea8ba5fabf94b09c63aeb59a`
+- `oeeoo-cli`: `6b7a71af340d018930e53498844f7cf0b67f48b3aabaaadad06395c505fac2bb` (unchanged from M18/M19 — the CLI code did not change)
+- Tarball `oeeoo-coin-0.1.0.tar.gz` (958,209 bytes): `c28a6bf19816300d1f0b52b8539c8cd25cfde3defc64dbbd877985ae62290858`
+- `SOURCE.txt`: `8102890ce0eac9353f891224084113ee6a845d6a`
+- `SOURCE_DATE_EPOCH=1794074540` (the docs commit's timestamp)
+
+The node and genesis hashes differ from M19's (`5f6c08d7…`,
+`29345d45…`) — expected: M20 changed `node.cpp`,
+`node_main.cpp`, `config.cpp`, `validation.cpp`,
+`walletfile.cpp`, and the network protocol files, all linked
+into those two binaries. The CLI is byte-identical to M18/M19.
+Same-machine, two-directory reproducibility only;
+cross-environment reproducibility is NOT claimed.
 
 ### F.3 Live multi-coinbase rejection (auditor's OOC-001 release condition)
 
@@ -823,7 +842,7 @@ fix — both are owner/external items (§G A1, A2, A8).
 | E4 | **230 test sections pass; ctest 100%; ASan/UBSan clean; cppcheck 0 findings.** | This report §F.1 (close-out verification, final tree): clean build 0 warnings; `./build/oeeoo_tests` — 230 sections, ALL CHECKS PASSED; `ctest` — 100% tests passed, 0 failed out of 1 (281.93 s); ASan/UBSan full suite — ALL CHECKS PASSED (230 sections), exit 0, 0 sanitizer errors; cppcheck — 0 findings (102/102 files). Same clean record in M13 §F (127), M14 §F (134), M15 §F (155), M16 §F (171), M17 §F (182), M18 §F (205), M19 §F (205). |
 | E5 | **Fuzzing evidence exists and found real bugs (all fixed, all non-consensus).** | `docs/MILESTONE18.md` §A.2/§A.3/§F: 7 libFuzzer harnesses (Clang 18.1.3), 34-seed corpus, `ctest -R '^fuzz_'` 7/7 passed; live P2P/RPC/Stratum fuzzing (6 sections); 5 bugs fixed — R1 (HIGH, unauthenticated remote crash via Content-Length), R2 (wallet loader heap overflow), R3 (Stratum unbounded buffer), R4 (latent `IntFromString`), R5 (OnBytes use-after-free). §A.4: "No consensus-touching issue was found anywhere in M18." M20 adds a consensus-touching issue FOUND BY AN EXTERNAL AUDITOR (OOC-001) and fixed here — the first consensus bug found by anyone outside the project. |
 | E6 | **Outbound P2P dialing — the M17 #1 launch-blocking gap — is FIXED and now soak-proven.** | `docs/MILESTONE18.md` §A.1: dial loop `TryDialPeers()`, `--addnode` flag + config key, `addnode` RPC (add/remove/onetry), outbound cap 10 enforced + tested, DNS-seed results actually dialed; 11 new test sections. M19 §A.2: the M19 soak ran ~1 h 56 m on the dialing binary with real `--addnode` peering (peers 2/2 at all 29 samples, 440 blocks, ~30 txs, 0 failures). |
-| E7 | **Build is reproducible from a clean Git checkout.** | M19 §F.2: clean-room run from `d0a73f3` — REPRODUCIBLE, binaries AND archive byte-identical; binary hashes identical to M18's; tagged-commit run — REPRODUCIBLE. Same-machine, two-directory reproducibility only; cross-environment reproducibility is NOT claimed. M20 §F.2: PENDING (to be run from the final commit). |
+| E7 | **Build is reproducible from a clean Git checkout.** | M19 §F.2: clean-room run from `d0a73f3` — REPRODUCIBLE, binaries AND archive byte-identical; binary hashes identical to M18's; tagged-commit run — REPRODUCIBLE. Same-machine, two-directory reproducibility only; cross-environment reproducibility is NOT claimed. M20 §F.2: run from the docs commit `8102890` — REPRODUCIBLE, binaries AND archive byte-identical; node `3f27ef2f…`, genesis `93399de7…` (changed from M19, as expected), CLI `6b7a71af…` (unchanged); tarball `c28a6bf1…`. |
 | E8 | **Persistence and crash recovery are proven — and the semantics are now correct.** | `docs/MILESTONE17.md` §A/§F: mempool persistence round-trips; 100-deep reorg with undo correctness + mempool re-adding; SIGKILL mid-burst and mid-shutdown recover to a deep-verified store; disk-full rolls back, never corrupts. M20 §A.3: a failed persist is now REJECTED upfront instead of silently succeeding — the M17 behaviour the auditor flagged as OOC-002 is closed, with the M17 crash-injection tests re-run green under the new semantics. |
 
 ### H.3 Evidence that points the other way (shown, not softened)
@@ -870,8 +889,15 @@ the code does. M20 fixes; it does not launch.
 
 ## Commits (local git repo, on top of M19's `50f1146`)
 
-- (To be filled in at commit time — M20 code commit, M20 docs
-  commit, repro-build confirmation commit.)
+- `05b3449` — M20 code: OOC-001/002/003 fixes + testnet
+  identity + 4 new test files (m20a–m20d) + close-out fixes
+  (node_main banner UB, m17b disk-full note).
+- `8102890` — M20 docs: this report (with §F.1 ASan filled),
+  DECISION_LOG, README, SECURITY_REVIEW, AUDIT_PACKAGE,
+  ASan log.
+- This commit — M20 reproducible-build confirmation from the
+  docs commit (this report §F.2 + E7 filled with the repro
+  checksums, full test log, verify page §31–32, cppcheck log).
 - No new tag. Local tag `v0.1.0` stays on M19's `9252086`
   (local-only; no remote configured; nothing pushed, nothing
   published).

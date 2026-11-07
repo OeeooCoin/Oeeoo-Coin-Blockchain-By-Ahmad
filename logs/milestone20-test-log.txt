@@ -1,0 +1,1196 @@
+Oeeoo Coin — Milestone 20 test log
+Generated: 2026-11-07 (PKT) / 2026-11-07 19:05 UTC
+Source: close-out verification runs (PART 1) + first coordinator's
+passing run (PART 2, retained verbatim as evidence)
+Head at close-out: 50f1146 (M19) -> code commit 05b3449 -> docs
+commit 8102890 (repro + this log follow in the confirmation commit)
+Toolchain: g++ 13.3, CMake 3.28, OpenSSL 3.0.13, SQLite 3.45.1,
+cppcheck 2.13.0, Clang 18.1.3
+Verdict: NOT READY (genesis unapproved + no independent audit
+confirmation; auditor confirmation + second crypto/consensus
+audit still pending)
+
+Environment note: the VM was replaced twice during close-out
+(builds SIGTERMed, re-run via setsid nohup); a user XMRig miner
+(student-mining plan, 4 threads, ~1.8 GB RSS) ran on the VM
+through close-out and slowed every run. No run is claimed
+complete that did not finish. The first ASan run was KILLED by
+close-out after the §C.1 banner-bug diagnosis (its m17b/m18a
+cascade was the banner bug, not the code) — superseded, NOT
+cited as evidence; its log was overwritten by the re-run.
+
+====================================================================
+PART 1 — CLOSE-OUT VERIFICATION (fixed tree, HEAD 8102890)
+====================================================================
+NOTE: the suite (STEP 2) and ctest (STEP 3) ran on the identical
+tree before the code/docs commits — no source file changed after
+those runs; only commits recorded the tree. STEP 1 re-builds the
+same tree from scratch and captures the full transcript.
+=== STEP 1: clean build (rm -rf build && cmake -S . -B build && cmake --build build -j1) ===
+=== clean build (close-out, fixed tree, HEAD 8102890) ===
+command: rm -rf build && cmake -S . -B build && cmake --build build -j1
+Sat Nov  7 18:39:21 UTC 2026
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")  
+-- Found SQLite3: /usr/include (found version "3.45.1") 
+-- Configuring done (3.3s)
+-- Generating done (0.2s)
+-- Build files have been written to: /home/hatch/workspace/oeeoo-coin/build
+[  1%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/subsidy.cpp.o
+[  2%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/uint256.cpp.o
+[  3%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/difficulty.cpp.o
+[  4%] Building CXX object CMakeFiles/oeeoo_core.dir/src/consensus/vesting.cpp.o
+[  5%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/sha256.cpp.o
+[  6%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/base58.cpp.o
+[  7%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/hash160.cpp.o
+[  8%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/address.cpp.o
+[  9%] Building CXX object CMakeFiles/oeeoo_core.dir/src/crypto/ecdsa.cpp.o
+[ 10%] Building CXX object CMakeFiles/oeeoo_core.dir/src/serialize/varint.cpp.o
+[ 11%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/transaction.cpp.o
+[ 12%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/sighash.cpp.o
+[ 13%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/validation.cpp.o
+[ 14%] Building CXX object CMakeFiles/oeeoo_core.dir/src/transactions/dust.cpp.o
+[ 15%] Building CXX object CMakeFiles/oeeoo_core.dir/src/script/script.cpp.o
+[ 16%] Building CXX object CMakeFiles/oeeoo_core.dir/src/utxo/coins.cpp.o
+[ 17%] Building CXX object CMakeFiles/oeeoo_core.dir/src/mempool/mempool.cpp.o
+[ 18%] Building CXX object CMakeFiles/oeeoo_core.dir/src/mempool/mempooldump.cpp.o
+[ 19%] Building CXX object CMakeFiles/oeeoo_core.dir/src/mempool/feeestimator.cpp.o
+[ 20%] Building CXX object CMakeFiles/oeeoo_core.dir/src/mempool/orphan.cpp.o
+[ 21%] Building CXX object CMakeFiles/oeeoo_core.dir/src/mining/miner.cpp.o
+[ 22%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/protocol.cpp.o
+[ 23%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/dnsseed.cpp.o
+[ 24%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/siphash.cpp.o
+[ 25%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/compact.cpp.o
+[ 26%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/peer.cpp.o
+[ 27%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/addrman.cpp.o
+[ 28%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/transport.cpp.o
+[ 29%] Building CXX object CMakeFiles/oeeoo_core.dir/src/network/node.cpp.o
+[ 30%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/block.cpp.o
+[ 31%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/chain.cpp.o
+[ 32%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/merkle.cpp.o
+[ 33%] Building CXX object CMakeFiles/oeeoo_core.dir/src/blockchain/verify.cpp.o
+[ 34%] Building CXX object CMakeFiles/oeeoo_core.dir/src/db/database.cpp.o
+[ 35%] Building CXX object CMakeFiles/oeeoo_core.dir/src/db/chainstore.cpp.o
+[ 36%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/bip39.cpp.o
+[ 37%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/bip32.cpp.o
+[ 38%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/wallet.cpp.o
+[ 39%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/walletfile.cpp.o
+[ 40%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/txjournal.cpp.o
+[ 41%] Building CXX object CMakeFiles/oeeoo_core.dir/src/wallet/nodewallet.cpp.o
+[ 42%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/json.cpp.o
+[ 43%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/rpcserver.cpp.o
+[ 44%] Building CXX object CMakeFiles/oeeoo_core.dir/src/rpc/stratum.cpp.o
+[ 45%] Building CXX object CMakeFiles/oeeoo_core.dir/src/app/config.cpp.o
+[ 46%] Building CXX object CMakeFiles/oeeoo_core.dir/src/app/genesis.cpp.o
+[ 47%] Building CXX object CMakeFiles/oeeoo_core.dir/src/app/cli.cpp.o
+[ 48%] Linking CXX static library liboeeoo_core.a
+[ 48%] Built target oeeoo_core
+[ 49%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_main.cpp.o
+[ 50%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_amount.cpp.o
+[ 51%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_subsidy.cpp.o
+[ 52%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_crypto.cpp.o
+[ 53%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_block.cpp.o
+[ 54%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_varint.cpp.o
+[ 55%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_transaction.cpp.o
+[ 56%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_merkle.cpp.o
+[ 57%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_address.cpp.o
+[ 58%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_difficulty.cpp.o
+[ 59%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_chain.cpp.o
+[ 60%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_script.cpp.o
+[ 61%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_validation.cpp.o
+[ 62%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_mining.cpp.o
+[ 63%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_network.cpp.o
+[ 64%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_node.cpp.o
+[ 65%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_db.cpp.o
+[ 66%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_wallet.cpp.o
+[ 67%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_vesting.cpp.o
+[ 68%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_rpc.cpp.o
+[ 69%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_stratum.cpp.o
+[ 70%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_reorg.cpp.o
+[ 71%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_verify.cpp.o
+[ 72%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_fuzz.cpp.o
+[ 73%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_config.cpp.o
+[ 74%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_genesis.cpp.o
+[ 75%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_cli.cpp.o
+[ 76%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_dnsseed.cpp.o
+[ 77%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone13.cpp.o
+[ 78%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone14.cpp.o
+[ 79%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone15.cpp.o
+[ 80%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone16a.cpp.o
+[ 81%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone16b.cpp.o
+[ 82%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone16c.cpp.o
+[ 83%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone17a.cpp.o
+[ 84%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone17b.cpp.o
+[ 85%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone18a.cpp.o
+[ 86%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone18b.cpp.o
+[ 87%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone18c.cpp.o
+[ 88%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone20a.cpp.o
+[ 89%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone20b.cpp.o
+[ 90%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone20c.cpp.o
+[ 91%] Building CXX object CMakeFiles/oeeoo_tests.dir/tests/test_milestone20d.cpp.o
+[ 92%] Linking CXX executable oeeoo_tests
+[ 92%] Built target oeeoo_tests
+[ 93%] Building CXX object CMakeFiles/oeeoo_bench.dir/src/bench/bench.cpp.o
+[ 94%] Linking CXX executable oeeoo_bench
+[ 94%] Built target oeeoo_bench
+[ 95%] Building CXX object CMakeFiles/oeeoo-node.dir/src/app/node_main.cpp.o
+[ 96%] Linking CXX executable oeeoo-node
+[ 96%] Built target oeeoo-node
+[ 97%] Building CXX object CMakeFiles/oeeoo-genesis.dir/src/app/genesis_main.cpp.o
+[ 98%] Linking CXX executable oeeoo-genesis
+[ 98%] Built target oeeoo-genesis
+[ 99%] Building CXX object CMakeFiles/oeeoo-cli.dir/src/app/cli_main.cpp.o
+[100%] Linking CXX executable oeeoo-cli
+[100%] Built target oeeoo-cli
+CLEAN_BUILD_EXIT:0
+Sat Nov  7 19:04:35 UTC 2026
+
+Result: exit 0, 0 warnings, 0 errors (grep 'warning:|error:' -> 0).
+
+=== STEP 2: full test suite (./build/oeeoo_tests, serial) ===
+[test] amount / money constants
+[test] subsidy boundaries
+[test] subsidy total issuance = 20,000,000 OEEOO
+[test] sha256 / sha256d test vectors
+[test] block header serialization + hash
+[test] varint encodings
+[test] varint round-trips + rejections
+[test] transaction serialization + txid
+[test] transaction deserialize round-trip + rejections
+[test] transaction CheckBasic rules
+[test] merkle root vectors
+[test] base58check + p2pkh address vectors
+[test] address decode + rejections
+[test] difficulty bits <-> target vectors
+[test] difficulty invalid bits rejected
+[test] difficulty proof-of-work check
+[test] difficulty retarget (mainnet limit 0x1d00ffff)
+[test] difficulty retarget (test limit 0x207fffff)
+[test] difficulty block proof + chain work
+[test] uint256 divide
+[test] block structure: serialize round-trip + CheckBasic
+[test] chain: genesis + 5 blocks, tip + work
+[test] chain: reorg — heavier fork becomes tip
+[test] chain: invalid blocks rejected
+[test] chain: median-time-past rule
+[test] chain: retarget at height 2016
+[test] genesis params: not finalized yet
+[test] script: valid P2PKH spend
+[test] script: P2PKH failures
+[test] script: multisig 2-of-3
+[test] script: CLTV timelock
+[test] script: CSV relative lock
+[test] script: limits and rejections
+[test] validation: valid spend + fee
+[test] validation: missing input, overspend
+[test] validation: locktime finality
+[test] validation: coinbase maturity (100 blocks)
+[test] validation: BIP68 sequence locks
+[test] validation: block connection + double spend
+[test] validation: coinbase outputs enter UTXO set
+[test] utxo: add/spend basics
+[test] mining: coinbase construction + validation
+[test] mining: IsCoinbase + block fees with a real coinbase
+[test] mining: mempool rules
+[test] mining: block template assembly
+[test] mining: nonce search + extraNonce rollover
+[test] mining: mined block accepted by the chain
+[test] network: message framing + checksum
+[test] network: payload codecs
+[test] network: SipHash-2-4 reference vector
+[test] network: compact blocks
+[test] network: peer scoring + bans
+[test] network: address manager
+[test] network: addrman netgroup cap
+[test] network: addrman expiry
+[test] network: addrman failure counting
+[test] node: handshake + tx relay across 3 nodes
+[test] node: block relay (compact) + mempool cleanup
+[test] node: headers-first sync of a fresh node
+[test] node: compact block with missing tx (getblocktxn)
+[test] node: invalid block earns a ban
+[test] node: real TCP handshake (localhost)
+[test] db: open, schema version, tip meta
+[test] db: block + UTXO round-trip
+[test] db: node restart restores state
+[test] db: atomicity — rollback discards, commit keeps
+[test] db: pruning drops bodies, keeps headers + UTXO
+[test] db: corruption is detected, never accepted
+[test] db: peers and bans persist
+[test] db: fork blocks are retained after a reorg
+[test] wallet: BIP39 mnemonic vectors
+[test] wallet: BIP32 test vector 1
+[test] wallet: addresses, balance, gap limit
+[test] wallet: build + sign a payment
+[test] wallet: encrypted wallet file
+[test] vesting: calendar math
+[test] vesting: schedule
+[test] vesting: genesis founder output + spend rule
+[test] vesting: wrong genesis is rejected, disabled is fine
+[test] rpc: minimal JSON
+[test] rpc: server methods + wallet
+[test] rpc: cookie auth
+[test] stratum: subscribe, mine a share, block found
+[test] stratum: low difficulty share is rejected
+[test] reorg: disconnect restores the UTXO set exactly
+[test] reorg: store disconnect rolls the tip back
+[test] reorg: node follows the heavier fork, store follows
+[test] reorg: depth-100 reorg (coinbase-maturity bound)
+[test] verify: a good chain re-validates from genesis
+[test] verify: tampered UTXO set is caught
+[test] verify: pruned history cannot be fully re-validated
+[test] verify: empty store fails
+[test] fuzz: mutated transactions never crash
+[test] fuzz: mutated blocks and headers never crash
+[test] fuzz: mutated JSON never crashes the parser
+[test] fuzz: mutated P2P messages never crash the framer
+[test] fuzz: random scripts never crash the interpreter
+[test] config: file parsing + defaults
+[test] config: file errors
+[test] config: CLI overrides the file
+[test] config: new M13 options
+[test] config: CLI errors + help/version
+[test] genesis: 2-of-3 multisig script
+[test] genesis: build, mine, verify, round-trip
+[test] genesis: a node accepts it as block 0
+[test] cli: calls the local RPC server
+[test] dnsseed: localhost resolves to 127.0.0.1
+[test] dnsseed: unresolvable names fail cleanly
+[test] dnsseed: node queries seeds into the AddrMan
+[test] dnsseed: a node with no seeds adds nothing
+[test] dnsseed: slow resolver times out
+[test] dnsseed: injected fast resolver still works
+[test] dnsseed: normal resolve still works (localhost)
+[test] m13: dust thresholds are dynamic and script-aware
+[test] m13: mempool opt-in RBF
+[test] m13: mempool eviction under pressure
+[test] m13: mempool expiry is enforced by the node
+[test] m13: fee estimator over the last 24 blocks
+[test] m13: long-range supply simulation
+[test] m13: genesis file negatives
+[test] m13: vesting at extreme times
+[test] m13: low-S signatures (BIP62)
+[test] m13: JSON depth limit
+[test] m13: wallet file truncation is rejected
+[test] m13: crash recovery (store never closed)
+[test] m13: genesis identity (file vs store vs checkpoint)
+[test] m13: peer cap is enforced
+[test] m13: transport close is idempotent and safe
+[test] m13: SIGHASH_ALL vector
+[test] m13: handshake rejects old versions and self-connections
+[test] m13: compact header without PoW is ignored, pending entries expire
+[test] m13: addrman cap, IP validation, addr serialization
+[test] m13: loopback close purges peer links
+[test] m13: tcp connect rejects malformed addresses
+[test] m14: node wallet load/lock/unlock lifecycle
+[test] m14: unlock timeout auto-relocks
+[test] m14: locked wallet cannot spend, unlocked can
+[test] m14: RPC wallet methods end to end
+[test] m14: createwallet RPC creates a fresh wallet
+[test] m14: wallet file format unchanged
+[test] m14: coinbase maturity in the wallet
+[test] m15: orphan pool bounds: 100 max, 101st evicts oldest
+[test] m15: orphan pool expiry at 20 minutes
+[test] m15: parent-arrival lookup via the prevout index
+[test] m15: purge on disconnect removes only that peer's orphans
+[test] m15: byte-cap eviction and oversized rejection
+[test] m15: duplicate add and get/remove round-trip
+[test] m15: inbound ban survives reconnect (loopback)
+[test] m15: inbound ban survives reconnect (real TCP)
+[test] m15: eviction picks the worst peer and protects the best
+[test] m15: compact in-flight limit
+[test] m15: getblocktxn depth limit
+[test] m15: getblocktxn retry then full block
+[test] m15: block stalling disconnect
+[test] m15: orphan end-to-end via two nodes
+[test] m15: addrman expiry and failure recording via the node
+[test] m16a: CountSigOps P2PKH, multisig, fallback
+[test] m16a: getchaintips incl forked tip
+[test] m16a: getblockstats hand-computed values
+[test] m16a: getchaintxstats window math
+[test] m16a: getblocktemplate real sigops and fees
+[test] m16a: getblocktemplate bare multisig sigops
+[test] m16b: tx journal round-trip (sidecar file)
+[test] m16b: ScanUtxo populates receive records
+[test] m16b: listtransactions/gettransaction RPC round-trip
+[test] m16b: walletpassphrasechange
+[test] m16b: journal survives lock/unlock cycle
+[test] m16b: migration — wallet without a sidecar
+[test] m16c: rpc work queue full returns HTTP 500, server stays alive
+[test] m16c: rpc pool shutdown is clean with a blocked worker
+[test] m16c: ip-only ban key survives a reconnect from a new ephemeral port (real TCP)
+[test] m16c: loopback bans still work
+[test] m17a: mempool save/load round-trip (Mempool level)
+[test] m17a: load drops expired, invalid, fee-mismatch, chained and malformed entries
+[test] m17a: restart E2E through a real node — same txs and fees after restart
+[test] m17a: savemempool RPC + getmempoolinfo loaded flag
+[test] m17a: persistmempool=0 opt-out — no file written, loaded false
+[test] m17a: invalid tx dropped on load — its input was confirmed meanwhile
+[test] m17a: importmempool round-trip (node + RPC)
+[test] m17b: SIGKILL during a block burst, restart recovers
+  [m17b] burst kill: 57 submit attempts, last acked height 63 (baseline 6)
+  [m17b] burst kill: restart height 63, tip 2906a5ad6b50410f1f1b2420e274a82c137da3f4c2cc7a7be5dcd41619298524
+[test] m17b: SIGKILL during shutdown, restart recovers
+  [m17b] shutdown kill: died by SIGKILL mid-shutdown
+[test] m17b: disk-full (RLIMIT_FSIZE), restart recovers
+  [m17b] disk-full A: node refused to start under a 4 KiB file limit (1 startup-error log line(s)): oeeoo-node: disk I/O error
+  [m17b] disk-full B: chain.db is 57344 bytes after 5 blocks; file-size limit set to 65536
+  [m17b] disk-full B: 1 submits ok under the limit, in-memory height 6 (node reports 6); then a submit failed: submitblock rejected: rejected: failed to persist accepted block: disk I/O error
+  [m17b] disk-full B: restart height 6 (was 6 in-memory); rolled back 0 block(s)
+  [m17b] disk-full B: 0 log line(s) contain "error" in the restart log (first: (none)); 1 "chain store error" warning(s) in the limited run's log (first: oeeoo-node: WARNING: chain store error — accepted blocks may not be durable: disk I/O error)
+  [m17b] disk-full B: OBSERVED (M20) — the limit bit: a submit was rejected on persistence failure and the height stayed at the durable height 6; no rollback was needed (M20 durable-acceptance semantics)
+[test] m18a: config — --addnode flag and addnode key
+[test] m18a: AddManualPeer / RemoveManualPeer (node API)
+[test] m18a: two nodes peer via the outbound dial loop
+[test] m18a: dial loop never dials a banned address
+[test] m18a: a dropped peer can be re-dialed
+[test] m18a: dial loop respects the outbound cap
+[test] m18a: dial loop skips already-connected peers and itself
+[test] m18a: DNS-seed results are dialed
+[test] m18a: dial loop drops a dead address after 3 failures
+[test] m18a: E2E — two stock nodes peer via --addnode, addnode RPC add/remove/onetry
+[test] m18a: E2E — malformed --addnode refuses startup
+[test] m18b: live p2p fuzz — mutated messages into a real node
+[test] m18b: live p2p fuzz — raw byte stream (framing attacks)
+[test] m18b: regression — M18B-R5 OnBytes use-after-free
+[test] m18b: live rpc fuzz — mutated JSON-RPC over HTTP
+[test] m18b: live stratum fuzz — mutated mining.submit lines
+[test] m18b: regressions — fuzzing finds R2/R4 + JSON depth
+[test] m18c: differential subsidy (node vs Python reference)
+[test] m18c: differential difficulty retarget (node vs Python reference)
+[test] m18c: differential vesting (node vs Python reference)
+[test] m18c: differential Merkle + Base58Check (node vs Python reference)
+[test] m18c: two-node agreement on identical inputs
+[test] m18c: block acceptance equivalence node vs standalone ChainState
+[test] m20a: second coinbase at index 1 — rejected at every layer
+  [m20a] CheckBasic rejects 4c918865a3071fee16f9362aeeb6da97c08b18dba54bb0fece1741a9d36fa384: block contains more than one coinbase transaction
+[test] m20a: coinbase at index 1, normal tx at index 0 — rejected
+[test] m20a: second coinbase minting near MAX_MONEY — rejected
+  [m20a] huge second coinbase 61ca70e11c088a9f0c4a2189372ba38018514b95205b3e1ac80c67c06e7b0999 rejected: block contains more than one coinbase transaction
+[test] m20a: valid single-coinbase block still accepted
+[test] m20a: reorg onto a fork with a two-coinbase tip — rejected
+  [m20a] fork tip 4c6a4d08b91a93766adac31d0f9055aaf192849253784c20374ad85b71816f6b rejected: block contains more than one coinbase transaction
+[test] m20a: stored chain with a multi-coinbase block fails full verification
+  [m20a] VerifyChainFromStore rejects poisoned chain: block at height 1 cannot be re-validated: stored block fails structural checks: block contains more than one coinbase transaction
+[test] m20a: live — honest node rejects a malicious peer's multi-coinbase block and bans
+  [m20a] LIVE: malicious block 4c918865a3071fee16f9362aeeb6da97c08b18dba54bb0fece1741a9d36fa384 rejected: block contains more than one coinbase transaction; honest bans=1 peers=0 tip=0
+[test] m20a: miner builds exactly one coinbase; mempool refuses coinbase
+  [m20a] mempool refuses coinbase: missing input
+[test] m20b: disk-full submitblock fails, height stays at durable height
+  [m20b] disk-full (a): chain.db is 57344 bytes after 5 blocks; file-size limit set to 65536
+  [m20b] disk-full (a): first unpersistable submit rejected (rejected: failed to persist accepted block: disk I/O error); durable height 6
+  [m20b] disk-full (a): 1 "chain store error" warning(s) in the limited run's log (first: oeeoo-node: WARNING: chain store error — accepted blocks may not be durable: disk I/O error)
+[test] m20b: closed-store submission fails with no partial state
+[test] m20b: restart after failed submissions recovers at durable height; second node agrees
+  [m20b] restart recovery (c): node A height 4 tip 408903ab994bfc8e8495f1ddfe894e6f391c19d90a367825370fcf3affba118a; node B height 4 tip 408903ab994bfc8e8495f1ddfe894e6f391c19d90a367825370fcf3affba118a — identical
+[test] m20b: RPC submitblock after persistence failure is a rejection
+  [m20b] RPC rejection (d): rejected: failed to persist accepted block: disk I/O error
+[test] m20b: normal submission succeeds and persists
+[test] m20b: reorg under store failure is rejected without adopting
+[test] m20b: relayed coinbase tx is rejected, never orphaned
+[test] milestone20c: SaveWalletFile creates 0600 files (umask 022)
+[test] milestone20c: SaveWalletFile over an existing file keeps 0600 (umask 000)
+[test] milestone20c: atomic save over a pre-existing 0644 file ends 0600 (umask 022)
+[test] milestone20c: atomic save leaves no .tmp behind (umask 022)
+[test] milestone20c: tx journal saves 0600 (additional OOC-003 fix)
+[test] m20d: mainnet and testnet identities differ
+[test] m20d: wire framing uses the active magic, cross-network bytes are rejected
+[test] m20d: a testnet node cannot peer with a mainnet node
+[test] m20d: control — two mainnet nodes DO peer
+[test] m20d: --testnet / network=testnet select testnet, mainnet is the default
+[test] ALL CHECKS PASSED
+SUITE_EXIT:0
+
+Result: ALL CHECKS PASSED (230 sections — 205 prior + 25 new:
+m20a 8, m20b 7, m20c 5, m20d 5), 0 CHECK failures.
+
+=== STEP 3: ctest ===
+Internal ctest changing into directory: /home/hatch/workspace/oeeoo-coin/build
+Test project /home/hatch/workspace/oeeoo-coin/build
+    Start 1: oeeoo_tests
+1/1 Test #1: oeeoo_tests ......................   Passed  281.81 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) = 281.93 sec
+CTEST_EXIT:0
+
+Result: 100% tests passed, 0 failed out of 1 (281.93 s).
+
+=== STEP 4: ASan/UBSan build + full suite (build-asan-m20, ASAN_OPTIONS=detect_leaks=0, no stdbuf) ===
+First ASan run (pid 39620, started 17:25 UTC): KILLED by close-out
+after the §C.1 diagnosis — its m17b/m18a cascade was the banner
+bug (node_main double-temporary UB: ASan build aborted at startup
+with stack-buffer-overflow at node_main.cpp:261, so every real-node
+spawn failed). Superseded, NOT cited as evidence.
+Re-run (launched 17:50 UTC, after the §C.1 fix):
+[test] amount / money constants
+[test] subsidy boundaries
+[test] subsidy total issuance = 20,000,000 OEEOO
+[test] sha256 / sha256d test vectors
+[test] block header serialization + hash
+[test] varint encodings
+[test] varint round-trips + rejections
+[test] transaction serialization + txid
+[test] transaction deserialize round-trip + rejections
+[test] transaction CheckBasic rules
+[test] merkle root vectors
+[test] base58check + p2pkh address vectors
+[test] address decode + rejections
+[test] difficulty bits <-> target vectors
+[test] difficulty invalid bits rejected
+[test] difficulty proof-of-work check
+[test] difficulty retarget (mainnet limit 0x1d00ffff)
+[test] difficulty retarget (test limit 0x207fffff)
+[test] difficulty block proof + chain work
+[test] uint256 divide
+[test] block structure: serialize round-trip + CheckBasic
+[test] chain: genesis + 5 blocks, tip + work
+[test] chain: reorg — heavier fork becomes tip
+[test] chain: invalid blocks rejected
+[test] chain: median-time-past rule
+[test] chain: retarget at height 2016
+[test] genesis params: not finalized yet
+[test] script: valid P2PKH spend
+[test] script: P2PKH failures
+[test] script: multisig 2-of-3
+[test] script: CLTV timelock
+[test] script: CSV relative lock
+[test] script: limits and rejections
+[test] validation: valid spend + fee
+[test] validation: missing input, overspend
+[test] validation: locktime finality
+[test] validation: coinbase maturity (100 blocks)
+[test] validation: BIP68 sequence locks
+[test] validation: block connection + double spend
+[test] validation: coinbase outputs enter UTXO set
+[test] utxo: add/spend basics
+[test] mining: coinbase construction + validation
+[test] mining: IsCoinbase + block fees with a real coinbase
+[test] mining: mempool rules
+[test] mining: block template assembly
+[test] mining: nonce search + extraNonce rollover
+[test] mining: mined block accepted by the chain
+[test] network: message framing + checksum
+[test] network: payload codecs
+[test] network: SipHash-2-4 reference vector
+[test] network: compact blocks
+[test] network: peer scoring + bans
+[test] network: address manager
+[test] network: addrman netgroup cap
+[test] network: addrman expiry
+[test] network: addrman failure counting
+[test] node: handshake + tx relay across 3 nodes
+[test] node: block relay (compact) + mempool cleanup
+[test] node: headers-first sync of a fresh node
+[test] node: compact block with missing tx (getblocktxn)
+[test] node: invalid block earns a ban
+[test] node: real TCP handshake (localhost)
+[test] db: open, schema version, tip meta
+[test] db: block + UTXO round-trip
+[test] db: node restart restores state
+[test] db: atomicity — rollback discards, commit keeps
+[test] db: pruning drops bodies, keeps headers + UTXO
+[test] db: corruption is detected, never accepted
+[test] db: peers and bans persist
+[test] db: fork blocks are retained after a reorg
+[test] wallet: BIP39 mnemonic vectors
+[test] wallet: BIP32 test vector 1
+[test] wallet: addresses, balance, gap limit
+[test] wallet: build + sign a payment
+[test] wallet: encrypted wallet file
+[test] vesting: calendar math
+[test] vesting: schedule
+[test] vesting: genesis founder output + spend rule
+[test] vesting: wrong genesis is rejected, disabled is fine
+[test] rpc: minimal JSON
+[test] rpc: server methods + wallet
+[test] rpc: cookie auth
+[test] stratum: subscribe, mine a share, block found
+[test] stratum: low difficulty share is rejected
+[test] reorg: disconnect restores the UTXO set exactly
+[test] reorg: store disconnect rolls the tip back
+[test] reorg: node follows the heavier fork, store follows
+[test] reorg: depth-100 reorg (coinbase-maturity bound)
+[test] verify: a good chain re-validates from genesis
+[test] verify: tampered UTXO set is caught
+[test] verify: pruned history cannot be fully re-validated
+[test] verify: empty store fails
+[test] fuzz: mutated transactions never crash
+[test] fuzz: mutated blocks and headers never crash
+[test] fuzz: mutated JSON never crashes the parser
+[test] fuzz: mutated P2P messages never crash the framer
+[test] fuzz: random scripts never crash the interpreter
+[test] config: file parsing + defaults
+[test] config: file errors
+[test] config: CLI overrides the file
+[test] config: new M13 options
+[test] config: CLI errors + help/version
+[test] genesis: 2-of-3 multisig script
+[test] genesis: build, mine, verify, round-trip
+[test] genesis: a node accepts it as block 0
+[test] cli: calls the local RPC server
+[test] dnsseed: localhost resolves to 127.0.0.1
+[test] dnsseed: unresolvable names fail cleanly
+[test] dnsseed: node queries seeds into the AddrMan
+[test] dnsseed: a node with no seeds adds nothing
+[test] dnsseed: slow resolver times out
+[test] dnsseed: injected fast resolver still works
+[test] dnsseed: normal resolve still works (localhost)
+[test] m13: dust thresholds are dynamic and script-aware
+[test] m13: mempool opt-in RBF
+[test] m13: mempool eviction under pressure
+[test] m13: mempool expiry is enforced by the node
+[test] m13: fee estimator over the last 24 blocks
+[test] m13: long-range supply simulation
+[test] m13: genesis file negatives
+[test] m13: vesting at extreme times
+[test] m13: low-S signatures (BIP62)
+[test] m13: JSON depth limit
+[test] m13: wallet file truncation is rejected
+[test] m13: crash recovery (store never closed)
+[test] m13: genesis identity (file vs store vs checkpoint)
+[test] m13: peer cap is enforced
+[test] m13: transport close is idempotent and safe
+[test] m13: SIGHASH_ALL vector
+[test] m13: handshake rejects old versions and self-connections
+[test] m13: compact header without PoW is ignored, pending entries expire
+[test] m13: addrman cap, IP validation, addr serialization
+[test] m13: loopback close purges peer links
+[test] m13: tcp connect rejects malformed addresses
+[test] m14: node wallet load/lock/unlock lifecycle
+[test] m14: unlock timeout auto-relocks
+[test] m14: locked wallet cannot spend, unlocked can
+[test] m14: RPC wallet methods end to end
+[test] m14: createwallet RPC creates a fresh wallet
+[test] m14: wallet file format unchanged
+[test] m14: coinbase maturity in the wallet
+[test] m15: orphan pool bounds: 100 max, 101st evicts oldest
+[test] m15: orphan pool expiry at 20 minutes
+[test] m15: parent-arrival lookup via the prevout index
+[test] m15: purge on disconnect removes only that peer's orphans
+[test] m15: byte-cap eviction and oversized rejection
+[test] m15: duplicate add and get/remove round-trip
+[test] m15: inbound ban survives reconnect (loopback)
+[test] m15: inbound ban survives reconnect (real TCP)
+[test] m15: eviction picks the worst peer and protects the best
+[test] m15: compact in-flight limit
+[test] m15: getblocktxn depth limit
+[test] m15: getblocktxn retry then full block
+[test] m15: block stalling disconnect
+[test] m15: orphan end-to-end via two nodes
+[test] m15: addrman expiry and failure recording via the node
+[test] m16a: CountSigOps P2PKH, multisig, fallback
+[test] m16a: getchaintips incl forked tip
+[test] m16a: getblockstats hand-computed values
+[test] m16a: getchaintxstats window math
+[test] m16a: getblocktemplate real sigops and fees
+[test] m16a: getblocktemplate bare multisig sigops
+[test] m16b: tx journal round-trip (sidecar file)
+[test] m16b: ScanUtxo populates receive records
+[test] m16b: listtransactions/gettransaction RPC round-trip
+[test] m16b: walletpassphrasechange
+[test] m16b: journal survives lock/unlock cycle
+[test] m16b: migration — wallet without a sidecar
+[test] m16c: rpc work queue full returns HTTP 500, server stays alive
+[test] m16c: rpc pool shutdown is clean with a blocked worker
+[test] m16c: ip-only ban key survives a reconnect from a new ephemeral port (real TCP)
+[test] m16c: loopback bans still work
+[test] m17a: mempool save/load round-trip (Mempool level)
+[test] m17a: load drops expired, invalid, fee-mismatch, chained and malformed entries
+[test] m17a: restart E2E through a real node — same txs and fees after restart
+[test] m17a: savemempool RPC + getmempoolinfo loaded flag
+[test] m17a: persistmempool=0 opt-out — no file written, loaded false
+[test] m17a: invalid tx dropped on load — its input was confirmed meanwhile
+[test] m17a: importmempool round-trip (node + RPC)
+[test] m17b: SIGKILL during a block burst, restart recovers
+  [m17b] burst kill: 8 submit attempts, last acked height 13 (baseline 6)
+  [m17b] burst kill: restart height 13, tip 4e7271263467e395371738f0f15035180eef7c9ffa7e1b577dfc809e66628010
+[test] m17b: SIGKILL during shutdown, restart recovers
+  [m17b] shutdown kill: died by SIGKILL mid-shutdown
+[test] m17b: disk-full (RLIMIT_FSIZE), restart recovers
+  [m17b] disk-full A: node refused to start under a 4 KiB file limit (1 startup-error log line(s)): oeeoo-node: disk I/O error
+  [m17b] disk-full B: chain.db is 57344 bytes after 5 blocks; file-size limit set to 65536
+  [m17b] disk-full B: 1 submits ok under the limit, in-memory height 6 (node reports 6); then a submit failed: submitblock rejected: rejected: failed to persist accepted block: disk I/O error
+  [m17b] disk-full B: restart height 6 (was 6 in-memory); rolled back 0 block(s)
+  [m17b] disk-full B: 0 log line(s) contain "error" in the restart log (first: (none)); 1 "chain store error" warning(s) in the limited run's log (first: oeeoo-node: WARNING: chain store error — accepted blocks may not be durable: disk I/O error)
+  [m17b] disk-full B: OBSERVED (M20) — the limit bit: a submit was rejected on persistence failure and the height stayed at the durable height 6; no rollback was needed (M20 durable-acceptance semantics)
+[test] m18a: config — --addnode flag and addnode key
+[test] m18a: AddManualPeer / RemoveManualPeer (node API)
+[test] m18a: two nodes peer via the outbound dial loop
+[test] m18a: dial loop never dials a banned address
+[test] m18a: a dropped peer can be re-dialed
+[test] m18a: dial loop respects the outbound cap
+[test] m18a: dial loop skips already-connected peers and itself
+[test] m18a: DNS-seed results are dialed
+[test] m18a: dial loop drops a dead address after 3 failures
+[test] m18a: E2E — two stock nodes peer via --addnode, addnode RPC add/remove/onetry
+[test] m18a: E2E — malformed --addnode refuses startup
+[test] m18b: live p2p fuzz — mutated messages into a real node
+[test] m18b: live p2p fuzz — raw byte stream (framing attacks)
+[test] m18b: regression — M18B-R5 OnBytes use-after-free
+[test] m18b: live rpc fuzz — mutated JSON-RPC over HTTP
+[test] m18b: live stratum fuzz — mutated mining.submit lines
+[test] m18b: regressions — fuzzing finds R2/R4 + JSON depth
+[test] m18c: differential subsidy (node vs Python reference)
+[test] m18c: differential difficulty retarget (node vs Python reference)
+[test] m18c: differential vesting (node vs Python reference)
+[test] m18c: differential Merkle + Base58Check (node vs Python reference)
+[test] m18c: two-node agreement on identical inputs
+[test] m18c: block acceptance equivalence node vs standalone ChainState
+[test] m20a: second coinbase at index 1 — rejected at every layer
+  [m20a] CheckBasic rejects 527526de992faeb070d751e696725867d2098413b834787f5d396795187310b7: block contains more than one coinbase transaction
+[test] m20a: coinbase at index 1, normal tx at index 0 — rejected
+[test] m20a: second coinbase minting near MAX_MONEY — rejected
+  [m20a] huge second coinbase 13c09b1f5f273f9c3820a42241db942a5d990d84191ac9b1482ab27a78515f38 rejected: block contains more than one coinbase transaction
+[test] m20a: valid single-coinbase block still accepted
+[test] m20a: reorg onto a fork with a two-coinbase tip — rejected
+  [m20a] fork tip 05220ebe2aa945ec8846668f10cea8c5706efa408a445f4150b5cfa7552d7f87 rejected: block contains more than one coinbase transaction
+[test] m20a: stored chain with a multi-coinbase block fails full verification
+  [m20a] VerifyChainFromStore rejects poisoned chain: block at height 1 cannot be re-validated: stored block fails structural checks: block contains more than one coinbase transaction
+[test] m20a: live — honest node rejects a malicious peer's multi-coinbase block and bans
+  [m20a] LIVE: malicious block 527526de992faeb070d751e696725867d2098413b834787f5d396795187310b7 rejected: block contains more than one coinbase transaction; honest bans=1 peers=0 tip=0
+[test] m20a: miner builds exactly one coinbase; mempool refuses coinbase
+  [m20a] mempool refuses coinbase: missing input
+[test] m20b: disk-full submitblock fails, height stays at durable height
+  [m20b] disk-full (a): chain.db is 57344 bytes after 5 blocks; file-size limit set to 65536
+  [m20b] disk-full (a): first unpersistable submit rejected (rejected: failed to persist accepted block: disk I/O error); durable height 6
+  [m20b] disk-full (a): 1 "chain store error" warning(s) in the limited run's log (first: oeeoo-node: WARNING: chain store error — accepted blocks may not be durable: disk I/O error)
+[test] m20b: closed-store submission fails with no partial state
+[test] m20b: restart after failed submissions recovers at durable height; second node agrees
+  [m20b] restart recovery (c): node A height 4 tip 4565f95b69ddc52cc61d3e8cb7ceed566fceffb494f38d3198fab5b4d7b15aca; node B height 4 tip 4565f95b69ddc52cc61d3e8cb7ceed566fceffb494f38d3198fab5b4d7b15aca — identical
+[test] m20b: RPC submitblock after persistence failure is a rejection
+  [m20b] RPC rejection (d): rejected: failed to persist accepted block: disk I/O error
+[test] m20b: normal submission succeeds and persists
+[test] m20b: reorg under store failure is rejected without adopting
+[test] m20b: relayed coinbase tx is rejected, never orphaned
+[test] milestone20c: SaveWalletFile creates 0600 files (umask 022)
+[test] milestone20c: SaveWalletFile over an existing file keeps 0600 (umask 000)
+[test] milestone20c: atomic save over a pre-existing 0644 file ends 0600 (umask 022)
+[test] milestone20c: atomic save leaves no .tmp behind (umask 022)
+[test] milestone20c: tx journal saves 0600 (additional OOC-003 fix)
+[test] m20d: mainnet and testnet identities differ
+[test] m20d: wire framing uses the active magic, cross-network bytes are rejected
+[test] m20d: a testnet node cannot peer with a mainnet node
+[test] m20d: control — two mainnet nodes DO peer
+[test] m20d: --testnet / network=testnet select testnet, mainnet is the default
+[test] ALL CHECKS PASSED
+ASAN_SUITE_EXIT:0
+
+Result: ALL CHECKS PASSED (230 sections), exit 0, 0 sanitizer
+errors (no AddressSanitizer / runtime error / LeakSanitizer /
+SUMMARY lines). The live m20a demonstration reproduced under
+ASan with a different block hash (527526de...b7, honest bans=1
+peers=0 tip=0).
+
+=== STEP 5: cppcheck ===
+command: cppcheck --enable=warning,performance,portability --std=c++17 --suppress=missingIncludeSystem -I src src/ tests/
+Checking src/app/cli.cpp ...
+1/102 files checked 0% done
+Checking src/app/cli_main.cpp ...
+2/102 files checked 0% done
+Checking src/app/config.cpp ...
+3/102 files checked 1% done
+Checking src/app/genesis.cpp ...
+4/102 files checked 2% done
+Checking src/app/genesis_main.cpp ...
+5/102 files checked 3% done
+Checking src/app/node_main.cpp ...
+6/102 files checked 4% done
+Checking src/bench/bench.cpp ...
+7/102 files checked 5% done
+Checking src/blockchain/block.cpp ...
+8/102 files checked 5% done
+Checking src/blockchain/chain.cpp ...
+9/102 files checked 6% done
+Checking src/blockchain/merkle.cpp ...
+10/102 files checked 6% done
+Checking src/blockchain/verify.cpp ...
+11/102 files checked 7% done
+Checking src/consensus/difficulty.cpp ...
+12/102 files checked 7% done
+Checking src/consensus/subsidy.cpp ...
+13/102 files checked 7% done
+Checking src/consensus/uint256.cpp ...
+14/102 files checked 8% done
+Checking src/consensus/vesting.cpp ...
+15/102 files checked 8% done
+Checking src/crypto/address.cpp ...
+16/102 files checked 8% done
+Checking src/crypto/base58.cpp ...
+17/102 files checked 9% done
+Checking src/crypto/ecdsa.cpp ...
+18/102 files checked 9% done
+Checking src/crypto/hash160.cpp ...
+19/102 files checked 9% done
+Checking src/crypto/sha256.cpp ...
+20/102 files checked 9% done
+Checking src/db/chainstore.cpp ...
+21/102 files checked 12% done
+Checking src/db/database.cpp ...
+22/102 files checked 12% done
+Checking src/fuzz/fuzz_block.cpp ...
+23/102 files checked 12% done
+Checking src/fuzz/fuzz_compact.cpp ...
+24/102 files checked 12% done
+Checking src/fuzz/fuzz_json.cpp ...
+25/102 files checked 12% done
+Checking src/fuzz/fuzz_p2p.cpp ...
+26/102 files checked 13% done
+Checking src/fuzz/fuzz_script.cpp ...
+27/102 files checked 13% done
+Checking src/fuzz/fuzz_tx.cpp ...
+28/102 files checked 13% done
+Checking src/fuzz/fuzz_wallet.cpp ...
+29/102 files checked 13% done
+Checking src/mempool/feeestimator.cpp ...
+30/102 files checked 13% done
+Checking src/mempool/mempool.cpp ...
+31/102 files checked 14% done
+Checking src/mempool/mempooldump.cpp ...
+32/102 files checked 15% done
+Checking src/mempool/orphan.cpp ...
+33/102 files checked 15% done
+Checking src/mining/miner.cpp ...
+34/102 files checked 16% done
+Checking src/network/addrman.cpp ...
+35/102 files checked 17% done
+Checking src/network/compact.cpp ...
+36/102 files checked 17% done
+Checking src/network/dnsseed.cpp ...
+37/102 files checked 18% done
+Checking src/network/node.cpp ...
+38/102 files checked 24% done
+Checking src/network/peer.cpp ...
+39/102 files checked 24% done
+Checking src/network/protocol.cpp ...
+40/102 files checked 25% done
+Checking src/network/siphash.cpp ...
+41/102 files checked 25% done
+Checking src/network/transport.cpp ...
+42/102 files checked 26% done
+Checking src/rpc/json.cpp ...
+43/102 files checked 27% done
+Checking src/rpc/rpcserver.cpp ...
+44/102 files checked 33% done
+Checking src/rpc/stratum.cpp ...
+45/102 files checked 34% done
+Checking src/script/script.cpp ...
+46/102 files checked 36% done
+Checking src/serialize/varint.cpp ...
+47/102 files checked 37% done
+Checking src/transactions/dust.cpp ...
+48/102 files checked 37% done
+Checking src/transactions/sighash.cpp ...
+49/102 files checked 37% done
+Checking src/transactions/transaction.cpp ...
+50/102 files checked 37% done
+Checking src/transactions/validation.cpp ...
+51/102 files checked 38% done
+Checking src/utxo/coins.cpp ...
+52/102 files checked 38% done
+Checking src/wallet/bip32.cpp ...
+53/102 files checked 39% done
+Checking src/wallet/bip39.cpp ...
+54/102 files checked 40% done
+Checking src/wallet/nodewallet.cpp ...
+55/102 files checked 41% done
+Checking src/wallet/txjournal.cpp ...
+56/102 files checked 41% done
+Checking src/wallet/wallet.cpp ...
+57/102 files checked 43% done
+Checking src/wallet/walletfile.cpp ...
+58/102 files checked 43% done
+Checking tests/fuzz/gen_corpus.cpp ...
+59/102 files checked 44% done
+Checking tests/test_address.cpp ...
+60/102 files checked 44% done
+Checking tests/test_amount.cpp ...
+61/102 files checked 44% done
+Checking tests/test_block.cpp ...
+62/102 files checked 45% done
+Checking tests/test_chain.cpp ...
+63/102 files checked 46% done
+Checking tests/test_cli.cpp ...
+64/102 files checked 46% done
+Checking tests/test_config.cpp ...
+65/102 files checked 46% done
+Checking tests/test_crypto.cpp ...
+66/102 files checked 47% done
+Checking tests/test_db.cpp ...
+67/102 files checked 48% done
+Checking tests/test_difficulty.cpp ...
+68/102 files checked 49% done
+Checking tests/test_dnsseed.cpp ...
+69/102 files checked 49% done
+Checking tests/test_fuzz.cpp ...
+70/102 files checked 50% done
+Checking tests/test_genesis.cpp ...
+71/102 files checked 50% done
+Checking tests/test_main.cpp ...
+72/102 files checked 50% done
+Checking tests/test_merkle.cpp ...
+73/102 files checked 50% done
+Checking tests/test_milestone13.cpp ...
+74/102 files checked 54% done
+Checking tests/test_milestone14.cpp ...
+75/102 files checked 56% done
+Checking tests/test_milestone15.cpp ...
+76/102 files checked 59% done
+Checking tests/test_milestone16a.cpp ...
+77/102 files checked 61% done
+Checking tests/test_milestone16b.cpp ...
+78/102 files checked 63% done
+Checking tests/test_milestone16c.cpp ...
+79/102 files checked 64% done
+Checking tests/test_milestone17a.cpp ...
+80/102 files checked 67% done
+Checking tests/test_milestone17b.cpp ...
+81/102 files checked 69% done
+Checking tests/test_milestone18a.cpp ...
+82/102 files checked 72% done
+Checking tests/test_milestone18b.cpp ...
+83/102 files checked 76% done
+Checking tests/test_milestone18c.cpp ...
+84/102 files checked 78% done
+Checking tests/test_milestone20a.cpp ...
+85/102 files checked 80% done
+Checking tests/test_milestone20b.cpp ...
+86/102 files checked 84% done
+Checking tests/test_milestone20c.cpp ...
+87/102 files checked 85% done
+Checking tests/test_milestone20d.cpp ...
+88/102 files checked 86% done
+Checking tests/test_mining.cpp ...
+89/102 files checked 87% done
+Checking tests/test_network.cpp ...
+90/102 files checked 89% done
+Checking tests/test_node.cpp ...
+91/102 files checked 89% done
+Checking tests/test_reorg.cpp ...
+92/102 files checked 91% done
+Checking tests/test_rpc.cpp ...
+93/102 files checked 92% done
+Checking tests/test_script.cpp ...
+94/102 files checked 93% done
+Checking tests/test_stratum.cpp ...
+95/102 files checked 95% done
+Checking tests/test_subsidy.cpp ...
+96/102 files checked 95% done
+Checking tests/test_transaction.cpp ...
+97/102 files checked 95% done
+Checking tests/test_validation.cpp ...
+98/102 files checked 96% done
+Checking tests/test_varint.cpp ...
+99/102 files checked 96% done
+Checking tests/test_verify.cpp ...
+100/102 files checked 97% done
+Checking tests/test_vesting.cpp ...
+101/102 files checked 98% done
+Checking tests/test_wallet.cpp ...
+102/102 files checked 100% done
+CPPCHECK_EXIT:0
+
+Result: exit 0, 102/102 files, 0 findings.
+
+=== STEP 6: reproducible build (./scripts/reproducible-build.sh, from the docs commit 8102890) ===
+SOURCE_DATE_EPOCH=1794074540
+REPRODUCIBLE: all three binaries are byte-identical across two builds
+REPRODUCIBLE: archive is byte-identical across two builds
+release package: oeeoo-coin-0.1.0.tar.gz
+c28a6bf19816300d1f0b52b8539c8cd25cfde3defc64dbbd877985ae62290858  oeeoo-coin-0.1.0.tar.gz
+REPRO_EXIT:0
+
+Release checksums (release-0.1.0/checksums.txt):
+  oeeoo-node    3f27ef2fba81636d3feeea43e74a9424f6090a4124a3aabb032c980e4292f49e
+  oeeoo-genesis 93399de794c7e07f45d6595923c68f0b0fb1c400ea8ba5fabf94b09c63aeb59a
+  oeeoo-cli     6b7a71af340d018930e53498844f7cf0b67f48b3aabaaadad06395c505fac2bb (unchanged from M18/M19)
+Tarball oeeoo-coin-0.1.0.tar.gz (958,209 bytes):
+  c28a6bf19816300d1f0b52b8539c8cd25cfde3defc64dbbd877985ae62290858
+SOURCE.txt: 8102890ce0eac9353f891224084113ee6a845d6a
+Result: REPRODUCIBLE — binaries AND archive byte-identical.
+
+====================================================================
+PART 2 — FIRST COORDINATOR'S RUN (retained verbatim as evidence)
+====================================================================
+The first coordinator's suite run (normal build, pre-close-out),
+as found in logs/milestone20-test-log.txt when close-out began.
+It ended ALL CHECKS PASSED with the m20a/m20b/m20c/m20d sections.
+The close-out runs in PART 1 re-prove everything from the fixed
+tree (including the two close-out fixes in §C.1/§C.2).
+--------------------------------------------------------------------
+[test] amount / money constants
+[test] subsidy boundaries
+[test] subsidy total issuance = 20,000,000 OEEOO
+[test] sha256 / sha256d test vectors
+[test] block header serialization + hash
+[test] varint encodings
+[test] varint round-trips + rejections
+[test] transaction serialization + txid
+[test] transaction deserialize round-trip + rejections
+[test] transaction CheckBasic rules
+[test] merkle root vectors
+[test] base58check + p2pkh address vectors
+[test] address decode + rejections
+[test] difficulty bits <-> target vectors
+[test] difficulty invalid bits rejected
+[test] difficulty proof-of-work check
+[test] difficulty retarget (mainnet limit 0x1d00ffff)
+[test] difficulty retarget (test limit 0x207fffff)
+[test] difficulty block proof + chain work
+[test] uint256 divide
+[test] block structure: serialize round-trip + CheckBasic
+[test] chain: genesis + 5 blocks, tip + work
+[test] chain: reorg — heavier fork becomes tip
+[test] chain: invalid blocks rejected
+[test] chain: median-time-past rule
+[test] chain: retarget at height 2016
+[test] genesis params: not finalized yet
+[test] script: valid P2PKH spend
+[test] script: P2PKH failures
+[test] script: multisig 2-of-3
+[test] script: CLTV timelock
+[test] script: CSV relative lock
+[test] script: limits and rejections
+[test] validation: valid spend + fee
+[test] validation: missing input, overspend
+[test] validation: locktime finality
+[test] validation: coinbase maturity (100 blocks)
+[test] validation: BIP68 sequence locks
+[test] validation: block connection + double spend
+[test] validation: coinbase outputs enter UTXO set
+[test] utxo: add/spend basics
+[test] mining: coinbase construction + validation
+[test] mining: IsCoinbase + block fees with a real coinbase
+[test] mining: mempool rules
+[test] mining: block template assembly
+[test] mining: nonce search + extraNonce rollover
+[test] mining: mined block accepted by the chain
+[test] network: message framing + checksum
+[test] network: payload codecs
+[test] network: SipHash-2-4 reference vector
+[test] network: compact blocks
+[test] network: peer scoring + bans
+[test] network: address manager
+[test] network: addrman netgroup cap
+[test] network: addrman expiry
+[test] network: addrman failure counting
+[test] node: handshake + tx relay across 3 nodes
+[test] node: block relay (compact) + mempool cleanup
+[test] node: headers-first sync of a fresh node
+[test] node: compact block with missing tx (getblocktxn)
+[test] node: invalid block earns a ban
+[test] node: real TCP handshake (localhost)
+[test] db: open, schema version, tip meta
+[test] db: block + UTXO round-trip
+[test] db: node restart restores state
+[test] db: atomicity — rollback discards, commit keeps
+[test] db: pruning drops bodies, keeps headers + UTXO
+[test] db: corruption is detected, never accepted
+[test] db: peers and bans persist
+[test] db: fork blocks are retained after a reorg
+[test] wallet: BIP39 mnemonic vectors
+[test] wallet: BIP32 test vector 1
+[test] wallet: addresses, balance, gap limit
+[test] wallet: build + sign a payment
+[test] wallet: encrypted wallet file
+[test] vesting: calendar math
+[test] vesting: schedule
+[test] vesting: genesis founder output + spend rule
+[test] vesting: wrong genesis is rejected, disabled is fine
+[test] rpc: minimal JSON
+[test] rpc: server methods + wallet
+[test] rpc: cookie auth
+[test] stratum: subscribe, mine a share, block found
+[test] stratum: low difficulty share is rejected
+[test] reorg: disconnect restores the UTXO set exactly
+[test] reorg: store disconnect rolls the tip back
+[test] reorg: node follows the heavier fork, store follows
+[test] reorg: depth-100 reorg (coinbase-maturity bound)
+[test] verify: a good chain re-validates from genesis
+[test] verify: tampered UTXO set is caught
+[test] verify: pruned history cannot be fully re-validated
+[test] verify: empty store fails
+[test] fuzz: mutated transactions never crash
+[test] fuzz: mutated blocks and headers never crash
+[test] fuzz: mutated JSON never crashes the parser
+[test] fuzz: mutated P2P messages never crash the framer
+[test] fuzz: random scripts never crash the interpreter
+[test] config: file parsing + defaults
+[test] config: file errors
+[test] config: CLI overrides the file
+[test] config: new M13 options
+[test] config: CLI errors + help/version
+[test] genesis: 2-of-3 multisig script
+[test] genesis: build, mine, verify, round-trip
+[test] genesis: a node accepts it as block 0
+[test] cli: calls the local RPC server
+[test] dnsseed: localhost resolves to 127.0.0.1
+[test] dnsseed: unresolvable names fail cleanly
+[test] dnsseed: node queries seeds into the AddrMan
+[test] dnsseed: a node with no seeds adds nothing
+[test] dnsseed: slow resolver times out
+[test] dnsseed: injected fast resolver still works
+[test] dnsseed: normal resolve still works (localhost)
+[test] m13: dust thresholds are dynamic and script-aware
+[test] m13: mempool opt-in RBF
+[test] m13: mempool eviction under pressure
+[test] m13: mempool expiry is enforced by the node
+[test] m13: fee estimator over the last 24 blocks
+[test] m13: long-range supply simulation
+[test] m13: genesis file negatives
+[test] m13: vesting at extreme times
+[test] m13: low-S signatures (BIP62)
+[test] m13: JSON depth limit
+[test] m13: wallet file truncation is rejected
+[test] m13: crash recovery (store never closed)
+[test] m13: genesis identity (file vs store vs checkpoint)
+[test] m13: peer cap is enforced
+[test] m13: transport close is idempotent and safe
+[test] m13: SIGHASH_ALL vector
+[test] m13: handshake rejects old versions and self-connections
+[test] m13: compact header without PoW is ignored, pending entries expire
+[test] m13: addrman cap, IP validation, addr serialization
+[test] m13: loopback close purges peer links
+[test] m13: tcp connect rejects malformed addresses
+[test] m14: node wallet load/lock/unlock lifecycle
+[test] m14: unlock timeout auto-relocks
+[test] m14: locked wallet cannot spend, unlocked can
+[test] m14: RPC wallet methods end to end
+[test] m14: createwallet RPC creates a fresh wallet
+[test] m14: wallet file format unchanged
+[test] m14: coinbase maturity in the wallet
+[test] m15: orphan pool bounds: 100 max, 101st evicts oldest
+[test] m15: orphan pool expiry at 20 minutes
+[test] m15: parent-arrival lookup via the prevout index
+[test] m15: purge on disconnect removes only that peer's orphans
+[test] m15: byte-cap eviction and oversized rejection
+[test] m15: duplicate add and get/remove round-trip
+[test] m15: inbound ban survives reconnect (loopback)
+[test] m15: inbound ban survives reconnect (real TCP)
+[test] m15: eviction picks the worst peer and protects the best
+[test] m15: compact in-flight limit
+[test] m15: getblocktxn depth limit
+[test] m15: getblocktxn retry then full block
+[test] m15: block stalling disconnect
+[test] m15: orphan end-to-end via two nodes
+[test] m15: addrman expiry and failure recording via the node
+[test] m16a: CountSigOps P2PKH, multisig, fallback
+[test] m16a: getchaintips incl forked tip
+[test] m16a: getblockstats hand-computed values
+[test] m16a: getchaintxstats window math
+[test] m16a: getblocktemplate real sigops and fees
+[test] m16a: getblocktemplate bare multisig sigops
+[test] m16b: tx journal round-trip (sidecar file)
+[test] m16b: ScanUtxo populates receive records
+[test] m16b: listtransactions/gettransaction RPC round-trip
+[test] m16b: walletpassphrasechange
+[test] m16b: journal survives lock/unlock cycle
+[test] m16b: migration — wallet without a sidecar
+[test] m16c: rpc work queue full returns HTTP 500, server stays alive
+[test] m16c: rpc pool shutdown is clean with a blocked worker
+[test] m16c: ip-only ban key survives a reconnect from a new ephemeral port (real TCP)
+[test] m16c: loopback bans still work
+[test] m17a: mempool save/load round-trip (Mempool level)
+[test] m17a: load drops expired, invalid, fee-mismatch, chained and malformed entries
+[test] m17a: restart E2E through a real node — same txs and fees after restart
+[test] m17a: savemempool RPC + getmempoolinfo loaded flag
+[test] m17a: persistmempool=0 opt-out — no file written, loaded false
+[test] m17a: invalid tx dropped on load — its input was confirmed meanwhile
+[test] m17a: importmempool round-trip (node + RPC)
+[test] m17b: SIGKILL during a block burst, restart recovers
+  [m17b] burst kill: 74 submit attempts, last acked height 80 (baseline 6)
+  [m17b] burst kill: restart height 80, tip 7c5502095962e15c74957f05ea1faad952c51376132aa9722fe7af8f3a01dffb
+[test] m17b: SIGKILL during shutdown, restart recovers
+  [m17b] shutdown kill: died by SIGKILL mid-shutdown
+[test] m17b: disk-full (RLIMIT_FSIZE), restart recovers
+  [m17b] disk-full A: node refused to start under a 4 KiB file limit (1 startup-error log line(s)): oeeoo-node: disk I/O error
+  [m17b] disk-full B: chain.db is 57344 bytes after 5 blocks; file-size limit set to 65536
+  [m17b] disk-full B: 1 submits ok under the limit, in-memory height 6 (node reports 6); then a submit failed: submitblock rejected: rejected: failed to persist accepted block: disk I/O error
+  [m17b] disk-full B: restart height 6 (was 6 in-memory); rolled back 0 block(s)
+  [m17b] disk-full B: 0 log line(s) contain "error" in the restart log (first: (none)); 1 "chain store error" warning(s) in the limited run's log (first: oeeoo-node: WARNING: chain store error — accepted blocks may not be durable: disk I/O error)
+  [m17b] disk-full B: NOTE — the limit never bit (all 6 in-memory blocks were persisted); disk-full behaviour was NOT observed in this run
+[test] m18a: config — --addnode flag and addnode key
+[test] m18a: AddManualPeer / RemoveManualPeer (node API)
+[test] m18a: two nodes peer via the outbound dial loop
+[test] m18a: dial loop never dials a banned address
+[test] m18a: a dropped peer can be re-dialed
+[test] m18a: dial loop respects the outbound cap
+[test] m18a: dial loop skips already-connected peers and itself
+[test] m18a: DNS-seed results are dialed
+[test] m18a: dial loop drops a dead address after 3 failures
+[test] m18a: E2E — two stock nodes peer via --addnode, addnode RPC add/remove/onetry
+[test] m18a: E2E — malformed --addnode refuses startup
+[test] m18b: live p2p fuzz — mutated messages into a real node
+[test] m18b: live p2p fuzz — raw byte stream (framing attacks)
+[test] m18b: regression — M18B-R5 OnBytes use-after-free
+[test] m18b: live rpc fuzz — mutated JSON-RPC over HTTP
+[test] m18b: live stratum fuzz — mutated mining.submit lines
+[test] m18b: regressions — fuzzing finds R2/R4 + JSON depth
+[test] m18c: differential subsidy (node vs Python reference)
+[test] m18c: differential difficulty retarget (node vs Python reference)
+[test] m18c: differential vesting (node vs Python reference)
+[test] m18c: differential Merkle + Base58Check (node vs Python reference)
+[test] m18c: two-node agreement on identical inputs
+[test] m18c: block acceptance equivalence node vs standalone ChainState
+[test] m20a: second coinbase at index 1 — rejected at every layer
+  [m20a] CheckBasic rejects 30fd68b3cb600b5c0966c347162314925b01a9bf89fabe78249042516f165aa7: block contains more than one coinbase transaction
+[test] m20a: coinbase at index 1, normal tx at index 0 — rejected
+[test] m20a: second coinbase minting near MAX_MONEY — rejected
+  [m20a] huge second coinbase 59cad27288978b96e1a75c0c58ade53d4f133222f9f58b912db8bcd75f8dca98 rejected: block contains more than one coinbase transaction
+[test] m20a: valid single-coinbase block still accepted
+[test] m20a: reorg onto a fork with a two-coinbase tip — rejected
+  [m20a] fork tip 407f68194406874b6eb50ef6d939ec8c8140b59518e52124c165a07c978b2ad3 rejected: block contains more than one coinbase transaction
+[test] m20a: stored chain with a multi-coinbase block fails full verification
+  [m20a] VerifyChainFromStore rejects poisoned chain: block at height 1 cannot be re-validated: stored block fails structural checks: block contains more than one coinbase transaction
+[test] m20a: live — honest node rejects a malicious peer's multi-coinbase block and bans
+  [m20a] LIVE: malicious block 30fd68b3cb600b5c0966c347162314925b01a9bf89fabe78249042516f165aa7 rejected: block contains more than one coinbase transaction; honest bans=1 peers=0 tip=0
+[test] m20a: miner builds exactly one coinbase; mempool refuses coinbase
+  [m20a] mempool refuses coinbase: missing input
+[test] m20b: disk-full submitblock fails, height stays at durable height
+  [m20b] disk-full (a): chain.db is 57344 bytes after 5 blocks; file-size limit set to 65536
+  [m20b] disk-full (a): first unpersistable submit rejected (rejected: failed to persist accepted block: disk I/O error); durable height 6
+  [m20b] disk-full (a): 1 "chain store error" warning(s) in the limited run's log (first: oeeoo-node: WARNING: chain store error — accepted blocks may not be durable: disk I/O error)
+[test] m20b: closed-store submission fails with no partial state
+[test] m20b: restart after failed submissions recovers at durable height; second node agrees
+  [m20b] restart recovery (c): node A height 4 tip 5ebf545faa1baa3dd7162c08f7afc50623441ecf5e16e5515e902d35bd8fe76d; node B height 4 tip 5ebf545faa1baa3dd7162c08f7afc50623441ecf5e16e5515e902d35bd8fe76d — identical
+[test] m20b: RPC submitblock after persistence failure is a rejection
+  [m20b] RPC rejection (d): rejected: failed to persist accepted block: disk I/O error
+[test] m20b: normal submission succeeds and persists
+[test] m20b: reorg under store failure is rejected without adopting
+[test] m20b: relayed coinbase tx is rejected, never orphaned
+[test] milestone20c: SaveWalletFile creates 0600 files (umask 022)
+[test] milestone20c: SaveWalletFile over an existing file keeps 0600 (umask 000)
+[test] milestone20c: atomic save over a pre-existing 0644 file ends 0600 (umask 022)
+[test] milestone20c: atomic save leaves no .tmp behind (umask 022)
+[test] milestone20c: tx journal saves 0600 (additional OOC-003 fix)
+[test] m20d: mainnet and testnet identities differ
+[test] m20d: wire framing uses the active magic, cross-network bytes are rejected
+[test] m20d: a testnet node cannot peer with a mainnet node
+[test] m20d: control — two mainnet nodes DO peer
+[test] m20d: --testnet / network=testnet select testnet, mainnet is the default
+[test] ALL CHECKS PASSED
+
+====================================================================
+CLOSING SUMMARY
+====================================================================
+- Clean build: exit 0, 0 warnings, 0 errors.
+- Full suite: ALL CHECKS PASSED (230 sections).
+- ctest: 100% tests passed, 0 failed out of 1 (281.93 s).
+- ASan/UBSan: ALL CHECKS PASSED (230 sections), exit 0, 0 errors.
+- cppcheck: 0 findings (102/102 files).
+- Reproducible build: REPRODUCIBLE (binaries + archive).
+- Live multi-coinbase demo: malicious block rejected, sender banned
+  (honest bans=1, peers=0, tip=0) — auditor's OOC-001 release
+  condition demonstrated.
+- Disk-full submit: rejected upfront, height at durable height 6.
+- Wallet 0600: verified under umask 022 and 000.
+- Network identity: mainnet/testnet differ; cross-network peering
+  impossible; mainnet default.
+- Verdict: NOT READY (genesis unapproved; auditor confirmation +
+  second crypto/consensus audit pending).
